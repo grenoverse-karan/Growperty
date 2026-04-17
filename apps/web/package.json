@@ -5,10 +5,9 @@
   "private": true,
   "scripts": {
     "dev": "vite --host :: --port 3000",
-    "build": "build": "node ./node_modules/vite/bin/vite.js build",
-    "start": "vite preview --outDir ../../dist/apps/web --host :: --port 3000",
-    "lint": "eslint . --quiet",
-    "lint:warn": "eslint ."
+    "build": "vite build",
+    "start": "vite preview --host :: --port 3000",
+    "lint": "eslint . --quiet"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
