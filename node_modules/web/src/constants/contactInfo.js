@@ -1,0 +1,2 @@
+export const PLATFORM_PHONE = '9891117876';
+export const PLATFORM_WHATSAPP = '919891117876';
