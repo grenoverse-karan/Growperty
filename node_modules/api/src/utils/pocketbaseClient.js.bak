@@ -1,0 +1,11 @@
+// DEPRECATED - This file is no longer used
+// All PocketBase HTTP requests have been inlined into route handlers
+// using axios with proper error handling and 5-second timeouts
+//
+// Migration completed: All imports of pocketbaseClient.js have been removed
+// and replaced with inline pbGet(), pbPost(), pbPut(), pbPatch() functions
+// in the respective route files:
+// - apps/api/src/routes/admin.js
+// - apps/api/src/routes/properties.js
+//
+// This file is kept as a backup reference only and should NOT be imported

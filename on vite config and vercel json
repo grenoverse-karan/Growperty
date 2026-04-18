@@ -1,0 +1,19 @@
+warning: in the working copy of 'apps/web/package.json', LF will be replaced by CRLF the next time Git touches it
+[1mdiff --git a/apps/web/package.json b/apps/web/package.json[m
+[1mindex e2115142..5f350e1e 100644[m
+[1m--- a/apps/web/package.json[m
+[1m+++ b/apps/web/package.json[m
+[36m@@ -5,10 +5,9 @@[m
+   "private": true,[m
+   "scripts": {[m
+     "dev": "vite --host :: --port 3000",[m
+[31m-    "build": "build": "node ./node_modules/vite/bin/vite.js build",[m
+[31m-    "start": "vite preview --outDir ../../dist/apps/web --host :: --port 3000",[m
+[31m-    "lint": "eslint . --quiet",[m
+[31m-    "lint:warn": "eslint ."[m
+[32m+[m[32m    "build": "vite build",[m
+[32m+[m[32m    "start": "vite preview --host :: --port 3000",[m
+[32m+[m[32m    "lint": "eslint . --quiet"[m
+   },[m
+   "dependencies": {[m
+     "@hookform/resolvers": "^5.2.2",[m
