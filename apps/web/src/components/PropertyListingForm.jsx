@@ -1,8 +1,7 @@
-
+import pb from '@/lib/pocketbase';
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
-import pb from '@/lib/pocketbaseClient.js';
 import { Input } from '@/components/ui/input.jsx';
 import { Label } from '@/components/ui/label.jsx';
 import { Button } from '@/components/ui/button.jsx';
@@ -210,6 +209,23 @@ const PropertyListingForm = () => {
 
   // --- Submit ---
   const handleSubmit = async (e) => {
+  e.preventDefault();
+
+  const data = {
+  title: formData.propertyType || "Property",
+  price: Number(formData.totalPrice) || 0,
+  location: `${formData.city || ""} ${formData.sector || ""}`,
+  description: formData.description || "Good property"
+};
+
+  try {
+    await pb.collection('properties').create(data);
+    alert("Property Added ✅");
+  } catch (error) {
+    console.error(error);
+    alert("Error ❌");
+  }
+};
     e.preventDefault();
     
     if (!currentUser?.id) {
@@ -286,16 +302,20 @@ const PropertyListingForm = () => {
       logPropertyPayload(payload, 'PropertyListingForm Submission');
 
       // Submit to PocketBase
-      const record = await pb.collection('properties').create(payload, { $autoCancel: false });
-
+      const data = {
+      title: formData.propertyType || "2BHK Flat",
+      price: formData.totalPrice || 0,
+      location: `${formData.city} Sector ${formData.sector}`,
+      description: formData.description || "Good property",
+      };
+     
       console.log('✅ Property created successfully. Record ID:', record.id);
 
       // If video exists, upload it using FormData in an update call
       if (formData.video) {
         const formObj = new FormData();
         formObj.append('videos', formData.video);
-        await pb.collection('properties').update(record.id, formObj, { $autoCancel: false });
-        console.log('✅ Video uploaded successfully');
+               console.log('✅ Video uploaded successfully');
       }
       
       toast({ title: 'Success', description: 'Property listed successfully and is pending approval.' });
@@ -330,16 +350,40 @@ const PropertyListingForm = () => {
     </button>
   );
 
-  const CounterBlock = ({ label, value, onDecrement, onIncrement }) => (
+  const CounterBlock = ({ label, value, onDecrement, onIncrement }) => {
+  return (
     <div className="flex flex-col items-center p-3 border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50 dark:bg-slate-900/50 w-full">
-      <span className="text-sm font-bold text-slate-700 dark:text-slate-300 mb-3 text-center">{label}</span>
+      
+      <span className="text-sm font-bold text-slate-700 dark:text-slate-300 mb-3 text-center">
+        {label}
+      </span>
+
       <div className="flex items-center gap-4">
-        <button type="button" onClick={onDecrement} className="w-8 h-8 rounded-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-700 dark:text-slate-300 hover:border-[#10B981] hover:text-[#10B981] transition-colors"><Minus className="w-4 h-4" /></button>
-        <span className="font-extrabold w-6 text-center text-lg">{value}</span>
-        <button type="button" onClick={onIncrement} className="w-8 h-8 rounded-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-700 dark:text-slate-300 hover:border-[#10B981] hover:text-[#10B981] transition-colors"><Plus className="w-4 h-4" /></button>
+        
+        <button
+          type="button"
+          onClick={onDecrement}
+          className="w-8 h-8 rounded-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-700 dark:text-slate-300 hover:border-[#10B981] hover:text-[#10B981] transition-colors"
+        >
+          <Minus className="w-4 h-4" />
+        </button>
+
+        <span className="font-extrabold w-6 text-center text-lg">
+          {value}
+        </span>
+
+        <button
+          type="button"
+          onClick={onIncrement}
+          className="w-8 h-8 rounded-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-700 dark:text-slate-300 hover:border-[#10B981] hover:text-[#10B981] transition-colors"
+        >
+          <Plus className="w-4 h-4" />
+        </button>
+
       </div>
     </div>
   );
+
 
   return (
     <div className="w-full bg-slate-50 dark:bg-[#0a0a0a] min-h-screen py-8 md:py-12">

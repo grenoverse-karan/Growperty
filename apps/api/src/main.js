@@ -34,8 +34,10 @@ process.on('SIGTERM', async () => {
 
 app.use(helmet());
 app.use(cors({
-  origin: process.env.CORS_ORIGIN,
+  origin: ['http://localhost:3000', 'http://127.0.0.1:3000'],
   credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
 app.use(morgan('combined'));
 app.use(express.json({ limit: '50mb' }));
