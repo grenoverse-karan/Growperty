@@ -7,6 +7,7 @@ import morgan from 'morgan';
 import routes from './routes/index.js';
 import { errorMiddleware } from './middleware/index.js';
 import logger from './utils/logger.js';
+import { connectMongoDB } from './utils/mongodb.js';
 
 const app = express();
 
@@ -41,6 +42,11 @@ app.use(morgan('combined'));
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
+app.use((req, res, next) => {
+  console.log(`[REQUEST] ${req.method} ${req.path}`);
+  next();
+});
+
 app.use('/api', routes());
 
 app.use(errorMiddleware);
@@ -51,13 +57,20 @@ app.use((req, res) => {
 
 const port = process.env.PORT || 3001;
 
-app.listen(port, () => {
-  logger.info(`🚀 API Server running on http://localhost:${port}`);
-  logger.info('Server startup completed successfully', {
-    port,
-    env: process.env.NODE_ENV,
-    timestamp: new Date().toISOString(),
+connectMongoDB()
+  .then(() => {
+    app.listen(port, () => {
+      logger.info(`🚀 API Server running on http://localhost:${port}`);
+      logger.info('Server startup completed successfully', {
+        port,
+        env: process.env.NODE_ENV,
+        timestamp: new Date().toISOString(),
+      });
+    });
+  })
+  .catch((err) => {
+    logger.error('Failed to connect to MongoDB, server not started:', err.message);
+    process.exit(1);
   });
-});
 
 export default app;

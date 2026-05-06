@@ -63,13 +63,15 @@ export const AdminAuthProvider = ({ children }) => {
         throw new Error(data.error || 'Invalid email or password');
       }
 
-      if (data.success && data.token) {
+      console.log('[AdminAuthContext] login response:', data);
+
+      if (data.token) {
         localStorage.setItem('adminToken', data.token);
         localStorage.setItem('adminData', JSON.stringify(data.admin));
         
         setToken(data.token);
         setCurrentAdmin(data.admin);
-        setCurrentAdminId(data.admin.id);
+        setCurrentAdminId(data.admin?.id || null);
         setIsAdminAuthenticated(true);
         
         toast.success('Welcome back, Admin');

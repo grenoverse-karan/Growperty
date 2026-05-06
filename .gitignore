@@ -1,0 +1,17 @@
+node_modules
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# PocketBase data & binary
+apps/pocketbase/pb_data/
+apps/pocketbase/pocketbase
+
+# Build output
+dist/
+build/
+
+# OS
+.DS_Store

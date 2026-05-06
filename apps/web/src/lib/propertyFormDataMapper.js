@@ -11,7 +11,7 @@ const AREA_UNITS = ['Sq.ft', 'Sq.yd', 'Sq.m'];
 const AREA_TYPES = ['Carpet Area', 'Built-up Area', 'Super Built-up Area'];
 const FURNISHING_TYPES = ['Unfurnished', 'Semi-Furnished', 'Fully Furnished'];
 const POSSESSION_STATUS = ['Ready to Move', 'Under Construction', 'Possession Soon'];
-const OWNERSHIP_TYPES = ['Individual', 'Company', 'Joint'];
+const OWNERSHIP_TYPES = ['Lease Hold', 'Free Hold', 'Kisan Kota', 'Power of Attorney'];
 const PLOT_TYPES = ['Lease Hold', 'Free Hold', 'Kisan Kota'];
 const PROPERTY_AGE = ['0-1 Year', '1-5 Years', '5-10 Years', '10+ Years'];
 

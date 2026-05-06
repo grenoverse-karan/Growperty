@@ -2,15 +2,15 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
-import pb from '@/lib/pocketbaseClient.js';
+import apiServerClient from '@/lib/apiServerClient.js';
 import { Input } from '@/components/ui/input.jsx';
 import { Label } from '@/components/ui/label.jsx';
 import { Button } from '@/components/ui/button.jsx';
 import { Textarea } from '@/components/ui/textarea.jsx';
 import { Checkbox } from '@/components/ui/checkbox.jsx';
-import { Loader2, UploadCloud, X, Plus, Minus, Info } from 'lucide-react';
+import { Loader2, UploadCloud, X, Plus, Minus, Info, Image as ImageIcon } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext.jsx';
-import { sanitizePropertyFormData, logPropertyPayload, logPocketBaseError, extractPocketBaseErrorMessage } from '@/lib/propertyFormDataMapper.js';
+import { sanitizePropertyFormData, logPropertyPayload } from '@/lib/propertyFormDataMapper.js';
 
 // --- Constants (Strictly matching PocketBase Schema) ---
 const PROPERTY_TYPES = ['Flat/Apartment', 'Independent House', 'Villa', 'Penthouse', 'Plot/Land', 'Commercial'];
@@ -39,8 +39,8 @@ const NEARBY_AMENITIES = ['Market', 'Mall', 'Public Park', 'Temple', 'School & H
 const PropertyListingForm = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
-  const { currentUser } = useAuth();
-  const fileInputRef = useRef(null);
+  const { currentUser, whatsappPhone } = useAuth();
+  const imageInputRef = useRef(null);
 
   // --- State ---
   const [formData, setFormData] = useState({
@@ -78,7 +78,8 @@ const PropertyListingForm = () => {
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [videoPreview, setVideoPreview] = useState(null);
+  const [images, setImages] = useState([]); // [{ id, file, preview }]
+  const [isCompressing, setIsCompressing] = useState(false);
 
   useEffect(() => {
     if (currentUser) {
@@ -86,10 +87,10 @@ const PropertyListingForm = () => {
         ...prev,
         name: prev.name || currentUser.name || '',
         email: prev.email || currentUser.email || '',
-        mobileNumber: prev.mobileNumber || currentUser.phone || ''
+        mobileNumber: prev.mobileNumber || currentUser.phone || currentUser.phoneNumber || whatsappPhone || ''
       }));
     }
-  }, [currentUser]);
+  }, [currentUser, whatsappPhone]);
 
   // --- Helpers ---
   const handleSelect = (field, value) => {
@@ -151,24 +152,89 @@ const PropertyListingForm = () => {
     });
   };
 
-  const handleVideoUpload = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    
-    if (file.size > 100 * 1024 * 1024) {
-      toast({ title: 'File too large', description: 'Video must be under 100MB', variant: 'destructive' });
+  const MAX_IMAGES = 20;
+  const MAX_SIZE_BYTES = 1024 * 1024; // 1MB
+
+  const compressImage = (file) =>
+    new Promise((resolve) => {
+      if (file.size <= MAX_SIZE_BYTES) { resolve(file); return; }
+
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+
+      img.onload = () => {
+        URL.revokeObjectURL(url);
+
+        let { width, height } = img;
+        const MAX_DIM = 1920;
+        if (width > MAX_DIM || height > MAX_DIM) {
+          const ratio = Math.min(MAX_DIM / width, MAX_DIM / height);
+          width = Math.round(width * ratio);
+          height = Math.round(height * ratio);
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+
+        let quality = 0.85;
+        const tryCompress = () => {
+          canvas.toBlob((blob) => {
+            if (!blob) { resolve(file); return; }
+            if (blob.size <= MAX_SIZE_BYTES || quality <= 0.1) {
+              resolve(new File([blob], file.name, { type: 'image/jpeg', lastModified: Date.now() }));
+            } else {
+              quality = Math.max(0.1, quality - 0.1);
+              tryCompress();
+            }
+          }, 'image/jpeg', quality);
+        };
+        tryCompress();
+      };
+
+      img.onerror = () => { URL.revokeObjectURL(url); resolve(file); };
+      img.src = url;
+    });
+
+  const handleImageUpload = async (e) => {
+    const incoming = Array.from(e.target.files || []);
+    if (!incoming.length) return;
+
+    const remaining = MAX_IMAGES - images.length;
+    if (remaining <= 0) {
+      toast({ title: 'Limit reached', description: `Maximum ${MAX_IMAGES} images allowed.`, variant: 'destructive' });
+      if (imageInputRef.current) imageInputRef.current.value = '';
       return;
     }
 
-    setFormData(prev => ({ ...prev, video: file }));
-    setVideoPreview(URL.createObjectURL(file));
+    const accepted = incoming.slice(0, remaining);
+    if (incoming.length > remaining) {
+      toast({ title: 'Some images skipped', description: `Only ${remaining} more image(s) can be added.`, variant: 'destructive' });
+    }
+
+    setIsCompressing(true);
+    try {
+      const processed = await Promise.all(
+        accepted.map(async (file, i) => {
+          const compressed = await compressImage(file);
+          const preview = URL.createObjectURL(compressed);
+          return { id: `${Date.now()}-${i}`, file: compressed, preview };
+        })
+      );
+      setImages(prev => [...prev, ...processed]);
+    } finally {
+      setIsCompressing(false);
+      if (imageInputRef.current) imageInputRef.current.value = '';
+    }
   };
 
-  const removeVideo = () => {
-    setFormData(prev => ({ ...prev, video: null }));
-    if (videoPreview) URL.revokeObjectURL(videoPreview);
-    setVideoPreview(null);
-    if (fileInputRef.current) fileInputRef.current.value = '';
+  const removeImage = (id) => {
+    setImages(prev => {
+      const img = prev.find(i => i.id === id);
+      if (img) URL.revokeObjectURL(img.preview);
+      return prev.filter(i => i.id !== id);
+    });
   };
 
   // --- Computations ---
@@ -211,16 +277,21 @@ const PropertyListingForm = () => {
   // --- Submit ---
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+    console.log('🚀 handleSubmit triggered', { currentUser: currentUser?.id, termsAccepted: formData.termsAccepted, propertyType: formData.propertyType });
+
     if (!currentUser?.id) {
+      console.log('❌ STOP: No currentUser.id — user not authenticated');
       toast({ title: 'Authentication Required', description: 'Please log in to list a property.', variant: 'destructive' });
       return;
     }
+    console.log('✅ Auth check passed — user:', currentUser.id);
 
     if (!formData.termsAccepted) {
+      console.log('❌ STOP: termsAccepted is false');
       toast({ title: 'Terms Required', description: 'You must accept the Terms & Conditions.', variant: 'destructive' });
       return;
     }
+    console.log('✅ Terms accepted');
 
     setIsSubmitting(true);
 
@@ -266,15 +337,18 @@ const PropertyListingForm = () => {
         ownerType: 'Individual',
         status: 'pending'
       };
+      console.log('✅ rawFormData built:', rawFormData);
 
       // Sanitize and validate
       const sanitizationResult = sanitizePropertyFormData(rawFormData, formData.propertyType);
+      console.log('✅ sanitizationResult:', sanitizationResult);
 
       if (!sanitizationResult.success) {
-        toast({ 
-          title: 'Validation Error', 
-          description: sanitizationResult.error, 
-          variant: 'destructive' 
+        console.log('❌ STOP: Validation failed —', sanitizationResult.error);
+        toast({
+          title: 'Validation Error',
+          description: sanitizationResult.error,
+          variant: 'destructive'
         });
         setIsSubmitting(false);
         return;
@@ -282,32 +356,46 @@ const PropertyListingForm = () => {
 
       const payload = sanitizationResult.data;
 
-      // Log the sanitized payload
+      // Convert images to base64 (max 10 to stay within MongoDB 16MB doc limit)
+      if (images.length > 0) {
+        const toBase64 = (file) => new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result);
+          reader.onerror = () => resolve(null);
+          reader.readAsDataURL(file);
+        });
+        const base64Images = await Promise.all(
+          images.slice(0, 10).map(img => toBase64(img.file))
+        );
+        payload.images = base64Images.filter(Boolean);
+      }
+
+      console.log('✅ Payload ready, calling API...', { imageCount: payload.images?.length || 0 });
       logPropertyPayload(payload, 'PropertyListingForm Submission');
 
-      // Submit to PocketBase
-      const record = await pb.collection('properties').create(payload, { $autoCancel: false });
+      // Submit to MongoDB via Express API
+      const response = await apiServerClient.fetch('/properties', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
 
-      console.log('✅ Property created successfully. Record ID:', record.id);
+      const result = await response.json().catch(() => ({}));
 
-      // If video exists, upload it using FormData in an update call
-      if (formData.video) {
-        const formObj = new FormData();
-        formObj.append('videos', formData.video);
-        await pb.collection('properties').update(record.id, formObj, { $autoCancel: false });
-        console.log('✅ Video uploaded successfully');
+      if (!response.ok) {
+        throw new Error(result.message || `Server error: ${response.status}`);
       }
-      
+
+      console.log('✅ Property created successfully. Record ID:', result.propertyId);
+
       toast({ title: 'Success', description: 'Property listed successfully and is pending approval.' });
       navigate('/properties');
     } catch (error) {
-      logPocketBaseError(error, 'PropertyListingForm Submission Error');
-      const errorMessage = extractPocketBaseErrorMessage(error);
-      
-      toast({ 
-        title: 'Submission Failed', 
-        description: errorMessage, 
-        variant: 'destructive' 
+      console.log('❌ CATCH block hit:', error?.message, error);
+      toast({
+        title: 'Submission Failed',
+        description: error?.message || 'Something went wrong. Please try again.',
+        variant: 'destructive'
       });
     } finally {
       setIsSubmitting(false);
@@ -696,34 +784,80 @@ const PropertyListingForm = () => {
             </div>
           </div>
 
-          {/* (15) PROPERTY VIDEO & DESCRIPTION */}
+          {/* (15) IMAGES & DESCRIPTION */}
           <div className="bg-white dark:bg-slate-950 rounded-2xl p-6 md:p-8 shadow-sm border border-slate-200 dark:border-slate-800 space-y-6">
             <Label className="text-lg font-bold text-slate-900 dark:text-white block border-b border-slate-100 dark:border-slate-800 pb-3">11. Media & Description</Label>
-            
+
+            {/* Image Upload */}
             <div className="space-y-3">
-              <Label className="text-sm font-bold text-slate-700 dark:text-slate-300">Property Video (Max 1)</Label>
-              {!videoPreview ? (
-                <button type="button" onClick={() => fileInputRef.current?.click()} className="w-full h-32 rounded-xl border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-[#10B981] hover:bg-[#10B981]/5 flex flex-col items-center justify-center gap-2 text-slate-500 transition-colors">
-                  <UploadCloud className="h-8 w-8" />
-                  <span className="text-sm font-bold">Upload Video (MP4, Max 100MB)</span>
+              <div className="flex items-center justify-between">
+                <Label className="text-sm font-bold text-slate-700 dark:text-slate-300">Property Images</Label>
+                <span className={`text-xs font-bold px-2 py-1 rounded-full ${images.length >= MAX_IMAGES ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'}`}>
+                  {images.length}/{MAX_IMAGES} images selected
+                </span>
+              </div>
+
+              {/* Upload area */}
+              {images.length < MAX_IMAGES && (
+                <button
+                  type="button"
+                  onClick={() => imageInputRef.current?.click()}
+                  disabled={isCompressing}
+                  className="w-full h-32 rounded-xl border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-[#10B981] hover:bg-[#10B981]/5 flex flex-col items-center justify-center gap-2 text-slate-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isCompressing ? (
+                    <>
+                      <Loader2 className="h-8 w-8 animate-spin text-[#10B981]" />
+                      <span className="text-sm font-bold text-[#10B981]">Compressing images…</span>
+                    </>
+                  ) : (
+                    <>
+                      <UploadCloud className="h-8 w-8" />
+                      <span className="text-sm font-bold">Upload Images (JPG, PNG, WEBP · Max 20)</span>
+                      <span className="text-xs text-slate-400">Images over 1MB are auto-compressed</span>
+                    </>
+                  )}
                 </button>
-              ) : (
-                <div className="relative w-full max-w-sm rounded-xl overflow-hidden border border-slate-200 bg-black aspect-video">
-                  <video src={videoPreview} controls className="w-full h-full object-contain" />
-                  <button type="button" onClick={removeVideo} className="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white p-1.5 rounded-full shadow-lg transition-colors">
-                    <X className="h-4 w-4" />
-                  </button>
+              )}
+              <input
+                type="file"
+                ref={imageInputRef}
+                onChange={handleImageUpload}
+                accept="image/jpeg,image/png,image/webp"
+                multiple
+                className="hidden"
+              />
+
+              {/* Previews */}
+              {images.length > 0 && (
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 pt-1">
+                  {images.map((img) => (
+                    <div key={img.id} className="relative group rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 aspect-square bg-slate-100 dark:bg-slate-900">
+                      <img
+                        src={img.preview}
+                        alt=""
+                        className="w-full h-full object-cover"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => removeImage(img.id)}
+                        className="absolute top-1.5 right-1.5 bg-red-500 hover:bg-red-600 text-white p-1 rounded-full shadow opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
+                  ))}
                 </div>
               )}
-              <input type="file" ref={fileInputRef} onChange={handleVideoUpload} accept="video/mp4,video/quicktime" className="hidden" />
             </div>
 
+            {/* Description */}
             <div className="space-y-3">
               <Label className="text-sm font-bold text-slate-700 dark:text-slate-300">Description</Label>
-              <Textarea 
-                name="description" 
-                value={formData.description} 
-                onChange={handleInputChange} 
+              <Textarea
+                name="description"
+                value={formData.description}
+                onChange={handleInputChange}
                 placeholder="Describe what makes your property special. (Note: Phone numbers will be hidden for privacy)"
                 className="min-h-[150px] rounded-xl resize-none bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800"
               />
@@ -781,7 +915,7 @@ const PropertyListingForm = () => {
           <Button 
             type="submit" 
             className="w-full h-16 text-lg font-extrabold rounded-2xl bg-[#10B981] hover:bg-emerald-600 text-white shadow-xl shadow-emerald-500/20 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed" 
-            disabled={!formData.termsAccepted || isSubmitting}
+            disabled={isSubmitting}
           >
             {isSubmitting ? (
               <>
