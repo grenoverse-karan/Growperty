@@ -1,4 +1,4 @@
-const API_SERVER_URL = "https://growperty.onrender.com/api";
+const API_SERVER_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
 
 const apiServerClient = {
     fetch: async (url, options = {}) => {

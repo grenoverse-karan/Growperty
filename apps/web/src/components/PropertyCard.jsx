@@ -6,23 +6,25 @@ import { Badge } from '@/components/ui/badge';
 import { Bed, MapPin, ShieldCheck, Bath, Phone, MessageCircle } from 'lucide-react';
 import { formatIndianPrice } from '@/hooks/useProperties.js';
 import { getFilteredAddress } from '@/lib/contentFilteringUtils.js';
-import pb from '@/lib/pocketbaseClient';
 import { PLATFORM_PHONE, PLATFORM_WHATSAPP } from '@/constants/contactInfo.js';
 
+const PLACEHOLDER = 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=800&q=80';
+
 const PropertyCard = ({ property }) => {
-  const formattedPrice = formatIndianPrice(property.price);
+  const formattedPrice = formatIndianPrice(property.totalPrice || property.price);
   const displayAddress = getFilteredAddress(property);
-  
-  let imageUrl = 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=800&q=80';
-  
-  try {
-    if (property.images && Array.isArray(property.images) && property.images.length > 0) {
-      imageUrl = pb.files.getUrl(property, property.images[0]);
-    } else if (property.images && typeof property.images === 'string') {
-      imageUrl = pb.files.getUrl(property, property.images);
-    }
-  } catch (e) {
-    console.error(`[PropertyCard] Error generating image URL for property ${property.id}:`, e);
+  const title = property.propertyType
+    ? `${property.bhk ? property.bhk + ' ' : ''}${property.propertyType}`
+    : property.name || property.title || 'Untitled Property';
+  const bedrooms = property.bhk ? parseInt(property.bhk) || 0 : (property.bedrooms || 0);
+
+  let imageUrl = PLACEHOLDER;
+  const firstImage = Array.isArray(property.images) && property.images.length > 0
+    ? property.images[0]
+    : (typeof property.images === 'string' ? property.images : null);
+
+  if (firstImage) {
+    imageUrl = firstImage; // base64 data URL or any URL
   }
 
   return (
@@ -32,9 +34,7 @@ const PropertyCard = ({ property }) => {
           src={imageUrl}
           alt={property.title || 'Property Image'}
           className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-          onError={(e) => {
-            e.target.src = 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=800&q=80';
-          }}
+          onError={(e) => { e.target.src = PLACEHOLDER; }}
         />
         <div className="absolute inset-0 bg-gradient-to-t from-slate-950/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
         
@@ -60,7 +60,7 @@ const PropertyCard = ({ property }) => {
         </div>
         
         <h3 className="text-xl font-bold text-foreground mb-2 leading-snug line-clamp-2" style={{ textWrap: 'balance' }}>
-          {property.title || 'Untitled Property'}
+          {title}
         </h3>
         
         <div className="flex items-baseline gap-2 mb-6">
@@ -70,13 +70,13 @@ const PropertyCard = ({ property }) => {
         </div>
 
         <div className="grid grid-cols-2 gap-4 py-4 border-t border-border/60">
-          {property.bedrooms > 0 && (
+          {bedrooms > 0 && (
             <div className="flex items-center gap-3">
               <div className="p-2 bg-primary/10 rounded-lg">
                 <Bed className="h-5 w-5 text-primary" />
               </div>
               <div>
-                <p className="text-sm font-bold text-foreground">{property.bedrooms} BHK</p>
+                <p className="text-sm font-bold text-foreground">{bedrooms} BHK</p>
                 <p className="text-xs text-muted-foreground font-medium">Bedrooms</p>
               </div>
             </div>

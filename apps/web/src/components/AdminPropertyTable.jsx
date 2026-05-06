@@ -258,7 +258,7 @@ const AdminPropertyTable = ({ refreshTrigger }) => {
                         </button>
                       </TableCell>
                       <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
-                        {formatDate(property.created_at || property.created)}
+                        {formatDate(property.createdAt || property.created_at || property.created)}
                       </TableCell>
                       <TableCell>
                         <div className="h-12 w-16 rounded-lg bg-slate-100 dark:bg-slate-800 overflow-hidden shrink-0 border border-border/50 flex items-center justify-center">
@@ -274,10 +274,10 @@ const AdminPropertyTable = ({ refreshTrigger }) => {
                         </div>
                       </TableCell>
                       <TableCell className="text-sm font-bold text-slate-900 dark:text-white">
-                        {property.ownerName || property.owner?.name || 'Unknown Owner'}
+                        {property.name || property.ownerName || property.owner?.name || 'Unknown Owner'}
                       </TableCell>
                       <TableCell className="text-sm text-muted-foreground">
-                        {property.ownerMobileNumber || property.ownerPhone || property.owner?.phone || 'No Phone'}
+                        {property.mobileNumber || property.ownerMobileNumber || property.ownerPhone || property.owner?.phone || 'No Phone'}
                       </TableCell>
                       <TableCell className="text-sm font-medium text-slate-700 dark:text-slate-300">
                         {property.propertyType || 'Unspecified'}
@@ -289,7 +289,7 @@ const AdminPropertyTable = ({ refreshTrigger }) => {
                         {getStatusBadge(property.status)}
                       </TableCell>
                       <TableCell>
-                        <AdminPropertyActions property={property} />
+                        <AdminPropertyActions property={property} onStatusChange={fetchProperties} />
                       </TableCell>
                     </TableRow>
                   ))
