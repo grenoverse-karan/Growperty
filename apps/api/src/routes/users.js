@@ -2,7 +2,8 @@ import express from 'express';
 import User from '../models/User.js';
 import { verifyToken } from '../utils/jwt.js';
 import { connectMongoDB } from '../utils/mongodb.js';
-import { sendTemplateAsync } from '../utils/whatsappTemplates.js';
+import { sendTemplateAsync, sendTemplateMessage } from '../utils/whatsappTemplates.js';
+import logger from '../utils/logger.js';
 
 const router = express.Router();
 
@@ -29,11 +30,27 @@ router.patch('/me', authenticate, async (req, res) => {
   await connectMongoDB();
   const { name, city, role } = req.body;
 
+  logger.info('[PATCH /users/me] Request received', { userId: req.userId, body: { name, city, role } });
+
   const existing = await User.findById(req.userId).select('name phone');
-  if (!existing) return res.status(404).json({ error: 'User not found' });
+  if (!existing) {
+    logger.warn('[PATCH /users/me] User not found', { userId: req.userId });
+    return res.status(404).json({ error: 'User not found' });
+  }
 
   const hadNoName = !existing.name || existing.name.trim() === '';
-  const settingName = name && name.trim() !== '';
+  const settingName = !!(name && name.trim() !== '');
+
+  logger.info('[PATCH /users/me] sign_up trigger check', {
+    userId: req.userId,
+    existingName: existing.name || '(empty)',
+    hadNoName,
+    incomingName: name || '(not provided)',
+    settingName,
+    hasPhone: !!existing.phone,
+    phone: existing.phone || '(none)',
+    willTrigger: hadNoName && settingName && !!existing.phone,
+  });
 
   const update = {};
   if (name !== undefined) update.name = name.trim();
@@ -41,11 +58,27 @@ router.patch('/me', authenticate, async (req, res) => {
   if (role && ['buyer', 'seller'].includes(role)) update.role = role;
 
   const user = await User.findByIdAndUpdate(req.userId, update, { new: true }).select('-passwordHash');
+  logger.info('[PATCH /users/me] User updated in DB', { userId: req.userId, updatedFields: Object.keys(update) });
 
   // Send sign_up welcome message the first time a user sets their name
   if (hadNoName && settingName && existing.phone) {
-    sendTemplateAsync(existing.phone, 'sign_up', {
+    logger.info('[PATCH /users/me] Triggering sign_up WhatsApp template', {
+      phone: existing.phone,
       userName: name.trim(),
+    });
+
+    const result = await sendTemplateMessage(existing.phone, 'sign_up', {
+      userName: name.trim(),
+    });
+
+    logger.info('[PATCH /users/me] sign_up template result', {
+      success: result.success,
+      messageId: result.messageId,
+      error: result.error,
+    });
+  } else {
+    logger.info('[PATCH /users/me] sign_up NOT triggered', {
+      reason: !hadNoName ? 'user already had a name' : !settingName ? 'no name in request' : 'no phone number',
     });
   }
 

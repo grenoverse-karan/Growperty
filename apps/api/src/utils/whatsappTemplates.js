@@ -114,10 +114,11 @@ function normalizePhone(phone) {
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 // ── Core sender (single attempt) ─────────────────────────────────
-async function sendOnce(to, templateName, parameters) {
+async function sendOnce(to, templateName, parameters, attempt) {
   const tpl = TEMPLATES[templateName];
   if (!tpl) throw new Error(`Unknown template: "${templateName}"`);
 
+  const components = tpl.buildComponents(parameters);
   const body = {
     messaging_product: 'whatsapp',
     to,
@@ -125,9 +126,18 @@ async function sendOnce(to, templateName, parameters) {
     template: {
       name: tpl.name,
       language: { code: tpl.language },
-      components: tpl.buildComponents(parameters),
+      components,
     },
   };
+
+  logger.info(`[WA] → API call`, {
+    attempt,
+    url: API_URL,
+    template: tpl.name,
+    language: tpl.language,
+    to,
+    components: JSON.stringify(components),
+  });
 
   const res = await fetch(API_URL, {
     method: 'POST',
@@ -140,8 +150,26 @@ async function sendOnce(to, templateName, parameters) {
 
   const json = await res.json();
 
+  logger.info(`[WA] ← API response`, {
+    attempt,
+    template: tpl.name,
+    to,
+    status: res.status,
+    ok: res.ok,
+    body: JSON.stringify(json),
+  });
+
   if (!res.ok) {
     const errMsg = json?.error?.message || `HTTP ${res.status}`;
+    logger.error(`[WA] API error`, {
+      template: tpl.name,
+      to,
+      status: res.status,
+      errorCode: json?.error?.code,
+      errorType: json?.error?.type,
+      errorMessage: errMsg,
+      fullError: JSON.stringify(json?.error),
+    });
     throw new Error(errMsg);
   }
 
@@ -165,33 +193,50 @@ async function sendOnce(to, templateName, parameters) {
  * });
  */
 export async function sendTemplateMessage(recipientPhone, templateName, parameters = {}) {
+  logger.info(`[WA] sendTemplateMessage called`, { templateName, recipientPhone, parameters });
+
   if (!WHATSAPP_TOKEN || !PHONE_NUMBER_ID) {
-    logger.warn('[WA Template] Credentials missing — skipping', { templateName });
+    logger.error('[WA] MISSING CREDENTIALS — WHATSAPP_TOKEN or PHONE_NUMBER_ID not set', {
+      hasToken: !!WHATSAPP_TOKEN,
+      hasPhoneNumberId: !!PHONE_NUMBER_ID,
+      templateName,
+    });
     return { success: false, messageId: null, error: 'WhatsApp credentials not configured' };
   }
 
+  if (!TEMPLATES[templateName]) {
+    logger.error(`[WA] Unknown template name: "${templateName}"`, {
+      availableTemplates: Object.keys(TEMPLATES),
+    });
+    return { success: false, messageId: null, error: `Unknown template: "${templateName}"` };
+  }
+
   const to = normalizePhone(recipientPhone);
+  logger.info(`[WA] Normalized phone`, { raw: recipientPhone, normalized: to });
+
   let lastError = null;
 
   for (let attempt = 1; attempt <= RETRY_ATTEMPTS; attempt++) {
     try {
-      const messageId = await sendOnce(to, templateName, parameters);
-
-      logger.info('[WA Template] Sent', { templateName, to, messageId, attempt });
+      const messageId = await sendOnce(to, templateName, parameters, attempt);
+      logger.info(`[WA] ✅ Success`, { templateName, to, messageId, attempt });
       return { success: true, messageId, error: null };
     } catch (err) {
       lastError = err.message;
-      logger.warn(`[WA Template] Attempt ${attempt}/${RETRY_ATTEMPTS} failed`, {
+      logger.warn(`[WA] ❌ Attempt ${attempt}/${RETRY_ATTEMPTS} failed`, {
         templateName,
         to,
         error: lastError,
       });
-
-      if (attempt < RETRY_ATTEMPTS) await sleep(RETRY_DELAY_MS * attempt);
+      if (attempt < RETRY_ATTEMPTS) {
+        const delay = RETRY_DELAY_MS * attempt;
+        logger.info(`[WA] Retrying in ${delay}ms...`);
+        await sleep(delay);
+      }
     }
   }
 
-  logger.error('[WA Template] All retries exhausted', { templateName, to, error: lastError });
+  logger.error('[WA] All retries exhausted', { templateName, to, error: lastError });
   return { success: false, messageId: null, error: lastError };
 }
 
@@ -200,9 +245,14 @@ export async function sendTemplateMessage(recipientPhone, templateName, paramete
  * Logs failures but never throws.
  */
 export function sendTemplateAsync(recipientPhone, templateName, parameters = {}) {
-  setImmediate(() => {
-    sendTemplateMessage(recipientPhone, templateName, parameters).catch((err) => {
-      logger.error('[WA Template] Async send error', { error: err.message });
+  logger.info(`[WA] sendTemplateAsync queued`, { templateName, recipientPhone });
+  setImmediate(async () => {
+    const result = await sendTemplateMessage(recipientPhone, templateName, parameters).catch((err) => {
+      logger.error('[WA] sendTemplateAsync uncaught error', { error: err.message });
+      return { success: false, error: err.message };
     });
+    if (!result.success) {
+      logger.error('[WA] sendTemplateAsync final failure', { templateName, recipientPhone, error: result.error });
+    }
   });
 }
