@@ -1,175 +1,95 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import pb from '@/lib/pocketbaseClient';
+import { flushSync } from 'react-dom';
 import { toast } from 'sonner';
+import apiServerClient from '@/lib/apiServerClient.js';
 
 const AuthContext = createContext();
+
+const TOKEN_KEY = 'growperty_token';
 
 export const useAuth = () => useContext(AuthContext);
 
 export const AuthProvider = ({ children }) => {
-  const [currentUser, setCurrentUser] = useState(pb.authStore.model);
+  const [currentUser, setCurrentUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [whatsappPhone, setWhatsappPhone] = useState(null);
 
   useEffect(() => {
-    console.log('[AuthContext] Initializing auth state. Valid:', pb.authStore.isValid);
-    
-    const unsubscribe = pb.authStore.onChange((token, model) => {
-      console.log('[AuthContext] Auth state changed. New model ID:', model?.id);
-      setCurrentUser(model);
-    });
-
-    setIsLoading(false);
-
-    return () => {
-      unsubscribe();
-    };
+    const token = localStorage.getItem(TOKEN_KEY);
+    if (!token) {
+      setIsLoading(false);
+      return;
+    }
+    apiServerClient
+      .fetch('/users/me', { headers: { Authorization: `Bearer ${token}` } })
+      .then((r) => r.json())
+      .then((user) => {
+        if (user._id) setCurrentUser(user);
+        else localStorage.removeItem(TOKEN_KEY);
+      })
+      .catch(() => localStorage.removeItem(TOKEN_KEY))
+      .finally(() => setIsLoading(false));
   }, []);
 
+  const getToken = () => localStorage.getItem(TOKEN_KEY);
+
   const login = async (email, password) => {
-    try {
-      const authData = await pb.collection('users').authWithPassword(email, password);
-      setCurrentUser(authData.record);
-      toast.success('Logged in successfully');
-      return authData;
-    } catch (error) {
-      console.error('Login error:', error);
-      toast.error(error.message || 'Failed to log in. Please check your credentials.');
-      throw error;
+    const res = await apiServerClient.fetch('/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      toast.error(data.error || 'Invalid credentials');
+      throw new Error(data.error);
     }
+    localStorage.setItem(TOKEN_KEY, data.token);
+    setCurrentUser(data.user);
+    toast.success('Logged in successfully');
+    return data;
   };
 
-  const signup = async (data) => {
-    try {
-      const record = await pb.collection('users').create({
-        email: data.email,
-        password: data.password,
-        passwordConfirm: data.passwordConfirm,
-        name: data.name,
-        role: data.role || 'buyer',
-      });
-
-      await pb.collection('users').requestVerification(data.email);
-      
-      toast.success('Account created! Please check your email to verify.');
-      return record;
-    } catch (error) {
-      console.error('Signup error:', error);
-      toast.error(error.message || 'Failed to create account.');
-      throw error;
+  const signup = async (formData) => {
+    const res = await apiServerClient.fetch('/auth/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(formData),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      toast.error(data.error || 'Failed to create account');
+      throw new Error(data.error);
     }
+    localStorage.setItem(TOKEN_KEY, data.token);
+    setCurrentUser(data.user);
+    toast.success('Account created successfully!');
+    return data;
   };
 
   const logout = () => {
-    console.log('[AuthContext] Logging out user');
-    pb.authStore.clear();
+    localStorage.removeItem(TOKEN_KEY);
     setCurrentUser(null);
-    setWhatsappPhone(null);
     toast.success('Logged out successfully');
   };
 
-  const resetPassword = async (email) => {
-    try {
-      await pb.collection('users').requestPasswordReset(email);
-      toast.success('Password reset email sent.');
-    } catch (error) {
-      console.error('Password reset error:', error);
-      toast.error('Failed to send password reset email.');
-      throw error;
-    }
-  };
+  const updateCurrentUser = (updatedUser) => setCurrentUser(updatedUser);
 
-  const verifyEmail = async (token) => {
-    try {
-      await pb.collection('users').confirmVerification(token);
-      toast.success('Email verified successfully!');
-    } catch (error) {
-      console.error('Verification error:', error);
-      toast.error('Invalid or expired verification token.');
-      throw error;
-    }
-  };
-
-  const loginWithGoogle = () => {
-    console.log('[AuthContext] Initiating Google OAuth2 login...');
-    return pb.collection('users').authWithOAuth2({ provider: 'google' })
-      .then((authData) => {
-        console.log('[AuthContext] Google OAuth2 successful. User ID:', authData.record.id);
-        setCurrentUser(authData.record);
-        toast.success('Logged in with Google');
-        return authData;
-      })
-      .catch((error) => {
-        console.error('[AuthContext] Google login error:', error);
-        toast.error('Failed to log in with Google.');
-        throw error;
-      });
-  };
-
-  const loginWithFacebook = () => {
-    console.log('[AuthContext] Initiating Facebook OAuth2 login...');
-    return pb.collection('users').authWithOAuth2({ provider: 'facebook' })
-      .then((authData) => {
-        console.log('[AuthContext] Facebook OAuth2 successful. User ID:', authData.record.id);
-        setCurrentUser(authData.record);
-        toast.success('Logged in with Facebook');
-        return authData;
-      })
-      .catch((error) => {
-        console.error('[AuthContext] Facebook login error:', error);
-        toast.error('Failed to log in with Facebook.');
-        throw error;
-      });
-  };
-
-  const handleWhatsAppLoginSuccess = async (phone) => {
-    try {
-      setWhatsappPhone(phone);
-      
-      // Simulate PocketBase login for WhatsApp users using a deterministic email
-      const email = `${phone}@whatsapp.local`;
-      const password = `wa-${phone}-secret-key-123`; // In production, use a secure backend method
-      
-      let authData;
-      try {
-        authData = await pb.collection('users').authWithPassword(email, password);
-      } catch (e) {
-        // User doesn't exist, create them
-        await pb.collection('users').create({
-          email,
-          password,
-          passwordConfirm: password,
-          name: '',
-          phone: phone, // Attempt to save phone if schema allows
-        });
-        authData = await pb.collection('users').authWithPassword(email, password);
-      }
-
-      // Attach phone to currentUser object for easy access
-      const userWithPhone = { ...authData.record, phone: phone };
-      setCurrentUser(userWithPhone);
-      
-      // Check if profile is complete
-      const isProfileComplete = !!(authData.record.name && authData.record.city);
-      
-      return { success: true, isProfileComplete, user: userWithPhone };
-    } catch (error) {
-      console.error('WhatsApp PB login error:', error);
-      throw error;
-    }
+  const handleWhatsAppLoginSuccess = ({ token, user, isProfileComplete }) => {
+    localStorage.setItem(TOKEN_KEY, token);
+    // flushSync guarantees currentUser is set before navigate() runs,
+    // preventing ProtectedRoute from seeing isAuthenticated:false
+    flushSync(() => setCurrentUser(user));
+    return { isProfileComplete, user };
   };
 
   const value = {
     currentUser,
     isLoading,
-    whatsappPhone,
+    getToken,
     login,
     signup,
     logout,
-    resetPassword,
-    verifyEmail,
-    loginWithGoogle,
-    loginWithFacebook,
+    updateCurrentUser,
     handleWhatsAppLoginSuccess,
     isAuthenticated: !!currentUser,
     isSeller: currentUser?.role === 'seller',

@@ -1,13 +1,40 @@
 import express from 'express';
 import Property from '../models/Property.js';
 import logger from '../utils/logger.js';
+import { verifyToken } from '../utils/jwt.js';
+import { sendTemplateAsync } from '../utils/whatsappTemplates.js';
 
 const router = express.Router();
+
+const optionalAuth = (req, res, next) => {
+  const auth = req.headers.authorization;
+  if (auth?.startsWith('Bearer ')) {
+    try {
+      const payload = verifyToken(auth.slice(7));
+      req.userId = payload.sub;
+    } catch { /* ignore invalid token */ }
+  }
+  next();
+};
+
+const requireAuth = (req, res, next) => {
+  const auth = req.headers.authorization;
+  if (!auth?.startsWith('Bearer '))
+    return res.status(401).json({ success: false, message: 'Login required to list a property.' });
+  try {
+    const payload = verifyToken(auth.slice(7));
+    req.userId = payload.sub || payload.email || 'admin';
+    req.isAdmin = payload.role === 'admin';
+    next();
+  } catch {
+    res.status(401).json({ success: false, message: 'Invalid or expired token. Please log in again.' });
+  }
+};
 
 const requiredFields = [
   'owner_id', 'propertyType', 'city', 'sector', 'houseNo',
   'totalPrice', 'totalArea', 'areaUnit', 'areaType',
-  'email', 'mobileNumber', 'ownerType', 'name',
+  'mobileNumber', 'ownerType', 'name',
 ];
 
 function validateRequiredFields(data) {
@@ -22,7 +49,7 @@ function validateRequiredFields(data) {
 // =====================
 // POST / — Create property
 // =====================
-router.post('/', async (req, res) => {
+router.post('/', requireAuth, async (req, res) => {
   logger.info('POST /api/properties received');
 
   const data = req.body;
@@ -38,7 +65,7 @@ router.post('/', async (req, res) => {
 
   const property = new Property({
     ...data,
-    status: 'pending',
+    status: data.listedBy === 'admin' ? (data.status || 'approved') : 'pending',
   });
 
   const saved = await property.save();
@@ -108,6 +135,27 @@ router.put('/:id', async (req, res) => {
   }
 
   logger.info('Property updated', { id: req.params.id });
+
+  // Notify property owner via WhatsApp when admin explicitly approves their listing
+  if (data.status === 'approved' && updated.mobileNumber) {
+    const ownerName = updated.name || 'there';
+    const propertyType = updated.propertyType || 'Property';
+    const city = updated.city || '';
+    const price = updated.totalPrice
+      ? `₹${Number(updated.totalPrice).toLocaleString('en-IN')}`
+      : 'contact for price';
+    const propertyLink = `https://growperty.com/property/${updated._id}`;
+
+    sendTemplateAsync(updated.mobileNumber, 'property_alert', {
+      recipientName: ownerName,
+      propertyType,
+      city,
+      price,
+      propertyLink,
+    });
+    logger.info('[WA] property_alert queued', { id: req.params.id, phone: updated.mobileNumber });
+  }
+
   return res.status(200).json({ success: true, propertyId: updated._id.toString() });
 });
 

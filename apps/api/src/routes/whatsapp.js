@@ -1,6 +1,9 @@
 import 'dotenv/config';
 import express from 'express';
 import logger from '../utils/logger.js';
+import User from '../models/User.js';
+import { signToken } from '../utils/jwt.js';
+import { connectMongoDB } from '../utils/mongodb.js';
 
 const router = express.Router();
 
@@ -196,14 +199,30 @@ router.post('/verify-otp', async (req, res) => {
     });
   }
 
-  // OTP is valid - delete from store and return success
+  // OTP is valid - delete from store
   logger.info('OTP verified successfully', { phoneNumber: normalizedPhone });
   delete otpStore[normalizedPhone];
+
+  // Upsert MongoDB user for this phone number
+  await connectMongoDB();
+  const existingUser = await User.findOne({ phone: normalizedPhone });
+  const isNewUser = !existingUser;
+
+  const user = existingUser ?? await User.create({
+    phone: normalizedPhone,
+    provider: 'whatsapp',
+    role: 'buyer',
+  });
+
+  const token = signToken(user);
+  const isProfileComplete = !!(user.name && user.city);
 
   return res.status(200).json({
     success: true,
     message: 'OTP Verified',
-    redirectUrl: '/setup-profile',
+    token,
+    user: { _id: user._id, phone: user.phone, name: user.name, city: user.city, role: user.role, provider: user.provider },
+    isProfileComplete,
   });
 });
 
