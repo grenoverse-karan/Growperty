@@ -30,6 +30,7 @@ const NAV = [
   { id: 'inv-txn',        label: 'Transactions',   icon: '💳', href: '/admin/transactions' },
   { divider: 'LEADS' },
   { id: 'leads-overview', label: 'Overview',       icon: '📊', href: '/admin/leads' },
+  { id: 'leads-users',    label: 'Users',          icon: '👤', href: '/admin/users' },
   { id: 'leads-buyers',   label: 'Buyers',         icon: '👥', href: '/admin/buyers' },
   { id: 'leads-inquiries',label: 'Inquiries',      icon: '📩', href: '/admin/inquiries' },
   { id: 'leads-traffic',  label: 'Traffic',        icon: '📡', href: '/admin/traffic' },

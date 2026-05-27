@@ -13,11 +13,61 @@ const authenticate = (req, res, next) => {
   try {
     const payload = verifyToken(auth.slice(7));
     req.userId = payload.sub;
+    req.userRole = payload.role;
     next();
   } catch {
     res.status(401).json({ error: 'Invalid or expired token' });
   }
 };
+
+const requireAdmin = (req, res, next) => {
+  if (req.userRole !== 'admin') return res.status(403).json({ error: 'Admin access required' });
+  next();
+};
+
+// ── Admin: GET /users — list all users ───────────────────────────────────────
+router.get('/', authenticate, requireAdmin, async (req, res) => {
+  await connectMongoDB();
+  const page  = Math.max(1, parseInt(req.query.page) || 1);
+  const limit = Math.max(1, Math.min(100, parseInt(req.query.limit) || 50));
+  const skip  = (page - 1) * limit;
+  const search = req.query.search?.trim();
+
+  const filter = search
+    ? { $or: [
+        { name:  { $regex: search, $options: 'i' } },
+        { phone: { $regex: search, $options: 'i' } },
+        { email: { $regex: search, $options: 'i' } },
+      ] }
+    : {};
+
+  const [users, total] = await Promise.all([
+    User.find(filter).select('-passwordHash').sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
+    User.countDocuments(filter),
+  ]);
+
+  res.json({ users, total, page, totalPages: Math.ceil(total / limit) });
+});
+
+// ── Admin: DELETE /users/:id — delete one user ───────────────────────────────
+router.delete('/:id', authenticate, requireAdmin, async (req, res) => {
+  await connectMongoDB();
+  const deleted = await User.findByIdAndDelete(req.params.id);
+  if (!deleted) return res.status(404).json({ error: 'User not found' });
+  logger.info('[Admin] User deleted', { id: req.params.id });
+  res.json({ success: true });
+});
+
+// ── Admin: POST /users/bulk-delete — delete multiple users ───────────────────
+router.post('/bulk-delete', authenticate, requireAdmin, async (req, res) => {
+  await connectMongoDB();
+  const { ids } = req.body;
+  if (!Array.isArray(ids) || ids.length === 0)
+    return res.status(400).json({ error: 'ids array required' });
+  const result = await User.deleteMany({ _id: { $in: ids } });
+  logger.info('[Admin] Bulk user delete', { count: result.deletedCount });
+  res.json({ success: true, deleted: result.deletedCount });
+});
 
 router.get('/me', authenticate, async (req, res) => {
   await connectMongoDB();
