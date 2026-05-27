@@ -54,6 +54,7 @@ import AdminApprovalsPage from '@/pages/AdminApprovalsPage.jsx';
 import AdminPropertiesPage from '@/pages/AdminPropertiesPage.jsx';
 import AdminListPropertyPage from '@/pages/AdminListPropertyPage.jsx';
 import AdminUsersPage from '@/pages/AdminUsersPage.jsx';
+import AdminComingSoonPage from '@/pages/AdminComingSoonPage.jsx';
 
 function App() {
   console.log('[App] Rendering routes configuration');
@@ -149,6 +150,26 @@ function App() {
                 <AdminUsersPage />
               </AdminProtectedRoute>
             } />
+
+            {/* Coming-soon stubs for sidebar links */}
+            {[
+              '/admin/inventory',
+              '/admin/analytics',
+              '/admin/transactions',
+              '/admin/leads',
+              '/admin/buyers',
+              '/admin/inquiries',
+              '/admin/traffic',
+              '/admin/lead-transactions',
+              '/admin/announcements',
+              '/admin/activity',
+            ].map(path => (
+              <Route key={path} path={path} element={
+                <AdminProtectedRoute>
+                  <AdminComingSoonPage />
+                </AdminProtectedRoute>
+              } />
+            ))}
             
             <Route path="/setup-profile" element={
               <ProtectedRoute>
