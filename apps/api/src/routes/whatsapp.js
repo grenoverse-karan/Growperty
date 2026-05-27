@@ -4,6 +4,7 @@ import logger from '../utils/logger.js';
 import User from '../models/User.js';
 import { signToken } from '../utils/jwt.js';
 import { connectMongoDB } from '../utils/mongodb.js';
+import { sendTemplateAsync } from '../utils/whatsappTemplates.js';
 
 const router = express.Router();
 
@@ -230,6 +231,80 @@ router.post('/verify-otp', async (req, res) => {
     user: { _id: user._id, phone: user.phone, name: user.name, city: user.city, role: user.role, provider: user.provider },
     isProfileComplete,
   });
+});
+
+// =====================
+// GET /webhook — Meta webhook verification handshake
+// =====================
+router.get('/webhook', (req, res) => {
+  const VERIFY_TOKEN = process.env.WHATSAPP_WEBHOOK_VERIFY_TOKEN;
+  const mode      = req.query['hub.mode'];
+  const token     = req.query['hub.verify_token'];
+  const challenge = req.query['hub.challenge'];
+
+  logger.info('[WA Webhook] Verification request', { mode, token });
+
+  if (mode === 'subscribe' && token === VERIFY_TOKEN) {
+    logger.info('[WA Webhook] Verified successfully');
+    return res.status(200).send(challenge);
+  }
+  logger.warn('[WA Webhook] Verification failed — token mismatch');
+  return res.status(403).json({ error: 'Forbidden' });
+});
+
+// =====================
+// POST /webhook — Receive incoming WhatsApp messages
+// =====================
+router.post('/webhook', async (req, res) => {
+  // Always respond 200 immediately so Meta doesn't retry
+  res.status(200).send('EVENT_RECEIVED');
+
+  const body = req.body;
+  if (body.object !== 'whatsapp_business_account') return;
+
+  const changes = body.entry?.[0]?.changes?.[0]?.value;
+  if (!changes) return;
+
+  const messages = changes.messages;
+  if (!messages?.length) return;
+
+  for (const msg of messages) {
+    const fromPhone = msg.from; // e.g. "919971007876"
+
+    logger.info('[WA Webhook] Incoming message', {
+      type: msg.type,
+      from: fromPhone,
+      id: msg.id,
+    });
+
+    // ── Quick reply button: "Request to Call Back" ──
+    const isButtonReply =
+      (msg.type === 'interactive' && msg.interactive?.type === 'button_reply') ||
+      (msg.type === 'button');
+
+    if (isButtonReply) {
+      const buttonText =
+        msg.interactive?.button_reply?.title ||
+        msg.button?.text ||
+        '';
+
+      logger.info('[WA Webhook] Button tapped', { from: fromPhone, button: buttonText });
+
+      if (buttonText.toLowerCase().includes('call back')) {
+        await connectMongoDB();
+        const user = await User.findOne({ phone: fromPhone }).select('name').lean();
+        const userName = user?.name || 'there';
+
+        logger.info('[WA Webhook] Triggering reply_callback', { fromPhone, userName });
+        sendTemplateAsync(fromPhone, 'reply_callback', { userName });
+      }
+    }
+
+    // ── Plain text "STOP" — unsubscribe signal (log only for now) ──
+    if (msg.type === 'text' && msg.text?.body?.trim().toUpperCase() === 'STOP') {
+      logger.info('[WA Webhook] STOP received — user wants to unsubscribe', { from: fromPhone });
+    }
+  }
 });
 
 export default router;
