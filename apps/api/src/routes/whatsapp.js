@@ -274,49 +274,88 @@ router.post('/webhook', async (req, res) => {
   res.status(200).send('EVENT_RECEIVED');
 
   const body = req.body;
-  if (body.object !== 'whatsapp_business_account') return;
+
+  // ── Log full raw body ──────────────────────────────────────────
+  logger.info('[WA Webhook] Raw body received', { raw: JSON.stringify(body) });
+
+  if (body.object !== 'whatsapp_business_account') {
+    logger.warn('[WA Webhook] Ignored — object is not whatsapp_business_account', { object: body.object });
+    return;
+  }
 
   const changes = body.entry?.[0]?.changes?.[0]?.value;
-  if (!changes) return;
+  if (!changes) {
+    logger.warn('[WA Webhook] No changes found in payload');
+    return;
+  }
 
   const messages = changes.messages;
-  if (!messages?.length) return;
+  if (!messages?.length) {
+    logger.info('[WA Webhook] No messages in payload (status update or other event)', {
+      statuses: changes.statuses?.length ?? 0,
+    });
+    return;
+  }
 
   for (const msg of messages) {
-    const fromPhone = msg.from; // e.g. "919971007876"
+    const fromPhone = msg.from;
 
-    logger.info('[WA Webhook] Incoming message', {
+    logger.info('[WA Webhook] Message received', {
       type: msg.type,
       from: fromPhone,
       id: msg.id,
+      fullMsg: JSON.stringify(msg),
     });
 
-    // ── Quick reply button: "Request to Call Back" ──
-    const isButtonReply =
-      (msg.type === 'interactive' && msg.interactive?.type === 'button_reply') ||
-      (msg.type === 'button');
+    // ── Extract button text from all possible Meta formats ────────
+    // Format 1: quick_reply button from template  → msg.type === 'button'
+    // Format 2: interactive list/button reply     → msg.type === 'interactive'
+    const buttonTextRaw =
+      msg.button?.text ||                          // template quick reply
+      msg.interactive?.button_reply?.title ||      // interactive button
+      msg.interactive?.list_reply?.title ||        // interactive list
+      null;
 
-    if (isButtonReply) {
-      const buttonText =
-        msg.interactive?.button_reply?.title ||
-        msg.button?.text ||
-        '';
+    logger.info('[WA Webhook] Button text extraction', {
+      msgType: msg.type,
+      'msg.button?.text': msg.button?.text ?? '(undefined)',
+      'msg.interactive?.button_reply?.title': msg.interactive?.button_reply?.title ?? '(undefined)',
+      'msg.interactive?.list_reply?.title': msg.interactive?.list_reply?.title ?? '(undefined)',
+      resolvedButtonText: buttonTextRaw ?? '(none)',
+    });
 
-      logger.info('[WA Webhook] Button tapped', { from: fromPhone, button: buttonText });
+    // ── Handle button replies ─────────────────────────────────────
+    if (buttonTextRaw) {
+      const buttonText = buttonTextRaw.toLowerCase().trim();
 
-      if (buttonText.toLowerCase().includes('call back')) {
+      logger.info('[WA Webhook] Checking button match', {
+        from: fromPhone,
+        buttonText,
+        matchesCallBack: buttonText.includes('call back'),
+      });
+
+      if (buttonText.includes('call back')) {
+        logger.info('[WA Webhook] ✅ Matched "call back" — triggering reply_callback', { fromPhone });
+
         await connectMongoDB();
         const user = await User.findOne({ phone: fromPhone }).select('name').lean();
         const userName = user?.name || 'there';
 
-        logger.info('[WA Webhook] Triggering reply_callback', { fromPhone, userName });
+        logger.info('[WA Webhook] User lookup for reply_callback', {
+          fromPhone,
+          found: !!user,
+          userName,
+        });
+
         sendTemplateAsync(fromPhone, 'reply_callback', { userName });
+      } else {
+        logger.info('[WA Webhook] Button did not match any known action', { buttonText });
       }
     }
 
-    // ── Plain text "STOP" — unsubscribe signal (log only for now) ──
+    // ── Plain text STOP ───────────────────────────────────────────
     if (msg.type === 'text' && msg.text?.body?.trim().toUpperCase() === 'STOP') {
-      logger.info('[WA Webhook] STOP received — user wants to unsubscribe', { from: fromPhone });
+      logger.info('[WA Webhook] STOP received', { from: fromPhone });
     }
   }
 });
