@@ -126,7 +126,6 @@ export const sanitizePropertyFormData = (formData, propertyType) => {
     { name: 'totalArea', type: 'number', min: 1 },
     { name: 'areaUnit', type: 'select', values: AREA_UNITS },
     { name: 'areaType', type: 'select', values: AREA_TYPES },
-    { name: 'email', type: 'email' },
     { name: 'mobileNumber', type: 'text', maxLength: 20 },
     { name: 'ownerType', type: 'text' },
     { name: 'name', type: 'text' }
@@ -162,6 +161,7 @@ export const sanitizePropertyFormData = (formData, propertyType) => {
   // Optional fields with conditional logic
   const optionalFields = [
     { name: 'propertySubType', type: 'text', condition: () => ['Commercial', 'Plot/Land'].includes(propertyType) },
+    { name: 'email', type: 'email' },
     { name: 'landmark', type: 'text' },
     { name: 'description', type: 'text', maxLength: 5000 },
     { name: 'currentAddress', type: 'text', maxLength: 500 },
@@ -181,6 +181,8 @@ export const sanitizePropertyFormData = (formData, propertyType) => {
     { name: 'totalFloors', type: 'number', condition: () => FLOOR_APPLICABLE_TYPES.includes(propertyType) },
     { name: 'plotType', type: 'select', values: PLOT_TYPES, condition: () => propertyType === 'Plot/Land' },
     { name: 'status', type: 'select', values: ['pending', 'approved', 'rejected', 'suspended'] },
+    { name: 'listedBy', type: 'text' },
+    { name: 'liveAt', type: 'text' },
     { name: 'bathrooms', type: 'number' },
     { name: 'balconies', type: 'number' },
     { name: 'floorNumber', type: 'number' },

@@ -1,264 +1,361 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Helmet } from 'react-helmet';
-import { useNavigate } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
 import { useAdminAuth } from '@/contexts/AdminAuthContext.jsx';
 import apiServerClient from '@/lib/apiServerClient';
-import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Building2, LayoutDashboard, LogOut, Loader2, ShieldCheck, Menu, X, Clock, CheckCircle2, Ban, AlertCircle, Users } from 'lucide-react';
 import { toast } from 'sonner';
-import AdminPropertyFilter from '@/components/AdminPropertyFilter.jsx';
-import AdminPropertyTable from '@/components/AdminPropertyTable.jsx';
-import AdminRequirementsTab from '@/components/AdminRequirementsTab.jsx';
 
+// ── Colours ───────────────────────────────────────────────────────
+const C = {
+  bg:        '#0d1117',
+  sidebar:   '#0d1b2a',
+  border:    '#1e2d3d',
+  text:      '#e6edf3',
+  muted:     '#4d6175',
+  subtext:   '#94aabf',
+  hover:     '#132236',
+  green:     '#1d9e75',
+  blue:      '#185fa5',
+};
+
+// ── Sidebar nav definition ────────────────────────────────────────
+const NAV = [
+  { id: 'home',           label: 'Dashboard',     icon: '⊞',  href: '/admin' },
+  { divider: 'INVENTORY' },
+  { id: 'inv-overview',   label: 'Overview',       icon: '📊', href: '/admin/inventory' },
+  { id: 'inv-list',       label: 'List Property',  icon: '➕', href: '/admin/list-property' },
+  { id: 'inv-listings',   label: 'Listings',       icon: '🏘', href: '/admin/properties' },
+  { id: 'inv-fasttrack',  label: 'Fast Track',     icon: '⚡', href: '/admin/approvals' },
+  { id: 'inv-analytics',  label: 'Analytics',      icon: '📈', href: '/admin/analytics' },
+  { id: 'inv-txn',        label: 'Transactions',   icon: '💳', href: '/admin/transactions' },
+  { divider: 'LEADS' },
+  { id: 'leads-overview', label: 'Overview',       icon: '📊', href: '/admin/leads' },
+  { id: 'leads-buyers',   label: 'Buyers',         icon: '👥', href: '/admin/buyers' },
+  { id: 'leads-inquiries',label: 'Inquiries',      icon: '📩', href: '/admin/inquiries' },
+  { id: 'leads-traffic',  label: 'Traffic',        icon: '📡', href: '/admin/traffic' },
+  { id: 'leads-txn',      label: 'Transactions',   icon: '💳', href: '/admin/lead-transactions' },
+  { divider: 'SYSTEM' },
+  { id: 'announcements',  label: 'Announcements',  icon: '📢', href: '/admin/announcements' },
+  { id: 'activity',       label: 'Activity Log',   icon: '📋', href: '/admin/activity' },
+  { id: 'settings',       label: 'Settings',       icon: '⚙️', href: '/admin/settings' },
+];
+
+const STATS_DEF = [
+  { key: 'totalProperties', label: 'Total Properties', icon: '🏠', color: '#1a3a5c' },
+  { key: 'activeListings',  label: 'Live Listings',    icon: '✅', color: '#0f6e56' },
+  { key: 'totalPending',    label: 'Pending Review',   icon: '⏳', color: '#ba7517' },
+  { key: 'totalSellers',    label: 'Total Sellers',    icon: '👤', color: '#185fa5' },
+  { key: 'totalBuyers',     label: 'Total Buyers',     icon: '👥', color: '#533ab7' },
+  { key: 'dealsClosed',     label: 'Deals Closed',     icon: '🤝', color: '#0f6e56' },
+  { key: 'activeLeads',     label: 'Active Leads',     icon: '🔥', color: '#a32d2d' },
+  { key: 'totalRevenue',    label: 'Total Revenue',    icon: '💰', color: '#3b6d11', prefix: '₹' },
+];
+
+const QUICK_ACTIONS = [
+  { label: 'Review Pending',  href: '/admin/approvals',          color: '#ba7517' },
+  { label: 'View Inquiries',  href: '/admin/inquiries',          color: '#185fa5' },
+  { label: 'Announcements',   href: '/admin/announcements',      color: '#533ab7' },
+  { label: 'Activity Log',    href: '/admin/activity',           color: C.muted    },
+];
+
+// ── Sidebar ───────────────────────────────────────────────────────
+const Sidebar = ({ open, onToggle, onLogout, adminEmail }) => (
+  <aside style={{
+    width: open ? 240 : 64,
+    background: C.sidebar,
+    borderRight: `1px solid ${C.border}`,
+    transition: 'width 0.25s ease',
+    display: 'flex',
+    flexDirection: 'column',
+    overflow: 'hidden',
+    flexShrink: 0,
+  }}>
+    {/* Logo */}
+    <div style={{
+      padding: '20px 16px',
+      borderBottom: `1px solid ${C.border}`,
+      display: 'flex',
+      alignItems: 'center',
+      gap: 10,
+    }}>
+      <div style={{
+        width: 32, height: 32,
+        background: 'linear-gradient(135deg, #1d9e75, #185fa5)',
+        borderRadius: 8,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        flexShrink: 0,
+        fontSize: 14, fontWeight: 700, color: '#fff',
+      }}>G</div>
+      {open && (
+        <span style={{ fontWeight: 700, fontSize: 16, color: C.text, letterSpacing: '-0.3px', whiteSpace: 'nowrap' }}>
+          Growperty
+        </span>
+      )}
+    </div>
+
+    {/* Nav */}
+    <nav style={{ flex: 1, padding: '12px 8px', overflowY: 'auto', overflowX: 'hidden' }}>
+      {NAV.map((item, i) => {
+        if (item.divider) {
+          return open
+            ? (
+              <div key={i} style={{
+                fontSize: 10, fontWeight: 600, color: C.muted,
+                letterSpacing: '1px', padding: '16px 10px 6px',
+                textTransform: 'uppercase', whiteSpace: 'nowrap',
+              }}>{item.divider}</div>
+            )
+            : <div key={i} style={{ borderTop: `1px solid ${C.border}`, margin: '10px 0' }} />;
+        }
+
+        return (
+          <NavLink
+            key={item.id}
+            to={item.href}
+            end={item.href === '/admin'}
+            style={({ isActive }) => ({
+              display: 'flex', alignItems: 'center', gap: 10,
+              padding: '8px 10px', borderRadius: 6, marginBottom: 2,
+              background:   isActive ? '#132236' : 'transparent',
+              color:        isActive ? C.green   : C.subtext,
+              border:       `1px solid ${isActive ? C.border : 'transparent'}`,
+              fontSize: 13, fontWeight: isActive ? 600 : 400,
+              textDecoration: 'none',
+              transition: 'all 0.15s',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+            })}
+          >
+            <span style={{ fontSize: 14, width: 20, textAlign: 'center', flexShrink: 0 }}>{item.icon}</span>
+            {open && <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.label}</span>}
+          </NavLink>
+        );
+      })}
+    </nav>
+
+    {/* Footer: email + logout */}
+    {open && (
+      <div style={{ padding: '12px 16px', borderTop: `1px solid ${C.border}` }}>
+        <p style={{ fontSize: 11, color: C.muted, marginBottom: 8, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {adminEmail || 'admin@growperty.com'}
+        </p>
+        <button
+          onClick={onLogout}
+          style={{
+            width: '100%', padding: '7px 0', borderRadius: 6,
+            background: 'rgba(163,45,45,0.12)',
+            border: '1px solid rgba(163,45,45,0.3)',
+            color: '#e06c6c', fontSize: 12, fontWeight: 600, cursor: 'pointer',
+          }}
+        >
+          Sign Out
+        </button>
+      </div>
+    )}
+
+    {/* Toggle button */}
+    <button
+      onClick={onToggle}
+      style={{
+        margin: '12px 8px', padding: 8, borderRadius: 6,
+        background: '#132236', border: `1px solid ${C.border}`,
+        color: C.muted, cursor: 'pointer',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        fontSize: 16, flexShrink: 0,
+      }}
+    >
+      {open ? '◀' : '▶'}
+    </button>
+  </aside>
+);
+
+// ── Main Dashboard ────────────────────────────────────────────────
 const AdminDashboard = () => {
   const { currentAdmin, adminLogout, token, isAdminAuthenticated } = useAdminAuth();
   const navigate = useNavigate();
-  
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState('properties'); // 'properties' or 'requirements'
-  const [stats, setStats] = useState(null);
-  const [isStatsLoading, setIsStatsLoading] = useState(true);
-  const [statsError, setStatsError] = useState(null);
-  const [refreshTrigger, setRefreshTrigger] = useState(0);
+
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [stats, setStats]             = useState({});
+  const [statsLoading, setStatsLoading] = useState(true);
 
   useEffect(() => {
-    if (!isAdminAuthenticated) {
-      navigate('/admin-login');
-    }
+    if (!isAdminAuthenticated) navigate('/admin-login');
   }, [isAdminAuthenticated, navigate]);
 
   const fetchStats = useCallback(async () => {
     if (!token) return;
-    
-    setIsStatsLoading(true);
-    setStatsError(null);
+    setStatsLoading(true);
     try {
-      const response = await apiServerClient.fetch('/admin/stats', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+      const res = await apiServerClient.fetch('/admin/stats', {
+        headers: { Authorization: `Bearer ${token}` },
       });
-      
-      if (response.status === 401) {
+      if (res.status === 401) {
         adminLogout(false);
         toast.error('Session expired, please login again');
         navigate('/admin-login');
         return;
       }
-
-      if (!response.ok) throw new Error('Failed to fetch stats');
-      const data = await response.json();
-      setStats(data);
-    } catch (error) {
-      console.error('Error fetching stats:', error);
-      setStatsError('Failed to load statistics');
-      toast.error('Failed to load dashboard statistics');
+      if (!res.ok) throw new Error();
+      setStats(await res.json());
+    } catch {
+      toast.error('Failed to load stats');
     } finally {
-      setIsStatsLoading(false);
+      setStatsLoading(false);
     }
   }, [token, adminLogout, navigate]);
 
-  useEffect(() => {
-    fetchStats();
-  }, [fetchStats, refreshTrigger]);
+  useEffect(() => { fetchStats(); }, [fetchStats]);
 
-  const handleLogout = () => {
-    adminLogout();
-    navigate('/admin-login');
-  };
-
-  const adminName = currentAdmin?.name || 'Administrator';
-  const adminEmail = currentAdmin?.email || '';
-
-  const renderSidebar = () => (
-    <aside className={`fixed inset-y-0 left-0 z-40 w-64 bg-slate-950 text-slate-300 transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:flex flex-col ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-      <div className="h-20 flex items-center px-6 border-b border-slate-800 bg-slate-950/50">
-        <div className="flex items-center gap-3">
-          <div className="bg-primary p-2 rounded-xl"><ShieldCheck className="h-6 w-6 text-white" /></div>
-          <span className="font-extrabold text-xl text-white tracking-tight">Admin Panel</span>
-        </div>
-        <button className="lg:hidden ml-auto text-slate-400 hover:text-white" onClick={() => setIsMobileMenuOpen(false)}>
-          <X className="h-6 w-6" />
-        </button>
-      </div>
-
-      <div className="flex-1 py-6 px-4 space-y-2 overflow-y-auto">
-        <div className="mb-6 px-2">
-          <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Menu</p>
-          <button
-            onClick={() => { setActiveTab('properties'); setIsMobileMenuOpen(false); }}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-all duration-200 ${activeTab === 'properties' ? 'bg-primary text-white shadow-md' : 'hover:bg-slate-800 text-slate-300'}`}
-          >
-            <LayoutDashboard className="h-5 w-5" />
-            Properties
-          </button>
-          <button
-            onClick={() => { setActiveTab('requirements'); setIsMobileMenuOpen(false); }}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-all duration-200 mt-2 ${activeTab === 'requirements' ? 'bg-primary text-white shadow-md' : 'hover:bg-slate-800 text-slate-300'}`}
-          >
-            <Users className="h-5 w-5" />
-            Buyer Requirements
-          </button>
-        </div>
-      </div>
-
-      <div className="p-4 border-t border-slate-800 bg-slate-900/50">
-        <div className="flex items-center gap-3 px-2 mb-4">
-          <div className="h-10 w-10 rounded-full bg-slate-800 flex items-center justify-center text-white font-bold border border-slate-700">
-            {adminName.charAt(0).toUpperCase()}
-          </div>
-          <div className="overflow-hidden">
-            <p className="text-sm font-bold text-white truncate">{adminName}</p>
-            <p className="text-xs text-slate-500 truncate">{adminEmail}</p>
-          </div>
-        </div>
-        <Button onClick={handleLogout} variant="destructive" className="w-full font-bold rounded-xl bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white border-0">
-          <LogOut className="h-4 w-4 mr-2" /> Sign Out
-        </Button>
-      </div>
-    </aside>
-  );
+  const handleLogout = () => { adminLogout(); navigate('/admin-login'); };
 
   if (!isAdminAuthenticated) return null;
 
   return (
     <>
       <Helmet>
-        <title>Admin Dashboard - Growperty</title>
+        <title>Admin Dashboard — Growperty</title>
         <meta name="robots" content="noindex, nofollow" />
       </Helmet>
 
-      <div className="flex h-screen bg-slate-50 dark:bg-slate-950 overflow-hidden">
-        {isMobileMenuOpen && (
-          <div 
-            className="fixed inset-0 bg-black/50 z-30 lg:hidden backdrop-blur-sm"
-            onClick={() => setIsMobileMenuOpen(false)}
-          />
-        )}
+      <div style={{ display: 'flex', minHeight: '100vh', background: C.bg, color: C.text, fontFamily: "'DM Sans','Segoe UI',sans-serif" }}>
 
-        {renderSidebar()}
+        <Sidebar
+          open={sidebarOpen}
+          onToggle={() => setSidebarOpen(o => !o)}
+          onLogout={handleLogout}
+          adminEmail={currentAdmin?.email}
+        />
 
-        <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-          <header className="lg:hidden h-16 bg-white dark:bg-slate-900 border-b border-border/50 flex items-center justify-between px-4 shrink-0">
-            <div className="flex items-center gap-2">
-              <ShieldCheck className="h-6 w-6 text-primary" />
-              <span className="font-extrabold text-lg">Admin Panel</span>
+        {/* Right pane */}
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+
+          {/* Top navbar */}
+          <header style={{
+            background: C.sidebar,
+            borderBottom: `1px solid ${C.border}`,
+            padding: '14px 28px',
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            flexShrink: 0,
+          }}>
+            <div>
+              <h1 style={{ fontSize: 18, fontWeight: 700, color: C.text, margin: 0 }}>Admin Dashboard</h1>
+              <p style={{ fontSize: 12, color: C.muted, margin: '2px 0 0' }}>Grenoverse Multi Ventures LLP</p>
             </div>
-            <Button variant="ghost" size="icon" onClick={() => setIsMobileMenuOpen(true)}>
-              <Menu className="h-6 w-6" />
-            </Button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <span style={{ fontSize: 12, color: C.muted }}>🟢 Live</span>
+              <div style={{
+                width: 32, height: 32, borderRadius: '50%',
+                background: '#132236', border: `1px solid ${C.border}`,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: 14, cursor: 'pointer',
+              }}>
+                {currentAdmin?.email?.[0]?.toUpperCase() || '👤'}
+              </div>
+            </div>
           </header>
 
-          <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
-            <div className="max-w-7xl mx-auto space-y-6 animate-in fade-in duration-500">
-              
-              <div className="flex justify-between items-center">
-                <div>
-                  <h1 className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
-                    {activeTab === 'properties' ? 'Property Management' : 'Buyer Requirements'}
-                  </h1>
-                  <p className="text-muted-foreground font-medium mt-1">
-                    {activeTab === 'properties' ? 'Review, approve, and manage property listings.' : 'Manage and match buyer requirements with listings.'}
-                  </p>
-                </div>
-                <div className="hidden lg:flex items-center gap-4">
-                  <div className="text-right">
-                    <p className="text-sm font-bold text-slate-900 dark:text-white">{adminName}</p>
-                    <p className="text-xs text-muted-foreground">{adminEmail}</p>
+          {/* Main content */}
+          <main style={{ flex: 1, padding: '28px 32px', overflowY: 'auto' }}>
+
+            {/* Two big section buttons */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 36 }}>
+              {[
+                {
+                  href: '/admin/properties', emoji: '📦', title: 'Inventory',
+                  sub: 'Properties · Listings · Fast Track · Analytics',
+                  accent: C.green, label: 'Open Inventory',
+                },
+                {
+                  href: '/admin/inquiries', emoji: '👥', title: 'Leads',
+                  sub: 'Buyers · Inquiries · Visits · Deals',
+                  accent: C.blue, label: 'Open Leads',
+                },
+              ].map(({ href, emoji, title, sub, accent, label }) => (
+                <NavLink key={href} to={href} style={{ textDecoration: 'none' }}>
+                  <div style={{
+                    background: C.sidebar, border: `1px solid ${C.border}`,
+                    borderTop: `3px solid ${accent}`,
+                    borderRadius: 16, padding: '40px 32px',
+                    display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16,
+                    cursor: 'pointer', transition: 'box-shadow 0.2s',
+                  }}
+                    onMouseEnter={e => e.currentTarget.style.boxShadow = `0 0 0 1px ${accent}40`}
+                    onMouseLeave={e => e.currentTarget.style.boxShadow = 'none'}
+                  >
+                    <div style={{ fontSize: 48 }}>{emoji}</div>
+                    <div style={{ textAlign: 'center' }}>
+                      <h2 style={{ fontSize: 22, fontWeight: 700, color: C.text, margin: '0 0 6px' }}>{title}</h2>
+                      <p style={{ fontSize: 13, color: C.muted, margin: 0 }}>{sub}</p>
+                    </div>
+                    <div style={{
+                      background: accent, color: '#fff',
+                      padding: '8px 24px', borderRadius: 8,
+                      fontSize: 13, fontWeight: 600,
+                    }}>
+                      {label} →
+                    </div>
                   </div>
-                  <Button onClick={handleLogout} variant="outline" size="sm" className="rounded-lg font-bold">
-                    <LogOut className="h-4 w-4 mr-2" /> Logout
-                  </Button>
-                </div>
-              </div>
-
-              {activeTab === 'properties' && (
-                <>
-                  {statsError ? (
-                    <div className="p-4 bg-destructive/10 border border-destructive/20 rounded-2xl flex items-center gap-3 text-destructive">
-                      <AlertCircle className="h-5 w-5" />
-                      <p className="font-bold">{statsError}</p>
-                      <Button variant="outline" size="sm" onClick={fetchStats} className="ml-auto">Retry</Button>
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                      <Card className="rounded-2xl shadow-sm border-blue-200 dark:border-blue-900/30 bg-blue-50/50 dark:bg-blue-900/10">
-                        <CardContent className="p-5 flex items-center gap-4">
-                          <div className="p-3 bg-blue-100 dark:bg-blue-500/20 rounded-xl text-blue-600 dark:text-blue-400">
-                            <Building2 className="h-6 w-6" />
-                          </div>
-                          <div>
-                            <p className="text-xs font-bold text-blue-800 dark:text-blue-500 uppercase tracking-wider">Today's New</p>
-                            <div className="flex items-center gap-2">
-                              {isStatsLoading ? <Loader2 className="h-5 w-5 animate-spin text-blue-600" /> : (
-                                <p className="text-2xl font-extrabold text-blue-900 dark:text-blue-400">{stats?.todaysNew || 0}</p>
-                              )}
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-
-                      <Card className="rounded-2xl shadow-sm border-amber-200 dark:border-amber-900/30 bg-amber-50/50 dark:bg-amber-900/10">
-                        <CardContent className="p-5 flex items-center gap-4">
-                          <div className="p-3 bg-amber-100 dark:bg-amber-500/20 rounded-xl text-amber-600 dark:text-amber-400">
-                            <Clock className="h-6 w-6" />
-                          </div>
-                          <div>
-                            <p className="text-xs font-bold text-amber-800 dark:text-amber-500 uppercase tracking-wider">Total Pending</p>
-                            <div className="flex items-center gap-2">
-                              {isStatsLoading ? <Loader2 className="h-5 w-5 animate-spin text-amber-600" /> : (
-                                <p className="text-2xl font-extrabold text-amber-900 dark:text-amber-400">{stats?.totalPending || 0}</p>
-                              )}
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-
-                      <Card className="rounded-2xl shadow-sm border-green-200 dark:border-green-900/30 bg-green-50/50 dark:bg-green-900/10">
-                        <CardContent className="p-5 flex items-center gap-4">
-                          <div className="p-3 bg-green-100 dark:bg-green-500/20 rounded-xl text-green-600 dark:text-green-400">
-                            <CheckCircle2 className="h-6 w-6" />
-                          </div>
-                          <div>
-                            <p className="text-xs font-bold text-green-800 dark:text-green-500 uppercase tracking-wider">Active Listings</p>
-                            <div className="flex items-center gap-2">
-                              {isStatsLoading ? <Loader2 className="h-5 w-5 animate-spin text-green-600" /> : (
-                                <p className="text-2xl font-extrabold text-green-900 dark:text-green-400">{stats?.activeListings || 0}</p>
-                              )}
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-
-                      <Card className="rounded-2xl shadow-sm border-slate-200 dark:border-slate-800 bg-slate-100/50 dark:bg-slate-800/50">
-                        <CardContent className="p-5 flex items-center gap-4">
-                          <div className="p-3 bg-slate-200 dark:bg-slate-700 rounded-xl text-slate-600 dark:text-slate-400">
-                            <Ban className="h-6 w-6" />
-                          </div>
-                          <div>
-                            <p className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Suspended Accs</p>
-                            <div className="flex items-center gap-2">
-                              {isStatsLoading ? <Loader2 className="h-5 w-5 animate-spin text-slate-600" /> : (
-                                <p className="text-2xl font-extrabold text-slate-800 dark:text-slate-300">{stats?.suspendedAccounts || 0}</p>
-                              )}
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    </div>
-                  )}
-
-                  <AdminPropertyFilter />
-                  <AdminPropertyTable refreshTrigger={refreshTrigger} />
-                </>
-              )}
-
-              {activeTab === 'requirements' && (
-                <AdminRequirementsTab />
-              )}
-
+                </NavLink>
+              ))}
             </div>
+
+            {/* Stats grid */}
+            <div style={{ marginBottom: 28 }}>
+              <h3 style={{
+                fontSize: 13, fontWeight: 600, color: C.muted,
+                textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 14,
+              }}>
+                Quick Overview
+              </h3>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14 }}>
+                {STATS_DEF.map(({ key, label, icon, color, prefix = '' }) => {
+                  const raw = stats?.[key] ?? 0;
+                  const display = statsLoading ? '…' : `${prefix}${raw}`;
+                  return (
+                    <div key={key} style={{
+                      background: C.sidebar, border: `1px solid ${C.border}`,
+                      borderLeft: `3px solid ${color}`,
+                      borderRadius: 10, padding: '16px 18px',
+                    }}>
+                      <div style={{ fontSize: 11, color: C.muted, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <span style={{ fontSize: 13 }}>{icon}</span> {label}
+                      </div>
+                      <div style={{ fontSize: 24, fontWeight: 700, color: C.text }}>{display}</div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Quick actions */}
+            <div>
+              <h3 style={{
+                fontSize: 13, fontWeight: 600, color: C.muted,
+                textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 14,
+              }}>
+                Quick Actions
+              </h3>
+              <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                {QUICK_ACTIONS.map(({ label, href, color }) => (
+                  <NavLink key={label} to={href} style={{ textDecoration: 'none' }}>
+                    <button
+                      style={{
+                        background: C.sidebar,
+                        border: `1px solid ${color}40`,
+                        borderRadius: 8, padding: '9px 18px',
+                        fontSize: 13, color, cursor: 'pointer',
+                        fontWeight: 500, transition: 'background 0.15s',
+                      }}
+                      onMouseEnter={e => e.currentTarget.style.background = `${color}18`}
+                      onMouseLeave={e => e.currentTarget.style.background = C.sidebar}
+                    >
+                      {label}
+                    </button>
+                  </NavLink>
+                ))}
+              </div>
+            </div>
+
           </main>
         </div>
       </div>

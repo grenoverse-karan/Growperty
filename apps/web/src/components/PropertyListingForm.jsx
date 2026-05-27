@@ -10,6 +10,7 @@ import { Textarea } from '@/components/ui/textarea.jsx';
 import { Checkbox } from '@/components/ui/checkbox.jsx';
 import { Loader2, UploadCloud, X, Plus, Minus, Info, Image as ImageIcon } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext.jsx';
+import { useAdminAuth } from '@/contexts/AdminAuthContext.jsx';
 import { sanitizePropertyFormData, logPropertyPayload } from '@/lib/propertyFormDataMapper.js';
 
 // --- Constants (Strictly matching PocketBase Schema) ---
@@ -36,10 +37,11 @@ const AMENITIES_CATEGORIES = {
 };
 const NEARBY_AMENITIES = ['Market', 'Mall', 'Public Park', 'Temple', 'School & Hospital', 'Public Transport', 'Metro'];
 
-const PropertyListingForm = () => {
+const PropertyListingForm = ({ isAdmin = false }) => {
   const { toast } = useToast();
   const navigate = useNavigate();
-  const { currentUser, whatsappPhone } = useAuth();
+  const { currentUser, whatsappPhone, getToken } = useAuth();
+  const { token: adminToken } = useAdminAuth();
   const imageInputRef = useRef(null);
 
   // --- State ---
@@ -80,6 +82,26 @@ const PropertyListingForm = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [images, setImages] = useState([]); // [{ id, file, preview }]
   const [isCompressing, setIsCompressing] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState({});
+
+  const clearFieldError = (name) => {
+    if (fieldErrors[name]) setFieldErrors(prev => { const n = { ...prev }; delete n[name]; return n; });
+  };
+
+  const validateForm = () => {
+    const errors = {};
+    if (!formData.propertyType) errors.propertyType = 'Property type select karo';
+    if (showBhk && !formData.bhk) errors.bhk = 'BHK configuration select karo';
+    if (!formData.totalArea) errors.totalArea = 'Total area enter karo';
+    if (!formData.totalPrice || Number(formData.totalPrice) <= 0) errors.totalPrice = 'Expected price enter karo';
+    if (!formData.city) errors.city = 'City select karo';
+    if (!formData.sector?.trim()) errors.sector = 'Sector / Area enter karo';
+    if (!formData.houseNo?.trim()) errors.houseNo = 'Flat / House No. enter karo';
+    if (!formData.name?.trim()) errors.name = 'Name enter karo';
+    if (!formData.mobileNumber?.trim()) errors.mobileNumber = 'Mobile number enter karo';
+    if (!formData.termsAccepted) errors.termsAccepted = 'Terms & Conditions accept karo';
+    return errors;
+  };
 
   useEffect(() => {
     if (currentUser) {
@@ -106,11 +128,13 @@ const PropertyListingForm = () => {
       }
       return newData;
     });
+    clearFieldError(field);
   };
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
+    clearFieldError(name);
   };
 
   const handleCounterChange = (field, increment) => {
@@ -279,12 +303,13 @@ const PropertyListingForm = () => {
     e.preventDefault();
     console.log('🚀 handleSubmit triggered', { currentUser: currentUser?.id, termsAccepted: formData.termsAccepted, propertyType: formData.propertyType });
 
-    if (!currentUser?.id) {
-      console.log('❌ STOP: No currentUser.id — user not authenticated');
-      toast({ title: 'Authentication Required', description: 'Please log in to list a property.', variant: 'destructive' });
+    const userId = currentUser?._id || currentUser?.id;
+    if (!isAdmin && !userId) {
+      console.log('❌ STOP: No currentUser._id — user not authenticated');
+      toast({ title: 'Login Required', description: 'Please log in to list a property.', variant: 'destructive' });
       return;
     }
-    console.log('✅ Auth check passed — user:', currentUser.id);
+    console.log('✅ Auth check passed — user:', isAdmin ? 'admin' : userId);
 
     if (!formData.termsAccepted) {
       console.log('❌ STOP: termsAccepted is false');
@@ -292,6 +317,17 @@ const PropertyListingForm = () => {
       return;
     }
     console.log('✅ Terms accepted');
+
+    // Client-side field validation
+    const validationErrors = validateForm();
+    if (Object.keys(validationErrors).length > 0) {
+      setFieldErrors(validationErrors);
+      const firstKey = Object.keys(validationErrors)[0];
+      document.getElementById(`field-${firstKey}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      toast.error('Kuch required fields reh gaye hain — neeche red fields fill karo');
+      return;
+    }
+    setFieldErrors({});
 
     setIsSubmitting(true);
 
@@ -304,7 +340,7 @@ const PropertyListingForm = () => {
 
       // Prepare form data for sanitization
       const rawFormData = {
-        owner_id: currentUser.id,
+        owner_id: isAdmin ? 'admin' : (currentUser._id || currentUser.id),
         propertyType: formData.propertyType,
         propertySubType: formData.propertySubType,
         bhk: formData.bhk,
@@ -334,8 +370,9 @@ const PropertyListingForm = () => {
         email: formData.email,
         mobileNumber: formData.mobileNumber,
         currentAddress: formData.currentAddress,
-        ownerType: 'Individual',
-        status: 'pending'
+        ownerType: isAdmin ? 'Admin' : 'Individual',
+        status: isAdmin ? 'approved' : 'pending',
+        ...(isAdmin && { listedBy: 'admin', liveAt: new Date().toISOString() }),
       };
       console.log('✅ rawFormData built:', rawFormData);
 
@@ -374,9 +411,13 @@ const PropertyListingForm = () => {
       logPropertyPayload(payload, 'PropertyListingForm Submission');
 
       // Submit to MongoDB via Express API
+      const authToken = isAdmin ? adminToken : getToken();
       const response = await apiServerClient.fetch('/properties', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(authToken && { Authorization: `Bearer ${authToken}` }),
+        },
         body: JSON.stringify(payload),
       });
 
@@ -388,8 +429,13 @@ const PropertyListingForm = () => {
 
       console.log('✅ Property created successfully. Record ID:', result.propertyId);
 
-      toast({ title: 'Success', description: 'Property listed successfully and is pending approval.' });
-      navigate('/properties');
+      if (isAdmin) {
+        toast({ title: 'Success', description: 'Property listed successfully and is now live.' });
+        navigate('/admin/properties');
+      } else {
+        toast({ title: 'Success', description: 'Property listed successfully and is pending approval.' });
+        navigate('/properties');
+      }
     } catch (error) {
       console.log('❌ CATCH block hit:', error?.message, error);
       toast({
@@ -434,35 +480,58 @@ const PropertyListingForm = () => {
       <div className="w-full max-w-4xl mx-auto px-4 sm:px-6">
         
         {/* (1) HEADER */}
-        <div className="bg-white dark:bg-slate-950 rounded-2xl p-6 md:p-8 shadow-sm border border-slate-200 dark:border-slate-800 mb-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 relative overflow-hidden">
+        <div className="bg-white dark:bg-slate-950 rounded-2xl p-6 md:p-8 shadow-sm border border-slate-200 dark:border-slate-800 mb-8 relative overflow-hidden">
           <div className="absolute top-0 left-0 w-1 h-full bg-[#10B981]"></div>
-          <div>
-            <h1 className="text-3xl md:text-4xl font-extrabold text-slate-900 dark:text-white tracking-tight mb-2">
-              FREE List your property
-            </h1>
-            <p className="text-slate-500 dark:text-slate-400 font-medium">
-              Get more genuine buyers and investors. Sell your property faster.
-            </p>
-          </div>
-          <div className="relative group shrink-0">
-            <div className="absolute inset-0 bg-[#10B981] blur-md opacity-40 rounded-full group-hover:opacity-60 transition-opacity"></div>
-            <div className="relative bg-gradient-to-br from-[#10B981] to-emerald-600 text-white font-extrabold py-3 px-8 rounded-full shadow-lg overflow-hidden">
-              <div className="absolute inset-0 bg-white/20 translate-x-[-100%] skew-x-[-15deg] group-hover:animate-[shimmer_1.5s_infinite]"></div>
-              FREE
-            </div>
-          </div>
+          <h1 className="text-3xl md:text-4xl font-extrabold text-slate-900 dark:text-white tracking-tight mb-2">
+            List Property{' '}
+            <span className="free-shine">FREE</span>
+          </h1>
+          <p className="text-slate-500 dark:text-slate-400 font-medium">
+            Get more genuine buyers and investors. Sell your property faster.
+          </p>
         </div>
+        <style>{`
+          .free-shine {
+            color: #10B981;
+            display: inline-block;
+            position: relative;
+            overflow: hidden;
+            vertical-align: text-bottom;
+            line-height: inherit;
+          }
+          .free-shine::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 60%;
+            height: 100%;
+            background: linear-gradient(
+              120deg,
+              transparent 0%,
+              rgba(255,255,255,0.7) 50%,
+              transparent 100%
+            );
+            animation: freeSwipe 3s ease-in-out infinite;
+          }
+          @keyframes freeSwipe {
+            0%   { left: -100%; }
+            40%  { left: 150%; }
+            100% { left: 150%; }
+          }
+        `}</style>
 
         <form onSubmit={handleSubmit} className="space-y-6">
           
           {/* (2) PROPERTY TYPE */}
-          <div className="bg-white dark:bg-slate-950 rounded-2xl p-6 md:p-8 shadow-sm border border-slate-200 dark:border-slate-800 space-y-5">
+          <div id="field-propertyType" className={`bg-white dark:bg-slate-950 rounded-2xl p-6 md:p-8 shadow-sm border dark:border-slate-800 space-y-5 ${fieldErrors.propertyType ? 'border-red-400' : 'border-slate-200'}`}>
             <Label className="text-lg font-bold text-slate-900 dark:text-white block border-b border-slate-100 dark:border-slate-800 pb-3">1. Property Type *</Label>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4">
               {PROPERTY_TYPES.map(type => (
                 <Chip key={type} label={type} selected={formData.propertyType === type} onClick={() => handleSelect('propertyType', type)} />
               ))}
             </div>
+            {fieldErrors.propertyType && <p className="text-red-500 text-xs font-bold mt-1">⚠ {fieldErrors.propertyType}</p>}
 
             {/* Sub-types */}
             {showSubTypes && formData.propertyType && SUB_TYPES[formData.propertyType] && (
@@ -479,13 +548,14 @@ const PropertyListingForm = () => {
 
           {/* (3) BHK CONFIGURATION */}
           {showBhk && (
-            <div className="bg-white dark:bg-slate-950 rounded-2xl p-6 md:p-8 shadow-sm border border-slate-200 dark:border-slate-800 space-y-5 animate-in fade-in">
+            <div id="field-bhk" className={`bg-white dark:bg-slate-950 rounded-2xl p-6 md:p-8 shadow-sm border dark:border-slate-800 space-y-5 animate-in fade-in ${fieldErrors.bhk ? 'border-red-400' : 'border-slate-200'}`}>
               <Label className="text-lg font-bold text-slate-900 dark:text-white block border-b border-slate-100 dark:border-slate-800 pb-3">2. BHK Configuration *</Label>
               <div className="grid grid-cols-3 md:grid-cols-5 gap-3">
                 {BHK_OPTIONS.map(bhk => (
                   <Chip key={bhk} label={bhk} selected={formData.bhk === bhk} onClick={() => handleSelect('bhk', bhk)} />
                 ))}
               </div>
+              {fieldErrors.bhk && <p className="text-red-500 text-xs font-bold mt-1">⚠ {fieldErrors.bhk}</p>}
             </div>
           )}
 
@@ -509,9 +579,10 @@ const PropertyListingForm = () => {
             <Label className="text-lg font-bold text-slate-900 dark:text-white block border-b border-slate-100 dark:border-slate-800 pb-3">4. Area Details *</Label>
             
             <div className="flex flex-col md:flex-row gap-4">
-              <div className="flex-1 space-y-2">
+              <div id="field-totalArea" className="flex-1 space-y-2">
                 <Label className="text-sm font-bold text-slate-700 dark:text-slate-300">Total Area *</Label>
-                <Input name="totalArea" type="number" min="1" value={formData.totalArea} onChange={handleInputChange} placeholder="e.g. 1500" className="h-12 bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-lg font-bold" />
+                <Input name="totalArea" type="number" min="1" value={formData.totalArea} onChange={handleInputChange} placeholder="e.g. 1500" className={`h-12 bg-slate-50 dark:bg-slate-900 text-lg font-bold ${fieldErrors.totalArea ? 'border-red-400 focus-visible:ring-red-400' : 'border-slate-200 dark:border-slate-800'}`} />
+                {fieldErrors.totalArea && <p className="text-red-500 text-xs font-bold">⚠ {fieldErrors.totalArea}</p>}
               </div>
               <div className="flex-1 space-y-2">
                 <Label className="text-sm font-bold text-slate-700 dark:text-slate-300">Area Unit *</Label>
@@ -558,17 +629,18 @@ const PropertyListingForm = () => {
             <Label className="text-lg font-bold text-slate-900 dark:text-white block border-b border-slate-100 dark:border-slate-800 pb-3">5. Expected Price *</Label>
             
             <div className="space-y-4">
-              <div className="relative">
+              <div id="field-totalPrice" className="relative">
                 <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 font-bold text-xl">₹</span>
-                <Input 
-                  name="totalPrice" 
-                  type="number" 
+                <Input
+                  name="totalPrice"
+                  type="number"
                   min="1"
-                  value={formData.totalPrice} 
-                  onChange={handleInputChange} 
-                  placeholder="0" 
-                  className="h-14 pl-10 bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-xl font-extrabold text-[#10B981]" 
+                  value={formData.totalPrice}
+                  onChange={handleInputChange}
+                  placeholder="0"
+                  className={`h-14 pl-10 bg-slate-50 dark:bg-slate-900 text-xl font-extrabold text-[#10B981] ${fieldErrors.totalPrice ? 'border-red-400 focus-visible:ring-red-400' : 'border-slate-200 dark:border-slate-800'}`}
                 />
+                {fieldErrors.totalPrice && <p className="text-red-500 text-xs font-bold mt-1">⚠ {fieldErrors.totalPrice}</p>}
               </div>
               
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 px-2">
@@ -589,16 +661,18 @@ const PropertyListingForm = () => {
             <Label className="text-lg font-bold text-slate-900 dark:text-white block border-b border-slate-100 dark:border-slate-800 pb-3">6. Location Details *</Label>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              <div className="space-y-2">
+              <div id="field-city" className="space-y-2">
                 <Label className="text-sm font-bold text-slate-700 dark:text-slate-300">City *</Label>
-                <select name="city" value={formData.city} onChange={handleInputChange} className="flex h-12 w-full items-center justify-between rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 px-3 py-2 text-sm font-bold ring-offset-background focus:outline-none focus:ring-2 focus:ring-[#10B981]">
+                <select name="city" value={formData.city} onChange={handleInputChange} className={`flex h-12 w-full items-center justify-between rounded-xl border bg-slate-50 dark:bg-slate-900 px-3 py-2 text-sm font-bold ring-offset-background focus:outline-none focus:ring-2 focus:ring-[#10B981] ${fieldErrors.city ? 'border-red-400' : 'border-slate-200 dark:border-slate-800'}`}>
                   <option value="" disabled>Select City</option>
                   {CITY_OPTIONS.map(city => <option key={city} value={city}>{city}</option>)}
                 </select>
+                {fieldErrors.city && <p className="text-red-500 text-xs font-bold">⚠ {fieldErrors.city}</p>}
               </div>
-              <div className="space-y-2">
+              <div id="field-sector" className="space-y-2">
                 <Label className="text-sm font-bold text-slate-700 dark:text-slate-300">Sector / Area *</Label>
-                <Input name="sector" value={formData.sector} onChange={handleInputChange} placeholder="e.g. Sector 150" className="h-12 bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800" />
+                <Input name="sector" value={formData.sector} onChange={handleInputChange} placeholder="e.g. Sector 150" className={`h-12 bg-slate-50 dark:bg-slate-900 ${fieldErrors.sector ? 'border-red-400 focus-visible:ring-red-400' : 'border-slate-200 dark:border-slate-800'}`} />
+                {fieldErrors.sector && <p className="text-red-500 text-xs font-bold">⚠ {fieldErrors.sector}</p>}
               </div>
               <div className="space-y-2">
                 <Label className="text-sm font-bold text-slate-700 dark:text-slate-300">Society / Project / Locality</Label>
@@ -609,9 +683,10 @@ const PropertyListingForm = () => {
                   <Label className="text-sm font-bold text-slate-700 dark:text-slate-300">Tower / Block</Label>
                   <Input name="towerBlock" value={formData.towerBlock} onChange={handleInputChange} placeholder="e.g. Tower A" className="h-12 bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800" />
                 </div>
-                <div className="space-y-2 flex-1">
+                <div id="field-houseNo" className="space-y-2 flex-1">
                   <Label className="text-sm font-bold text-slate-700 dark:text-slate-300">No. *</Label>
-                  <Input name="houseNo" value={formData.houseNo} onChange={handleInputChange} placeholder="Flat/House/Plot No" className="h-12 bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800" />
+                  <Input name="houseNo" value={formData.houseNo} onChange={handleInputChange} placeholder="Flat/House/Plot No" className={`h-12 bg-slate-50 dark:bg-slate-900 ${fieldErrors.houseNo ? 'border-red-400 focus-visible:ring-red-400' : 'border-slate-200 dark:border-slate-800'}`} />
+                  {fieldErrors.houseNo && <p className="text-red-500 text-xs font-bold">⚠ {fieldErrors.houseNo}</p>}
                 </div>
               </div>
             </div>
@@ -869,20 +944,22 @@ const PropertyListingForm = () => {
             <Label className="text-lg font-bold text-slate-900 dark:text-white block border-b border-slate-100 dark:border-slate-800 pb-3">12. Owner Details</Label>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              <div className="space-y-2">
-                <Label className="text-sm font-bold text-slate-700 dark:text-slate-300">Property Title / Full Name *</Label>
-                <Input name="name" value={formData.name} onChange={handleInputChange} placeholder="Your Name or Property Title" className="h-12 bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800" />
+              <div id="field-name" className="space-y-2">
+                <Label className="text-sm font-bold text-slate-700 dark:text-slate-300">Full Name *</Label>
+                <Input name="name" value={formData.name} onChange={handleInputChange} placeholder="Your Name" className={`h-12 bg-slate-50 dark:bg-slate-900 ${fieldErrors.name ? 'border-red-400 focus-visible:ring-red-400' : 'border-slate-200 dark:border-slate-800'}`} />
+                {fieldErrors.name && <p className="text-red-500 text-xs font-bold">⚠ {fieldErrors.name}</p>}
               </div>
               <div className="space-y-2">
-                <Label className="text-sm font-bold text-slate-700 dark:text-slate-300">Email Address *</Label>
+                <Label className="text-sm font-bold text-slate-700 dark:text-slate-300">Email Address <span className="text-slate-400 font-normal">(optional)</span></Label>
                 <Input name="email" type="email" value={formData.email} onChange={handleInputChange} placeholder="Email" className="h-12 bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800" />
               </div>
-              <div className="space-y-2">
+              <div id="field-mobileNumber" className="space-y-2">
                 <Label className="text-sm font-bold text-slate-700 dark:text-slate-300">Mobile Number (10 digits) *</Label>
                 <div className="relative">
                   <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 font-bold">+91</span>
-                  <Input name="mobileNumber" type="tel" maxLength="10" value={formData.mobileNumber} onChange={handleInputChange} placeholder="9876543210" className="h-12 pl-12 bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 tracking-wide font-bold" />
+                  <Input name="mobileNumber" type="tel" maxLength="10" value={formData.mobileNumber} onChange={handleInputChange} placeholder="9876543210" className={`h-12 pl-12 bg-slate-50 dark:bg-slate-900 tracking-wide font-bold ${fieldErrors.mobileNumber ? 'border-red-400 focus-visible:ring-red-400' : 'border-slate-200 dark:border-slate-800'}`} />
                 </div>
+                {fieldErrors.mobileNumber && <p className="text-red-500 text-xs font-bold">⚠ {fieldErrors.mobileNumber}</p>}
               </div>
               <div className="space-y-2 md:col-span-2">
                 <Label className="text-sm font-bold text-slate-700 dark:text-slate-300">Current Address</Label>
@@ -892,13 +969,16 @@ const PropertyListingForm = () => {
           </div>
 
           {/* (17) TERMS & CONDITIONS */}
-          <div className="bg-transparent pt-4 pb-2">
+          <div id="field-termsAccepted" className="bg-transparent pt-4 pb-2">
             <div className="flex items-start space-x-3">
-              <Checkbox 
-                id="terms" 
-                checked={formData.termsAccepted} 
-                onCheckedChange={(checked) => setFormData(prev => ({ ...prev, termsAccepted: checked }))}
-                className="mt-1 data-[state=checked]:bg-[#10B981] data-[state=checked]:border-[#10B981]"
+              <Checkbox
+                id="terms"
+                checked={formData.termsAccepted}
+                onCheckedChange={(checked) => {
+                  setFormData(prev => ({ ...prev, termsAccepted: checked }));
+                  clearFieldError('termsAccepted');
+                }}
+                className={`mt-1 data-[state=checked]:bg-[#10B981] data-[state=checked]:border-[#10B981] ${fieldErrors.termsAccepted ? 'border-red-400' : ''}`}
               />
               <div className="grid gap-1.5 leading-none">
                 <label htmlFor="terms" className="text-sm font-bold text-slate-700 dark:text-slate-300 cursor-pointer">
@@ -907,6 +987,7 @@ const PropertyListingForm = () => {
                 <p className="text-sm text-slate-500 font-medium">
                   By submitting, you confirm that the provided information is accurate and you have the right to list this property.
                 </p>
+                {fieldErrors.termsAccepted && <p className="text-red-500 text-xs font-bold mt-1">⚠ {fieldErrors.termsAccepted}</p>}
               </div>
             </div>
           </div>

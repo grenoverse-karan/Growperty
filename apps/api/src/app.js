@@ -3,6 +3,7 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
+import cookieParser from 'cookie-parser';
 
 import routes from './routes/index.js';
 import { errorMiddleware } from './middleware/index.js';
@@ -10,11 +11,16 @@ import logger from './utils/logger.js';
 
 const app = express();
 
-app.use(helmet());
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: 'cross-origin' },
+  crossOriginOpenerPolicy: false,
+  contentSecurityPolicy: false,
+}));
 app.use(cors({
-  origin: process.env.CORS_ORIGIN,
+  origin: true,
   credentials: true,
 }));
+app.use(cookieParser());
 app.use(morgan('combined'));
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));

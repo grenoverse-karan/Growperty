@@ -209,8 +209,8 @@ const AdminLoginPage = () => {
                     </label>
                   </div>
 
-                  <Button 
-                    type="submit" 
+                  <Button
+                    type="submit"
                     className="w-full h-12 rounded-xl font-bold text-base bg-primary hover:bg-primary/90 text-white mt-6 transition-all active:scale-[0.98]"
                     disabled={isSubmitting}
                   >
@@ -224,6 +224,32 @@ const AdminLoginPage = () => {
                     )}
                   </Button>
                 </form>
+
+                {import.meta.env.DEV && (
+                  <button
+                    onClick={async () => {
+                      setIsSubmitting(true);
+                      try {
+                        await adminLogin('admin@growperty.com', 'Growperty@2024');
+                        navigate(from, { replace: true });
+                      } catch (err) {
+                        setError(err.message);
+                      } finally {
+                        setIsSubmitting(false);
+                      }
+                    }}
+                    disabled={isSubmitting}
+                    style={{
+                      marginTop: 12, width: '100%', padding: '10px 0',
+                      borderRadius: 10, border: '1.5px dashed #94aabf',
+                      background: 'transparent', color: '#4d6175',
+                      fontSize: 13, fontWeight: 600, cursor: 'pointer',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                    }}
+                  >
+                    💻 Dev Access (localhost only)
+                  </button>
+                )}
               </CardContent>
             </Card>
           </motion.div>

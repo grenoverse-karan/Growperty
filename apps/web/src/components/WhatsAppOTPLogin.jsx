@@ -96,21 +96,14 @@ const WhatsAppOTPLogin = () => {
 
       const data = await response.json().catch(() => ({}));
 
-      if (response.ok && data.success !== false) {
+      if (response.ok && data.success && data.token) {
         toast.success(data.message || 'OTP Verified Successfully');
-        
-        // Handle PocketBase login and profile check
-        try {
-          const loginResult = await handleWhatsAppLoginSuccess(phone);
-          if (loginResult?.isProfileComplete) {
-            navigate('/');
-          } else {
-            navigate(data.redirectUrl || '/setup-profile');
-          }
-        } catch (e) {
-          // Fallback if auth context fails
-          navigate(data.redirectUrl || '/setup-profile');
-        }
+        const result = handleWhatsAppLoginSuccess({
+          token: data.token,
+          user: data.user,
+          isProfileComplete: data.isProfileComplete,
+        });
+        navigate(result.isProfileComplete ? '/' : '/setup-profile');
       } else {
         // Show specific error message from backend (e.g., expired, max attempts, invalid)
         toast.error(data.message || 'Invalid OTP');

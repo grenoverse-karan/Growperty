@@ -52,6 +52,7 @@ import AdminResetPasswordPage from '@/pages/AdminResetPasswordPage.jsx';
 import AdminSettingsPage from '@/pages/AdminSettingsPage.jsx';
 import AdminApprovalsPage from '@/pages/AdminApprovalsPage.jsx';
 import AdminPropertiesPage from '@/pages/AdminPropertiesPage.jsx';
+import AdminListPropertyPage from '@/pages/AdminListPropertyPage.jsx';
 
 function App() {
   console.log('[App] Rendering routes configuration');
@@ -133,6 +134,12 @@ function App() {
             <Route path="/admin/approvals" element={
               <AdminProtectedRoute>
                 <AdminApprovalsPage />
+              </AdminProtectedRoute>
+            } />
+
+            <Route path="/admin/list-property" element={
+              <AdminProtectedRoute>
+                <AdminListPropertyPage />
               </AdminProtectedRoute>
             } />
             

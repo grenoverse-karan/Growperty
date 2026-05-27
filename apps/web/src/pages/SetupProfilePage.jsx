@@ -3,7 +3,7 @@ import { Helmet } from 'react-helmet';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuth } from '@/contexts/AuthContext.jsx';
-import pb from '@/lib/pocketbaseClient.js';
+import apiServerClient from '@/lib/apiServerClient.js';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -13,7 +13,7 @@ import { Loader2, User, MapPin, Phone, CheckCircle2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 const SetupProfilePage = () => {
-  const { currentUser, whatsappPhone } = useAuth();
+  const { currentUser, whatsappPhone, getToken, updateCurrentUser } = useAuth();
   const navigate = useNavigate();
   
   const [name, setName] = useState(currentUser?.name || '');
@@ -32,11 +32,17 @@ const SetupProfilePage = () => {
 
     setIsLoading(true);
     try {
-      await pb.collection('users').update(currentUser.id, {
-        name: name.trim(),
-        city: city.trim(),
-      }, { $autoCancel: false });
-      
+      const res = await apiServerClient.fetch('/users/me', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${getToken()}`,
+        },
+        body: JSON.stringify({ name: name.trim(), city: city.trim() }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error || 'Failed to update profile');
+      const updated = await res.json();
+      updateCurrentUser(updated);
       toast.success('Profile created successfully');
       navigate('/');
     } catch (error) {

@@ -21,7 +21,9 @@ const propertySchema = new mongoose.Schema(
     name:            { type: String, required: true },
     carParking:      { type: Number, default: 0 },
     bikeParking:     { type: Number, default: 0 },
-    status:          { type: String, default: 'pending', enum: ['pending', 'approved', 'rejected', 'suspended'] },
+    status:          { type: String, default: 'pending', enum: ['pending', 'approved', 'rejected', 'suspended', 'sold', 'unlisted'] },
+    listedBy:        { type: String },
+    liveAt:          { type: Date },
 
     images:          { type: [String], default: [] },
 
