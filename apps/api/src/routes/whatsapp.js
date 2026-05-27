@@ -182,8 +182,14 @@ router.post('/verify-otp', async (req, res) => {
     });
   }
 
+  // Dev-only master OTP bypass — never active in production
+  const isDevBypass = process.env.NODE_ENV !== 'production' && userEnteredOtp === '000000';
+  if (isDevBypass) {
+    logger.warn('DEV BYPASS: master OTP 000000 accepted', { phoneNumber: normalizedPhone });
+  }
+
   // Compare OTP
-  if (userEnteredOtp !== storedData.otp) {
+  if (!isDevBypass && userEnteredOtp !== storedData.otp) {
     storedData.attempts += 1;
     const remainingAttempts = MAX_VERIFY_ATTEMPTS - storedData.attempts;
 
