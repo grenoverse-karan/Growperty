@@ -237,19 +237,33 @@ router.post('/verify-otp', async (req, res) => {
 // GET /webhook — Meta webhook verification handshake
 // =====================
 router.get('/webhook', (req, res) => {
-  const VERIFY_TOKEN = process.env.WHATSAPP_WEBHOOK_VERIFY_TOKEN;
-  const mode      = req.query['hub.mode'];
-  const token     = req.query['hub.verify_token'];
-  const challenge = req.query['hub.challenge'];
+  // Meta sends params with dots: hub.mode, hub.verify_token, hub.challenge
+  const mode      = req.query['hub.mode']      || req.query['hub_mode'];
+  const token     = req.query['hub.verify_token'] || req.query['hub_verify_token'];
+  const challenge = req.query['hub.challenge'] || req.query['hub_challenge'];
 
-  logger.info('[WA Webhook] Verification request', { mode, token });
+  const VERIFY_TOKEN =
+    process.env.WEBHOOK_VERIFY_TOKEN ||
+    process.env.WHATSAPP_WEBHOOK_VERIFY_TOKEN ||
+    'growperty_webhook_2024';
+
+  logger.info('[WA Webhook] Verification attempt', {
+    mode,
+    receivedToken: token,
+    expectedToken: VERIFY_TOKEN,
+    match: token === VERIFY_TOKEN,
+    allQuery: JSON.stringify(req.query),
+  });
 
   if (mode === 'subscribe' && token === VERIFY_TOKEN) {
-    logger.info('[WA Webhook] Verified successfully');
+    logger.info('[WA Webhook] ✅ Verified — sending challenge back');
     return res.status(200).send(challenge);
   }
-  logger.warn('[WA Webhook] Verification failed — token mismatch');
-  return res.status(403).json({ error: 'Forbidden' });
+
+  logger.warn('[WA Webhook] ❌ Verification failed', {
+    reason: mode !== 'subscribe' ? `mode is "${mode}" not "subscribe"` : 'token mismatch',
+  });
+  return res.status(403).send('Forbidden');
 });
 
 // =====================
