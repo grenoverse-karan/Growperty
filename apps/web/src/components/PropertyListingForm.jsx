@@ -404,6 +404,13 @@ const PropertyListingForm = ({ isAdmin = false }) => {
 
       const payload = sanitizationResult.data;
 
+      // Always inject visit time fields directly — sanitizer whitelist may miss them
+      if (formData.visitTimeType) {
+        payload.visitTimeType = formData.visitTimeType;
+        if (formData.visitFixedSlots?.length) payload.visitFixedSlots = formData.visitFixedSlots;
+        if (formData.visitFlexibleSlots?.length) payload.visitFlexibleSlots = formData.visitFlexibleSlots;
+      }
+
       // Convert images to base64 (max 10 to stay within MongoDB 16MB doc limit)
       if (images.length > 0) {
         const toBase64 = (file) => new Promise((resolve) => {
