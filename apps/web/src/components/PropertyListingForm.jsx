@@ -2,13 +2,14 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
+import { toast as sonnerToast } from 'sonner';
 import apiServerClient from '@/lib/apiServerClient.js';
 import { Input } from '@/components/ui/input.jsx';
 import { Label } from '@/components/ui/label.jsx';
 import { Button } from '@/components/ui/button.jsx';
 import { Textarea } from '@/components/ui/textarea.jsx';
 import { Checkbox } from '@/components/ui/checkbox.jsx';
-import { Loader2, UploadCloud, X, Plus, Minus, Info, Image as ImageIcon } from 'lucide-react';
+import { Loader2, UploadCloud, X, Plus, Minus, Info } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext.jsx';
 import { useAdminAuth } from '@/contexts/AdminAuthContext.jsx';
 import { sanitizePropertyFormData, logPropertyPayload } from '@/lib/propertyFormDataMapper.js';
@@ -72,6 +73,9 @@ const PropertyListingForm = ({ isAdmin = false }) => {
     amenities: [],
     nearbyAmenities: [],
     description: '',
+    visitTimeType: '',
+    visitFixedSlots: [],
+    visitFlexibleSlots: [],
     name: '',
     email: '',
     mobileNumber: '',
@@ -97,9 +101,14 @@ const PropertyListingForm = ({ isAdmin = false }) => {
     if (!formData.city) errors.city = 'City select karo';
     if (!formData.sector?.trim()) errors.sector = 'Sector / Area enter karo';
     if (!formData.houseNo?.trim()) errors.houseNo = 'Flat / House No. enter karo';
+    if (showFloors && !formData.totalFloors) errors.totalFloors = 'Total floors enter karo';
+    if (showFloorNumber && !formData.floorNumber) errors.floorNumber = 'Floor number enter karo';
+    if (!formData.possessionStatus) errors.possessionStatus = 'Possession status select karo';
+    if (!formData.ownershipType) errors.ownershipType = 'Ownership type select karo';
+    if (showFloors && !formData.furnishingType) errors.furnishingType = 'Furnishing type select karo';
+    if (!formData.visitTimeType) errors.visitTimeType = 'Preferred visit time select karo';
     if (!formData.name?.trim()) errors.name = 'Name enter karo';
     if (!formData.mobileNumber?.trim()) errors.mobileNumber = 'Mobile number enter karo';
-    if (!formData.termsAccepted) errors.termsAccepted = 'Terms & Conditions accept karo';
     return errors;
   };
 
@@ -109,7 +118,7 @@ const PropertyListingForm = ({ isAdmin = false }) => {
         ...prev,
         name: prev.name || currentUser.name || '',
         email: prev.email || currentUser.email || '',
-        mobileNumber: prev.mobileNumber || currentUser.phone || currentUser.phoneNumber || whatsappPhone || ''
+        mobileNumber: prev.mobileNumber || (currentUser.phone || currentUser.phoneNumber || whatsappPhone || '').replace(/^(\+?91)/, '').replace(/\D/g, '').slice(-10)
       }));
     }
   }, [currentUser, whatsappPhone]);
@@ -311,20 +320,19 @@ const PropertyListingForm = ({ isAdmin = false }) => {
     }
     console.log('✅ Auth check passed — user:', isAdmin ? 'admin' : userId);
 
-    if (!formData.termsAccepted) {
-      console.log('❌ STOP: termsAccepted is false');
-      toast({ title: 'Terms Required', description: 'You must accept the Terms & Conditions.', variant: 'destructive' });
-      return;
-    }
-    console.log('✅ Terms accepted');
-
-    // Client-side field validation
+    // Run ALL field validation first — shows red errors on every empty required field
     const validationErrors = validateForm();
+    if (!formData.termsAccepted) validationErrors.termsAccepted = 'Terms & Conditions accept karo';
+
     if (Object.keys(validationErrors).length > 0) {
       setFieldErrors(validationErrors);
+      // Scroll to first error field
       const firstKey = Object.keys(validationErrors)[0];
-      document.getElementById(`field-${firstKey}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      toast.error('Kuch required fields reh gaye hain — neeche red fields fill karo');
+      const el = document.getElementById(`field-${firstKey}`);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+      sonnerToast.error(`${Object.keys(validationErrors).length} required field(s) reh gaye hain — red fields fill karo`);
       return;
     }
     setFieldErrors({});
@@ -366,6 +374,9 @@ const PropertyListingForm = ({ isAdmin = false }) => {
         amenities: formData.amenities,
         nearbyAmenities: formData.nearbyAmenities,
         description: sanitizeDescription(formData.description),
+        visitTimeType: formData.visitTimeType || undefined,
+        visitFixedSlots: formData.visitFixedSlots.length ? formData.visitFixedSlots : undefined,
+        visitFlexibleSlots: formData.visitFlexibleSlots.length ? formData.visitFlexibleSlots : undefined,
         name: formData.name,
         email: formData.email,
         mobileNumber: formData.mobileNumber,
@@ -562,7 +573,7 @@ const PropertyListingForm = ({ isAdmin = false }) => {
           {/* (4) SIZE CONFIGURATION (Bathrooms/Balconies) */}
           {showBathBalcony && (
             <div className="bg-white dark:bg-slate-950 rounded-2xl p-6 md:p-8 shadow-sm border border-slate-200 dark:border-slate-800 space-y-5 animate-in fade-in">
-              <Label className="text-lg font-bold text-slate-900 dark:text-white block border-b border-slate-100 dark:border-slate-800 pb-3">3. Size Details</Label>
+              <Label className="text-lg font-bold text-slate-900 dark:text-white block border-b border-slate-100 dark:border-slate-800 pb-3">3. Additional Details</Label>
               <div className="flex gap-4 w-full">
                 <div className="w-1/2">
                   <CounterBlock label="Bathrooms" value={formData.bathrooms} onDecrement={() => handleCounterChange('bathrooms', -1)} onIncrement={() => handleCounterChange('bathrooms', 1)} />
@@ -609,16 +620,18 @@ const PropertyListingForm = ({ isAdmin = false }) => {
 
             {/* Floors */}
             {showFloors && (
-              <div className="flex gap-4 pt-2">
+              <div id="field-totalFloors" className="flex gap-4 pt-2">
                 {showFloorNumber && (
                   <div className="flex-1 space-y-2 animate-in fade-in">
-                    <Label className="text-sm font-bold text-slate-700 dark:text-slate-300">Floor Number</Label>
-                    <Input name="floorNumber" type="number" value={formData.floorNumber} onChange={handleInputChange} placeholder="e.g. 5" className="h-12 bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800" />
+                    <Label className="text-sm font-bold text-slate-700 dark:text-slate-300">Floor Number *</Label>
+                    <Input name="floorNumber" type="number" value={formData.floorNumber} onChange={handleInputChange} placeholder="e.g. 5" className={`h-12 bg-slate-50 dark:bg-slate-900 ${fieldErrors.floorNumber ? 'border-red-400 focus-visible:ring-red-400' : 'border-slate-200 dark:border-slate-800'}`} />
+                    {fieldErrors.floorNumber && <p className="text-red-500 text-xs font-bold">⚠ {fieldErrors.floorNumber}</p>}
                   </div>
                 )}
                 <div className="flex-1 space-y-2">
-                  <Label className="text-sm font-bold text-slate-700 dark:text-slate-300">Total Floors</Label>
-                  <Input name="totalFloors" type="number" value={formData.totalFloors} onChange={handleInputChange} placeholder="e.g. 12" className="h-12 bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800" />
+                  <Label className="text-sm font-bold text-slate-700 dark:text-slate-300">Total Floors *</Label>
+                  <Input name="totalFloors" type="number" value={formData.totalFloors} onChange={handleInputChange} placeholder="e.g. 12" className={`h-12 bg-slate-50 dark:bg-slate-900 ${fieldErrors.totalFloors ? 'border-red-400 focus-visible:ring-red-400' : 'border-slate-200 dark:border-slate-800'}`} />
+                  {fieldErrors.totalFloors && <p className="text-red-500 text-xs font-bold">⚠ {fieldErrors.totalFloors}</p>}
                 </div>
               </div>
             )}
@@ -693,37 +706,40 @@ const PropertyListingForm = ({ isAdmin = false }) => {
           </div>
 
           {/* (8) POSSESSION, (9) OWNERSHIP, (10) FURNISHING */}
-          <div className="bg-white dark:bg-slate-950 rounded-2xl p-6 md:p-8 shadow-sm border border-slate-200 dark:border-slate-800 space-y-8">
+          <div className={`bg-white dark:bg-slate-950 rounded-2xl p-6 md:p-8 shadow-sm border dark:border-slate-800 space-y-8 ${fieldErrors.furnishingType ? 'border-red-400' : 'border-slate-200'}`}>
             
             <div className="space-y-4">
-              <Label className="text-lg font-bold text-slate-900 dark:text-white block border-b border-slate-100 dark:border-slate-800 pb-3">7. Status & Type</Label>
+              <Label className="text-lg font-bold text-slate-900 dark:text-white block border-b border-slate-100 dark:border-slate-800 pb-3">7. Status & Type *</Label>
               
-              <div className="space-y-2">
-                <Label className="text-sm font-bold text-slate-500">Possession Status</Label>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div id="field-possessionStatus" className="space-y-2">
+                <Label className="text-sm font-bold text-slate-500">Possession Status *</Label>
+                <div className={`grid grid-cols-1 sm:grid-cols-3 gap-3 rounded-xl p-1 ${fieldErrors.possessionStatus ? 'ring-2 ring-red-400' : ''}`}>
                   {POSSESSION_STATUS.map(status => (
                     <Chip key={status} label={status} selected={formData.possessionStatus === status} onClick={() => handleSelect('possessionStatus', status)} />
                   ))}
                 </div>
+                {fieldErrors.possessionStatus && <p className="text-red-500 text-xs font-bold mt-1">⚠ {fieldErrors.possessionStatus}</p>}
               </div>
 
-              <div className="space-y-2 pt-2">
-                <Label className="text-sm font-bold text-slate-500">Ownership Type</Label>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div id="field-ownershipType" className="space-y-2 pt-2">
+                <Label className="text-sm font-bold text-slate-500">Ownership Type *</Label>
+                <div className={`grid grid-cols-2 sm:grid-cols-4 gap-3 rounded-xl p-1 ${fieldErrors.ownershipType ? 'ring-2 ring-red-400' : ''}`}>
                   {OWNERSHIP_TYPE.map(type => (
                     <Chip key={type} label={type} selected={formData.ownershipType === type} onClick={() => handleSelect('ownershipType', type)} />
                   ))}
                 </div>
+                {fieldErrors.ownershipType && <p className="text-red-500 text-xs font-bold mt-1">⚠ {fieldErrors.ownershipType}</p>}
               </div>
 
               {showFloors && (
-                <div className="space-y-2 pt-2">
-                  <Label className="text-sm font-bold text-slate-500">Furnishing Type</Label>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div id="field-furnishingType" className="space-y-2 pt-2">
+                  <Label className="text-sm font-bold text-slate-500">Furnishing Type *</Label>
+                  <div className={`grid grid-cols-1 sm:grid-cols-3 gap-3 rounded-xl p-1 ${fieldErrors.furnishingType ? 'ring-2 ring-red-400' : ''}`}>
                     {FURNISHING_TYPE.map(type => (
                       <Chip key={type} label={type} selected={formData.furnishingType === type} onClick={() => handleSelect('furnishingType', type)} />
                     ))}
                   </div>
+                  {fieldErrors.furnishingType && <p className="text-red-500 text-xs font-bold mt-1">⚠ {fieldErrors.furnishingType}</p>}
 
                   {/* Expandable Furnishing Items */}
                   {showFurnishingDetails && (
@@ -939,9 +955,102 @@ const PropertyListingForm = ({ isAdmin = false }) => {
             </div>
           </div>
 
+          {/* PREFERRED VISIT TIME */}
+          <div id="field-visitTimeType" className={`bg-white dark:bg-slate-950 rounded-2xl p-6 md:p-8 shadow-sm border dark:border-slate-800 space-y-5 ${fieldErrors.visitTimeType ? 'border-red-400' : 'border-slate-200'}`}>
+            <Label className="text-lg font-bold text-slate-900 dark:text-white block border-b border-slate-100 dark:border-slate-800 pb-3">
+              12. Preferred Visit Time *
+            </Label>
+            {fieldErrors.visitTimeType && <p className="text-red-500 text-xs font-bold -mt-3">⚠ {fieldErrors.visitTimeType}</p>}
+
+            {/* 3 main type buttons */}
+            <div className={`grid grid-cols-1 sm:grid-cols-3 gap-3 rounded-xl p-1 ${fieldErrors.visitTimeType ? 'ring-2 ring-red-400' : ''}`}>
+              {[
+                { value: 'anytime',  label: 'Any Time',   sub: '10am – 6pm' },
+                { value: 'fixed',    label: 'Fixed Time',  sub: 'Select a slot' },
+                { value: 'flexible', label: 'Flexible',    sub: 'Multiple slots' },
+              ].map(({ value, label, sub }) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => setFormData(prev => ({ ...prev, visitTimeType: prev.visitTimeType === value ? '' : value, visitFixedSlots: [], visitFlexibleSlots: [] }))}
+                  className={`rounded-xl border-2 p-4 text-left transition-all ${
+                    formData.visitTimeType === value
+                      ? 'border-[#10B981] bg-[#10B981]/10 text-[#10B981]'
+                      : 'border-slate-200 dark:border-slate-700 hover:border-[#10B981]/50 hover:bg-slate-50 dark:hover:bg-slate-900 text-slate-700 dark:text-slate-300'
+                  }`}
+                >
+                  <div className="font-semibold text-sm">{label}</div>
+                  <div className="text-xs text-slate-400 mt-0.5">{sub}</div>
+                </button>
+              ))}
+            </div>
+
+            {/* Fixed: multi-select slots */}
+            {formData.visitTimeType === 'fixed' && (
+              <div className="space-y-2">
+                <Label className="text-sm font-semibold text-slate-600 dark:text-slate-400">Select preferred time slots <span className="text-slate-400 font-normal">(can select multiple)</span></Label>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  {['10am–11am','11am–12pm','12pm–1pm','1pm–2pm','2pm–3pm','3pm–4pm','4pm–5pm','5pm–6pm'].map(slot => {
+                    const selected = formData.visitFixedSlots.includes(slot);
+                    return (
+                      <button
+                        key={slot}
+                        type="button"
+                        onClick={() => setFormData(prev => {
+                          const next = selected
+                            ? prev.visitFixedSlots.filter(s => s !== slot)
+                            : [...prev.visitFixedSlots, slot];
+                          return { ...prev, visitFixedSlots: next };
+                        })}
+                        className={`rounded-lg border px-3 py-2 text-sm font-medium transition-all ${
+                          selected
+                            ? 'border-[#10B981] bg-[#10B981]/10 text-[#10B981]'
+                            : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:border-[#10B981]/50'
+                        }`}
+                      >
+                        {slot}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Flexible: multi-select broad slots */}
+            {formData.visitTimeType === 'flexible' && (
+              <div className="space-y-2">
+                <Label className="text-sm font-semibold text-slate-600 dark:text-slate-400">Select all that apply</Label>
+                <div className="flex flex-wrap gap-2">
+                  {['10am–1pm','1pm–4pm','4pm–6pm'].map(slot => {
+                    const selected = formData.visitFlexibleSlots.includes(slot);
+                    return (
+                      <button
+                        key={slot}
+                        type="button"
+                        onClick={() => setFormData(prev => {
+                          const next = selected
+                            ? prev.visitFlexibleSlots.filter(s => s !== slot)
+                            : [...prev.visitFlexibleSlots, slot];
+                          return { ...prev, visitFlexibleSlots: next };
+                        })}
+                        className={`rounded-lg border px-5 py-2.5 text-sm font-medium transition-all ${
+                          selected
+                            ? 'border-[#10B981] bg-[#10B981]/10 text-[#10B981]'
+                            : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:border-[#10B981]/50'
+                        }`}
+                      >
+                        {slot}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+
           {/* (16) OWNER DETAILS */}
           <div className="bg-white dark:bg-slate-950 rounded-2xl p-6 md:p-8 shadow-sm border border-slate-200 dark:border-slate-800 space-y-5">
-            <Label className="text-lg font-bold text-slate-900 dark:text-white block border-b border-slate-100 dark:border-slate-800 pb-3">12. Owner Details</Label>
+            <Label className="text-lg font-bold text-slate-900 dark:text-white block border-b border-slate-100 dark:border-slate-800 pb-3">13. Owner Details</Label>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               <div id="field-name" className="space-y-2">

@@ -114,6 +114,9 @@ const ListPropertyForm = () => {
     amenities:         [],
     nearbyAmenities:   [],
     description:       '',
+    visitTimeType:     '',
+    visitFixedSlots:   [],
+    visitFlexibleSlots: [],
     email:             '',
     mobileNumber:      '',
     ownerType:         '',
@@ -387,6 +390,9 @@ const ListPropertyForm = () => {
         specialFeatures: [],
         amenities: formData.amenities,
         nearbyAmenities: formData.nearbyAmenities,
+        visitTimeType: formData.visitTimeType,
+        visitFixedSlots: formData.visitFixedSlots?.length ? formData.visitFixedSlots : undefined,
+        visitFlexibleSlots: formData.visitFlexibleSlots.length ? formData.visitFlexibleSlots : undefined,
       };
 
       // Sanitize and validate
@@ -881,6 +887,90 @@ const ListPropertyForm = () => {
             <p className="text-sm text-orange-600 dark:text-orange-400 font-bold flex items-center gap-1.5 mt-2">
               <ShieldAlert className="h-4 w-4" /> Phone numbers detected and will be automatically hidden for privacy.
             </p>
+          )}
+        </div>
+
+        {/* ── Preferred Visit Time ──────────────────────────────── */}
+        <div className="space-y-4 animate-in fade-in slide-in-from-top-2">
+          <Label className="text-base font-bold">Preferred Visit Time <span className="text-muted-foreground font-normal text-sm">(Optional)</span></Label>
+
+          {/* 3 main type buttons */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {[
+              { value: 'anytime',  label: 'Any Time',   sub: '10am – 6pm' },
+              { value: 'fixed',    label: 'Fixed Time',  sub: 'Select a slot' },
+              { value: 'flexible', label: 'Flexible',    sub: 'Multiple slots' },
+            ].map(({ value, label, sub }) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => { handleChange({ target: { name: 'visitTimeType', value: formData.visitTimeType === value ? '' : value } }); handleChange({ target: { name: 'visitFixedSlots', value: [] } }); handleChange({ target: { name: 'visitFlexibleSlots', value: [] } }); }}
+                className={`rounded-xl border-2 p-4 text-left transition-all ${
+                  formData.visitTimeType === value
+                    ? 'border-primary bg-primary/10 text-primary'
+                    : 'border-border hover:border-primary/40 hover:bg-secondary/40'
+                }`}
+              >
+                <div className="font-semibold text-sm">{label}</div>
+                <div className="text-xs text-muted-foreground mt-0.5">{sub}</div>
+              </button>
+            ))}
+          </div>
+
+          {/* Fixed: time input */}
+          {formData.visitTimeType === 'fixed' && (
+            <div className="space-y-2">
+              <Label className="text-sm font-semibold text-muted-foreground">Select preferred time slot</Label>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                {['10am–11am','11am–12pm','12pm–1pm','1pm–2pm','2pm–3pm','3pm–4pm','4pm–5pm','5pm–6pm'].map(slot => {
+                  const selected = (formData.visitFixedSlots || []).includes(slot);
+                  return (
+                    <button
+                      key={slot}
+                      type="button"
+                      onClick={() => { const cur = formData.visitFixedSlots || []; handleChange({ target: { name: 'visitFixedSlots', value: selected ? cur.filter(s => s !== slot) : [...cur, slot] } }); }}
+                      className={`rounded-lg border px-3 py-2 text-sm font-medium transition-all ${
+                        selected
+                          ? 'border-primary bg-primary/10 text-primary'
+                          : 'border-border hover:border-primary/40 hover:bg-secondary/40 text-muted-foreground'
+                      }`}
+                    >
+                      {slot}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Flexible: multi-select slots */}
+          {formData.visitTimeType === 'flexible' && (
+            <div className="space-y-2">
+              <Label className="text-sm font-semibold text-muted-foreground">Select all that apply</Label>
+              <div className="flex flex-wrap gap-2">
+                {['10am–1pm','1pm–4pm','4pm–6pm'].map(slot => {
+                  const selected = formData.visitFlexibleSlots.includes(slot);
+                  return (
+                    <button
+                      key={slot}
+                      type="button"
+                      onClick={() => {
+                        const current = formData.visitFlexibleSlots;
+                        const next = selected ? current.filter(s => s !== slot) : [...current, slot];
+                        handleChange({ target: { name: 'visitFlexibleSlots', value: next } });
+                      }}
+                      className={`rounded-lg border px-4 py-2 text-sm font-medium transition-all ${
+                        selected
+                          ? 'border-primary bg-primary/10 text-primary'
+                          : 'border-border hover:border-primary/40 hover:bg-secondary/40 text-muted-foreground'
+                      }`}
+                    >
+                      {slot}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
           )}
         </div>
 

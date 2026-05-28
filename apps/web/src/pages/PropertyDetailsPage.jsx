@@ -10,7 +10,7 @@ import {
   MapPin, Bed, Bath, Maximize, Phone, MessageCircle,
   ArrowLeft, ShieldCheck, Car, Bike, Building2,
   CheckCircle2, ChevronLeft, ChevronRight, Image as ImageIcon,
-  Home, IndianRupee, Tag, Info,
+  Home, IndianRupee, Tag, Info, Clock,
 } from 'lucide-react';
 import { formatIndianPrice } from '@/hooks/useProperties.js';
 import apiServerClient from '@/lib/apiServerClient.js';
@@ -427,6 +427,34 @@ const PropertyDetailsPage = () => {
                     <p className="text-muted-foreground text-sm italic">No description provided.</p>
                   )}
                 </div>
+
+                {/* ── 14. VISIT TIMINGS ─────────────────── */}
+                {property.visitTimeType && (
+                  <div className="bg-white dark:bg-slate-900 rounded-2xl p-5 border border-border/50 shadow-sm">
+                    <SectionTitle><span className="flex items-center gap-2"><Clock className="h-5 w-5 text-primary" />Preferred Visit Time</span></SectionTitle>
+                    {property.visitTimeType === 'anytime' && (
+                      <p className="text-sm font-semibold text-green-600 dark:text-green-400">Any Time (10 AM – 6 PM)</p>
+                    )}
+                    {property.visitTimeType === 'fixed' && Array.isArray(property.visitFixedSlots) && property.visitFixedSlots.length > 0 && (
+                      <div className="flex flex-wrap gap-2">
+                        {property.visitFixedSlots.map((slot, i) => (
+                          <span key={i} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-sm font-semibold border border-blue-200 dark:border-blue-700">
+                            <Clock className="h-3.5 w-3.5" />{slot}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                    {property.visitTimeType === 'flexible' && Array.isArray(property.visitFlexibleSlots) && property.visitFlexibleSlots.length > 0 && (
+                      <div className="flex flex-wrap gap-2">
+                        {property.visitFlexibleSlots.map((slot, i) => (
+                          <span key={i} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 text-sm font-semibold border border-amber-200 dark:border-amber-700">
+                            <Clock className="h-3.5 w-3.5" />{slot}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
 
               </div>{/* end left column */}
 

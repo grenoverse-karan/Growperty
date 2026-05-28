@@ -15,7 +15,7 @@ const propertySchema = new mongoose.Schema(
     totalArea:       { type: Number, required: true },
     areaUnit:        { type: String, required: true },
     areaType:        { type: String, required: true },
-    email:           { type: String, required: true },
+    email:           { type: String },
     mobileNumber:    { type: String, required: true },
     ownerType:       { type: String, required: true },
     name:            { type: String, required: true },
@@ -44,6 +44,10 @@ const propertySchema = new mongoose.Schema(
     saleType:        { type: String },
     bankLoanAvailable: { type: String },
     priceNegotiable: { type: Boolean },
+
+    visitTimeType:    { type: String },
+    visitFixedSlots:  { type: [String], default: [] },
+    visitFlexibleSlots: { type: [String], default: [] },
   },
   {
     timestamps: true,

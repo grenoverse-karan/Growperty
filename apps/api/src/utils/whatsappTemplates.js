@@ -28,18 +28,11 @@ const TEMPLATES = {
   },
 
   // Triggered when a buyer submits an inquiry / callback request
-  // params: { userName }
+  // No dynamic parameters — static template
   reply_callback: {
     name: 'reply_callback',
     language: 'en',
-    buildComponents: ({ userName }) => [
-      {
-        type: 'body',
-        parameters: [
-          { type: 'text', text: String(userName) },
-        ],
-      },
-    ],
+    buildComponents: () => [],
   },
 
   // Triggered when a buyer shows interest in a property
@@ -149,6 +142,12 @@ async function sendOnce(to, templateName, parameters, attempt) {
   });
 
   const json = await res.json();
+
+  console.log('[DEBUG] reply_callback Meta response:', {
+    statusCode: res.status,
+    body: JSON.stringify(json),
+    error: json?.error ?? null,
+  });
 
   logger.info(`[WA] ← API response`, {
     attempt,

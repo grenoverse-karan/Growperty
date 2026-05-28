@@ -270,94 +270,68 @@ router.get('/webhook', (req, res) => {
 // POST /webhook — Receive incoming WhatsApp messages
 // =====================
 router.post('/webhook', async (req, res) => {
-  // Always respond 200 immediately so Meta doesn't retry
-  res.status(200).send('EVENT_RECEIVED');
-
   const body = req.body;
 
-  // ── Log full raw body ──────────────────────────────────────────
-  logger.info('[WA Webhook] Raw body received', { raw: JSON.stringify(body) });
+  console.log('[DEBUG] Webhook POST hit — object:', body?.object, '| entries:', body?.entry?.length);
+  logger.info('[WA Webhook] POST received', { raw: JSON.stringify(body) });
 
-  if (body.object !== 'whatsapp_business_account') {
-    logger.warn('[WA Webhook] Ignored — object is not whatsapp_business_account', { object: body.object });
-    return;
-  }
+  // Process FIRST, then send 200 — Vercel stops execution after res.send()
+  try {
+    if (body.object === 'whatsapp_business_account') {
+      const changes = body.entry?.[0]?.changes?.[0]?.value;
+      const messages = changes?.messages;
 
-  const changes = body.entry?.[0]?.changes?.[0]?.value;
-  if (!changes) {
-    logger.warn('[WA Webhook] No changes found in payload');
-    return;
-  }
-
-  const messages = changes.messages;
-  if (!messages?.length) {
-    logger.info('[WA Webhook] No messages in payload (status update or other event)', {
-      statuses: changes.statuses?.length ?? 0,
-    });
-    return;
-  }
-
-  for (const msg of messages) {
-    const fromPhone = msg.from;
-
-    logger.info('[WA Webhook] Message received', {
-      type: msg.type,
-      from: fromPhone,
-      id: msg.id,
-      fullMsg: JSON.stringify(msg),
-    });
-
-    // ── Extract button text from all possible Meta formats ────────
-    // Format 1: quick_reply button from template  → msg.type === 'button'
-    // Format 2: interactive list/button reply     → msg.type === 'interactive'
-    const buttonTextRaw =
-      msg.button?.text ||                          // template quick reply
-      msg.interactive?.button_reply?.title ||      // interactive button
-      msg.interactive?.list_reply?.title ||        // interactive list
-      null;
-
-    logger.info('[WA Webhook] Button text extraction', {
-      msgType: msg.type,
-      'msg.button?.text': msg.button?.text ?? '(undefined)',
-      'msg.interactive?.button_reply?.title': msg.interactive?.button_reply?.title ?? '(undefined)',
-      'msg.interactive?.list_reply?.title': msg.interactive?.list_reply?.title ?? '(undefined)',
-      resolvedButtonText: buttonTextRaw ?? '(none)',
-    });
-
-    // ── Handle button replies ─────────────────────────────────────
-    if (buttonTextRaw) {
-      const buttonText = buttonTextRaw.toLowerCase().trim();
-
-      logger.info('[WA Webhook] Checking button match', {
-        from: fromPhone,
-        buttonText,
-        matchesCallBack: buttonText.includes('call back'),
-      });
-
-      if (buttonText.includes('call back')) {
-        logger.info('[WA Webhook] ✅ Matched "call back" — triggering reply_callback', { fromPhone });
-
-        await connectMongoDB();
-        const user = await User.findOne({ phone: fromPhone }).select('name').lean();
-        const userName = user?.name || 'there';
-
-        logger.info('[WA Webhook] User lookup for reply_callback', {
-          fromPhone,
-          found: !!user,
-          userName,
+      if (!messages?.length) {
+        logger.info('[WA Webhook] No messages — likely a status update', {
+          statuses: changes?.statuses?.length ?? 0,
         });
-
-        sendTemplateAsync(fromPhone, 'reply_callback', { userName });
       } else {
-        logger.info('[WA Webhook] Button did not match any known action', { buttonText });
+        for (const msg of messages) {
+          const fromPhone = msg.from;
+
+          logger.info('[WA Webhook] Message', {
+            type: msg.type,
+            from: fromPhone,
+            buttonText: msg.button?.text,
+            buttonReplyTitle: msg.interactive?.button_reply?.title,
+            fullMsg: JSON.stringify(msg),
+          });
+
+          // Extract button text — template quick reply or interactive button
+          const buttonTextRaw =
+            msg.button?.text ||
+            msg.interactive?.button_reply?.title ||
+            msg.interactive?.list_reply?.title ||
+            null;
+
+          if (buttonTextRaw) {
+            const buttonText = buttonTextRaw.toLowerCase().trim();
+            console.log('[DEBUG] Button text received:', JSON.stringify(buttonText), '| from:', fromPhone);
+            logger.info('[WA Webhook] Button matched check', { buttonText, from: fromPhone });
+
+            if (buttonText.includes('call back')) {
+              console.log('[DEBUG] reply_callback firing to:', fromPhone);
+              logger.info('[WA Webhook] ✅ Triggering reply_callback', { fromPhone });
+
+              const { sendTemplateMessage } = await import('../utils/whatsappTemplates.js');
+              const result = await sendTemplateMessage(fromPhone, 'reply_callback', {});
+              console.log('[DEBUG] reply_callback result:', JSON.stringify(result));
+              logger.info('[WA Webhook] reply_callback result', result);
+            }
+          }
+
+          if (msg.type === 'text' && msg.text?.body?.trim().toUpperCase() === 'STOP') {
+            logger.info('[WA Webhook] STOP received', { from: fromPhone });
+          }
+        }
       }
     }
-
-    // ── Plain text STOP ───────────────────────────────────────────
-    if (msg.type === 'text' && msg.text?.body?.trim().toUpperCase() === 'STOP') {
-      logger.info('[WA Webhook] STOP received', { from: fromPhone });
-    }
+  } catch (err) {
+    logger.error('[WA Webhook] Processing error', { error: err.message, stack: err.stack });
   }
+
+  // Send 200 AFTER all processing — critical for Vercel serverless
+  res.status(200).send('EVENT_RECEIVED');
 });
 
 export default router;
