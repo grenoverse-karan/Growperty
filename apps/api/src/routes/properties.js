@@ -2,7 +2,7 @@ import express from 'express';
 import Property from '../models/Property.js';
 import logger from '../utils/logger.js';
 import { verifyToken } from '../utils/jwt.js';
-import { sendTemplateAsync } from '../utils/whatsappTemplates.js';
+import { sendTemplateMessage } from '../utils/whatsappTemplates.js';
 
 const router = express.Router();
 
@@ -70,8 +70,8 @@ router.post('/', requireAuth, async (req, res) => {
 
     // Notify the lister that their submission is under review (skip admin auto-approved)
     if (saved.status === 'pending' && saved.mobileNumber) {
-      sendTemplateAsync(saved.mobileNumber, 'under_review', { userName: saved.name || 'there' });
-      logger.info('[WA] under_review queued', { id: saved._id, phone: saved.mobileNumber });
+      await sendTemplateMessage(saved.mobileNumber, 'under_review', { userName: saved.name || 'there' });
+      logger.info('[WA] under_review sent', { id: saved._id, phone: saved.mobileNumber });
     }
 
     return res.status(201).json({
@@ -149,12 +149,12 @@ router.put('/:id', async (req, res) => {
       const ownerName = updated.name || 'there';
       if (data.status === 'approved') {
         const propertyUrl = `https://growperty.com/property/${updated._id}`;
-        sendTemplateAsync(updated.mobileNumber, 'property_approved', { userName: ownerName, propertyUrl });
-        logger.info('[WA] property_approved queued', { id: req.params.id, phone: updated.mobileNumber });
+        await sendTemplateMessage(updated.mobileNumber, 'property_approved', { userName: ownerName, propertyUrl });
+        logger.info('[WA] property_approved sent', { id: req.params.id, phone: updated.mobileNumber });
       } else if (data.status === 'rejected') {
         const reason = data.rejectReason || data.rejectionReason || 'Not specified';
-        sendTemplateAsync(updated.mobileNumber, 'property_rejected', { userName: ownerName, reason, teamContact: '+91 9891117876' });
-        logger.info('[WA] property_rejected queued', { id: req.params.id, phone: updated.mobileNumber });
+        await sendTemplateMessage(updated.mobileNumber, 'property_rejected', { userName: ownerName, reason, teamContact: '+91 9891117876' });
+        logger.info('[WA] property_rejected sent', { id: req.params.id, phone: updated.mobileNumber });
       }
     }
 
