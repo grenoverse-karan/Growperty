@@ -144,16 +144,18 @@ router.put('/:id', async (req, res) => {
 
     logger.info('Property updated', { id: req.params.id });
 
-    if (data.status === 'approved' && updated.mobileNumber) {
+    // Notify the lister on approval / rejection
+    if (updated.mobileNumber) {
       const ownerName = updated.name || 'there';
-      const propertyType = updated.propertyType || 'Property';
-      const city = updated.city || '';
-      const price = updated.totalPrice
-        ? `₹${Number(updated.totalPrice).toLocaleString('en-IN')}`
-        : 'contact for price';
-      const propertyLink = `https://growperty.com/property/${updated._id}`;
-      sendTemplateAsync(updated.mobileNumber, 'property_alert', { recipientName: ownerName, propertyType, city, price, propertyLink });
-      logger.info('[WA] property_alert queued', { id: req.params.id, phone: updated.mobileNumber });
+      if (data.status === 'approved') {
+        const propertyUrl = `https://growperty.com/property/${updated._id}`;
+        sendTemplateAsync(updated.mobileNumber, 'property_approved', { userName: ownerName, propertyUrl });
+        logger.info('[WA] property_approved queued', { id: req.params.id, phone: updated.mobileNumber });
+      } else if (data.status === 'rejected') {
+        const reason = data.rejectReason || data.rejectionReason || 'Not specified';
+        sendTemplateAsync(updated.mobileNumber, 'property_rejected', { userName: ownerName, reason, teamContact: '+91 9891117876' });
+        logger.info('[WA] property_rejected queued', { id: req.params.id, phone: updated.mobileNumber });
+      }
     }
 
     return res.status(200).json({ success: true, propertyId: updated._id.toString() });
