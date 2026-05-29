@@ -8,6 +8,21 @@ const API_URL = `https://graph.facebook.com/v18.0/${PHONE_NUMBER_ID}/messages`;
 const RETRY_ATTEMPTS = 3;
 const RETRY_DELAY_MS = 1000;
 
+// ── Param sanitizer ───────────────────────────────────────────────
+// Meta rejects empty strings, newlines/tabs, and >4 consecutive spaces.
+const txt = (v, fallback = '-') => {
+  const s = (v === null || v === undefined ? '' : String(v))
+    .replace(/[\n\t]+/g, ' ')
+    .replace(/ {4,}/g, '   ')
+    .trim();
+  return s === '' ? fallback : s;
+};
+
+// Build a single "body" component from an ordered list of values.
+const body = (...vals) => [
+  { type: 'body', parameters: vals.map((v) => ({ type: 'text', text: txt(v) })) },
+];
+
 // ── Template definitions ──────────────────────────────────────────
 // Each entry maps a templateName → { name, language, buildComponents(params) }
 // Add new templates here as the business grows.
@@ -35,39 +50,75 @@ const TEMPLATES = {
     buildComponents: () => [],
   },
 
-  // Triggered when a buyer shows interest in a property
-  // params: { userName, propertyTitle }
+  // Triggered when a buyer shows interest in a property — static, no params
   interested_reply: {
     name: 'interested_reply',
     language: 'en',
-    buildComponents: ({ userName, propertyTitle }) => [
-      {
-        type: 'body',
-        parameters: [
-          { type: 'text', text: String(userName) },
-          { type: 'text', text: String(propertyTitle) },
-        ],
-      },
-    ],
+    buildComponents: () => [],
   },
 
   // Triggered when a property matching buyer criteria goes live
-  // params: { recipientName, propertyType, city, price, propertyLink }
+  // {{1}} userName {{2}} bhk {{3}} propertyType {{4}} area {{5}} city
+  // {{6}} price {{7}} priceType {{8}} highlights {{9}} listingUrl {{10}} possessionStatus
   property_alert: {
     name: 'property_alert',
     language: 'en',
-    buildComponents: ({ recipientName, propertyType, city, price, propertyLink }) => [
-      {
-        type: 'body',
-        parameters: [
-          { type: 'text', text: String(recipientName) },
-          { type: 'text', text: String(propertyType) },
-          { type: 'text', text: String(city) },
-          { type: 'text', text: String(price) },
-          { type: 'text', text: String(propertyLink) },
-        ],
-      },
-    ],
+    buildComponents: ({ userName, bhk, propertyType, area, city, price, priceType, highlights, listingUrl, possessionStatus }) =>
+      body(userName, bhk, propertyType, area, city, price, priceType, highlights, listingUrl, possessionStatus),
+  },
+
+  // Listing submitted — awaiting admin review.  {{1}} userName
+  under_review: {
+    name: 'under_review',
+    language: 'en',
+    buildComponents: ({ userName }) => body(userName),
+  },
+
+  // Listing approved.  {{1}} userName {{2}} propertyUrl
+  property_approved: {
+    name: 'property_approved',
+    language: 'en',
+    buildComponents: ({ userName, propertyUrl }) => body(userName, propertyUrl),
+  },
+
+  // Listing rejected.  {{1}} userName {{2}} reason {{3}} teamContact
+  property_rejected: {
+    name: 'property_rejected',
+    language: 'en',
+    buildComponents: ({ userName, reason, teamContact }) => body(userName, reason, teamContact),
+  },
+
+  // Seller asked to reply with a visit time.  {{1}} teamContact
+  seller_reply_visit_time: {
+    name: 'seller_reply_visit_time',
+    language: 'en',
+    buildComponents: ({ teamContact }) => body(teamContact),
+  },
+
+  // Visit confirmation — seller's "Any Time" preference.
+  // {{1}} userName {{2}} bhk {{3}} propertyType {{4}} houseNo {{5}} tower
+  // {{6}} society {{7}} sector {{8}} city {{9}} visitDate {{10}} visitTime
+  seller_visit_confirmation: {
+    name: 'seller_visit_confirmation',
+    language: 'en',
+    buildComponents: ({ userName, bhk, propertyType, houseNo, tower, society, sector, city, visitDate, visitTime }) =>
+      body(userName, bhk, propertyType, houseNo, tower, society, sector, city, visitDate, visitTime),
+  },
+
+  // Visit confirmation — seller's "Fixed Time" preference (same 10 params).
+  seller_fixedslot_visit_confirmation: {
+    name: 'seller_fixedslot_visit_confirmation',
+    language: 'en',
+    buildComponents: ({ userName, bhk, propertyType, houseNo, tower, society, sector, city, visitDate, visitTime }) =>
+      body(userName, bhk, propertyType, houseNo, tower, society, sector, city, visitDate, visitTime),
+  },
+
+  // Visit confirmation — seller's "Flexible Time" preference (same 10 params).
+  seller_flexibleslot_visit_confirmation: {
+    name: 'seller_flexibleslot_visit_confirmation',
+    language: 'en',
+    buildComponents: ({ userName, bhk, propertyType, houseNo, tower, society, sector, city, visitDate, visitTime }) =>
+      body(userName, bhk, propertyType, houseNo, tower, society, sector, city, visitDate, visitTime),
   },
 
   // Standard Meta hello_world template — no dynamic params

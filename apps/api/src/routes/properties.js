@@ -68,6 +68,12 @@ router.post('/', requireAuth, async (req, res) => {
     const saved = await property.save();
     logger.info('Property created', { id: saved._id });
 
+    // Notify the lister that their submission is under review (skip admin auto-approved)
+    if (saved.status === 'pending' && saved.mobileNumber) {
+      sendTemplateAsync(saved.mobileNumber, 'under_review', { userName: saved.name || 'there' });
+      logger.info('[WA] under_review queued', { id: saved._id, phone: saved.mobileNumber });
+    }
+
     return res.status(201).json({
       success: true,
       propertyId: saved._id.toString(),
