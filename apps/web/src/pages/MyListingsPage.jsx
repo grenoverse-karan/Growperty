@@ -2,9 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Helmet } from 'react-helmet';
 import { toast } from 'sonner';
-import { Home, MapPin, IndianRupee, Eye, Edit, Loader2 } from 'lucide-react';
+import { Home, MapPin, IndianRupee, Eye, Edit, Loader2, EyeOff } from 'lucide-react';
 import pb from '@/lib/pocketbaseClient.js';
 import { useAuth } from '@/contexts/AuthContext.jsx';
+import apiServerClient from '@/lib/apiServerClient.js';
 import Header from '@/components/Header.jsx';
 import Footer from '@/components/Footer.jsx';
 import { Badge } from '@/components/ui/badge';
@@ -51,6 +52,23 @@ const MyListingsPage = () => {
         {status.charAt(0).toUpperCase() + status.slice(1)}
       </Badge>
     );
+  };
+
+  const handleUnlist = async (propertyId) => {
+    if (!window.confirm('Are you sure you want to unlist this property? It will no longer be visible to buyers.')) return;
+    try {
+      const res = await apiServerClient.fetch(`/properties/${propertyId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'unlisted' }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) throw new Error(data.message || 'Failed to unlist');
+      setProperties(prev => prev.map(p => p.id === propertyId ? { ...p, status: 'unlisted' } : p));
+      toast.success('Property unlisted successfully.');
+    } catch (err) {
+      toast.error(err.message || 'Something went wrong.');
+    }
   };
 
   const formatPrice = (price) => {
@@ -136,12 +154,22 @@ const MyListingsPage = () => {
 
                   <CardFooter className="flex gap-2 mt-auto">
                     {property.status === 'approved' && (
-                      <Button asChild variant="default" className="flex-1">
-                        <Link to={`/property/${property.id}`}>
-                          <Eye className="h-4 w-4 mr-2" />
-                          View
-                        </Link>
-                      </Button>
+                      <>
+                        <Button asChild variant="default" className="flex-1">
+                          <Link to={`/property/${property.id}`}>
+                            <Eye className="h-4 w-4 mr-2" />
+                            View
+                          </Link>
+                        </Button>
+                        <Button
+                          variant="outline"
+                          className="flex-1 border-slate-400 text-slate-600 hover:bg-slate-100 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-800"
+                          onClick={() => handleUnlist(property.id)}
+                        >
+                          <EyeOff className="h-4 w-4 mr-2" />
+                          Unlist
+                        </Button>
+                      </>
                     )}
                     {property.status === 'pending' && (
                       <Button asChild variant="secondary" className="flex-1">
