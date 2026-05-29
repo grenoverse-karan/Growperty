@@ -4,6 +4,7 @@ import adminRouter from './admin.js';
 import whatsappRouter from './whatsapp.js';
 import authRouter from './auth.js';
 import usersRouter from './users.js';
+import visitRequestsRouter from './visitRequests.js';
 
 export default function routes() {
   const router = express.Router();
@@ -17,6 +18,7 @@ export default function routes() {
   router.use('/properties', propertiesRouter);
   router.use('/admin', adminRouter);
   router.use('/whatsapp', whatsappRouter);
+  router.use('/visit-requests', visitRequestsRouter);
 
   return router;
 }
