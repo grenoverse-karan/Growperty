@@ -16,6 +16,7 @@ import { formatIndianPrice } from '@/hooks/useProperties.js';
 import apiServerClient from '@/lib/apiServerClient.js';
 import { PLATFORM_PHONE, PLATFORM_WHATSAPP } from '@/constants/contactInfo.js';
 import VisitRequestModal from '@/components/VisitRequestModal.jsx';
+import { useAuth } from '@/contexts/AuthContext.jsx';
 
 const PLACEHOLDER = 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=1200&q=80';
 
@@ -57,11 +58,21 @@ const Chip = ({ children, color = 'slate' }) => {
 const PropertyDetailsPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { currentUser, isAuthenticated } = useAuth();
   const [property, setProperty] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [activeImg, setActiveImg] = useState(0);
   const [visitModalOpen, setVisitModalOpen] = useState(false);
+
+  // Require login before requesting a visit; otherwise send guests to login
+  const handleRequestVisit = () => {
+    if (!isAuthenticated && !currentUser) {
+      navigate('/login', { state: { from: `/property/${id}`, intent: 'visit' } });
+      return;
+    }
+    setVisitModalOpen(true);
+  };
 
   useEffect(() => {
     if (!id || id === 'undefined') {
@@ -534,7 +545,7 @@ const PropertyDetailsPage = () => {
                       <MessageCircle className="mr-2 h-4 w-4" /> WhatsApp
                     </Button>
                     <Button
-                      onClick={() => setVisitModalOpen(true)}
+                      onClick={handleRequestVisit}
                       variant="outline"
                       className="w-full h-12 text-base font-bold rounded-xl border-2 border-primary text-primary hover:bg-primary/5 shadow-sm transition-all active:scale-[0.98]"
                     >
@@ -562,6 +573,7 @@ const PropertyDetailsPage = () => {
         visitTimeType={property?.visitTimeType}
         visitFixedSlots={property?.visitFixedSlots}
         visitFlexibleSlots={property?.visitFlexibleSlots}
+        currentUser={currentUser}
       />
     </>
   );

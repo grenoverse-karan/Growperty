@@ -5,6 +5,7 @@ const visitRequestSchema = new mongoose.Schema(
     propertyId:   { type: String, required: true },
     visitorName:  { type: String, required: true },
     visitorPhone: { type: String, required: true },
+    visitorCity:  { type: String, default: '' },
     visitDate:    { type: String, required: true },
     visitTime:    { type: String, required: true },
     message:      { type: String, default: '' },

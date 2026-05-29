@@ -8,14 +8,14 @@ const router = express.Router();
 
 // POST / — Submit a visit request
 router.post('/', async (req, res) => {
-  const { propertyId, visitorName, visitorPhone, visitDate, visitTime, message } = req.body || {};
+  const { propertyId, visitorName, visitorPhone, visitorCity, visitDate, visitTime, message } = req.body || {};
 
   if (!propertyId || !visitorName || !visitorPhone || !visitDate || !visitTime) {
     return res.status(400).json({ success: false, message: 'All required fields must be provided.' });
   }
 
   try {
-    const request = new VisitRequest({ propertyId, visitorName, visitorPhone, visitDate, visitTime, message: message || '' });
+    const request = new VisitRequest({ propertyId, visitorName, visitorPhone, visitorCity: visitorCity || '', visitDate, visitTime, message: message || '' });
     const saved = await request.save();
     logger.info('VisitRequest created', { id: saved._id, propertyId });
 

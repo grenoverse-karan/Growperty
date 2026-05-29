@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -38,13 +38,28 @@ function getMaxDateStr() {
 export default function VisitRequestModal({
   open, onClose, propertyId, propertyLabel,
   visitTimeType, visitFixedSlots = [], visitFlexibleSlots = [],
+  currentUser,
 }) {
   const [step, setStep] = useState('form');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [form, setForm] = useState({
-    visitorName: '', visitorPhone: '', visitDate: '', visitTime: '', message: '',
+    visitorName: '', visitorPhone: '', visitorCity: '', visitDate: '', visitTime: '', message: '',
   });
+
+  // Auto-fill name / mobile / city from the logged-in user's profile when the modal opens
+  useEffect(() => {
+    if (open && currentUser) {
+      const rawPhone = currentUser.phone || currentUser.phoneNumber || '';
+      const phone = String(rawPhone).replace(/^(\+?91)/, '').replace(/\D/g, '').slice(-10);
+      setForm(f => ({
+        ...f,
+        visitorName: f.visitorName || currentUser.name || '',
+        visitorPhone: f.visitorPhone || phone,
+        visitorCity: f.visitorCity || currentUser.city || '',
+      }));
+    }
+  }, [open, currentUser]);
 
   // Determine mode: 'anytime' | 'fixed' | 'flexible'
   const mode = visitTimeType || 'anytime';
@@ -89,7 +104,7 @@ export default function VisitRequestModal({
   function handleClose() {
     setStep('form');
     setError('');
-    setForm({ visitorName: '', visitorPhone: '', visitDate: '', visitTime: '', message: '' });
+    setForm({ visitorName: '', visitorPhone: '', visitorCity: '', visitDate: '', visitTime: '', message: '' });
     onClose();
   }
 
@@ -220,6 +235,12 @@ export default function VisitRequestModal({
                 <Label htmlFor="visitorPhone">Mobile Number <span className="text-red-500">*</span></Label>
                 <Input id="visitorPhone" name="visitorPhone" type="tel" placeholder="10-digit number"
                   maxLength={10} value={form.visitorPhone} onChange={handleChange} className="h-10 rounded-lg" />
+              </div>
+
+              <div className="space-y-1">
+                <Label htmlFor="visitorCity">City</Label>
+                <Input id="visitorCity" name="visitorCity" placeholder="Your city"
+                  value={form.visitorCity} onChange={handleChange} className="h-10 rounded-lg" />
               </div>
 
               <div className="space-y-1">
