@@ -29,6 +29,7 @@ const propertySchema = new mongoose.Schema(
 
     // Optional fields
     landmark:        { type: String },
+    towerBlock:      { type: String },
     description:     { type: String },
     currentAddress:  { type: String },
     possessionStatus:{ type: String },

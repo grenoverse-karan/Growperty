@@ -1,0 +1,68 @@
+import express from 'express';
+import VisitRequest from '../models/VisitRequest.js';
+import Property from '../models/Property.js';
+import logger from '../utils/logger.js';
+import { sendTemplateAsync } from '../utils/whatsappTemplates.js';
+
+const router = express.Router();
+
+// POST / — Submit a visit request
+router.post('/', async (req, res) => {
+  const { propertyId, visitorName, visitorPhone, visitDate, visitTime, message } = req.body || {};
+
+  if (!propertyId || !visitorName || !visitorPhone || !visitDate || !visitTime) {
+    return res.status(400).json({ success: false, message: 'All required fields must be provided.' });
+  }
+
+  try {
+    const request = new VisitRequest({ propertyId, visitorName, visitorPhone, visitDate, visitTime, message: message || '' });
+    const saved = await request.save();
+    logger.info('VisitRequest created', { id: saved._id, propertyId });
+
+    // Send the visit confirmation matching the seller's preferred-visit-time type
+    try {
+      const property = await Property.findById(propertyId).lean();
+      if (property) {
+        const templateByType = {
+          fixed: 'seller_fixedslot_visit_confirmation',
+          flexible: 'seller_flexibleslot_visit_confirmation',
+        };
+        const templateName = templateByType[property.visitTimeType] || 'seller_visit_confirmation';
+        sendTemplateAsync(visitorPhone, templateName, {
+          userName: visitorName,
+          bhk: property.bhk,
+          propertyType: property.propertyType,
+          houseNo: property.houseNo,
+          tower: property.towerBlock,
+          society: property.landmark,
+          sector: property.sector,
+          city: property.city,
+          visitDate,
+          visitTime,
+        });
+        logger.info('[WA] visit confirmation queued', { template: templateName, phone: visitorPhone, propertyId });
+      }
+    } catch (waErr) {
+      logger.error('[WA] visit confirmation error', { error: waErr.message });
+    }
+
+    return res.status(201).json({ success: true, requestId: saved._id.toString(), message: 'Visit request submitted successfully.' });
+  } catch (err) {
+    logger.error('POST /api/visit-requests error', { message: err.message });
+    return res.status(500).json({ success: false, message: err.message || 'Something went wrong.' });
+  }
+});
+
+// GET /?propertyId=... — List visit requests for a property (admin use)
+router.get('/', async (req, res) => {
+  try {
+    const filter = req.query.propertyId ? { propertyId: req.query.propertyId } : {};
+    const docs = await VisitRequest.find(filter).sort({ createdAt: -1 }).lean();
+    return res.status(200).json({ items: docs.map(d => ({ ...d, id: d._id.toString() })) });
+  } catch (err) {
+    logger.error('GET /api/visit-requests error', { message: err.message });
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+export default router;

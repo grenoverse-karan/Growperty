@@ -363,6 +363,7 @@ const PropertyListingForm = ({ isAdmin = false }) => {
         city: formData.city,
         sector: formData.sector,
         landmark: formData.landmark,
+        towerBlock: formData.towerBlock,
         houseNo: formData.houseNo,
         possessionStatus: formData.possessionStatus,
         ownershipType: formData.ownershipType,
@@ -410,6 +411,8 @@ const PropertyListingForm = ({ isAdmin = false }) => {
         if (formData.visitFixedSlots?.length) payload.visitFixedSlots = formData.visitFixedSlots;
         if (formData.visitFlexibleSlots?.length) payload.visitFlexibleSlots = formData.visitFlexibleSlots;
       }
+      // Tower/Block isn't in the sanitizer whitelist — inject directly
+      if (formData.towerBlock?.trim()) payload.towerBlock = formData.towerBlock.trim();
 
       // Convert images to base64 (max 10 to stay within MongoDB 16MB doc limit)
       if (images.length > 0) {
