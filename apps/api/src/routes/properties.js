@@ -69,9 +69,14 @@ router.post('/', requireAuth, async (req, res) => {
     logger.info('Property created', { id: saved._id });
 
     // Notify the lister that their submission is under review (skip admin auto-approved)
+    console.log('🏠 POST /properties — saved status:', saved.status, '| mobileNumber:', saved.mobileNumber);
     if (saved.status === 'pending' && saved.mobileNumber) {
-      await sendTemplateMessage(saved.mobileNumber, 'under_review', { userName: saved.name || 'there' });
+      console.log('🟡 [under_review] Sending WA to:', saved.mobileNumber, '| name:', saved.name);
+      const waRes = await sendTemplateMessage(saved.mobileNumber, 'under_review', { userName: saved.name || 'there' });
+      console.log('🟢 [under_review] WA result:', JSON.stringify(waRes));
       logger.info('[WA] under_review sent', { id: saved._id, phone: saved.mobileNumber });
+    } else {
+      console.log('⏭ [under_review] Skipped — status:', saved.status, '| hasMobile:', !!saved.mobileNumber);
     }
 
     return res.status(201).json({
@@ -145,17 +150,26 @@ router.put('/:id', async (req, res) => {
     logger.info('Property updated', { id: req.params.id });
 
     // Notify the lister on approval / rejection
+    console.log('🏠 PUT /properties/:id — data.status:', data.status, '| mobileNumber:', updated.mobileNumber);
     if (updated.mobileNumber) {
       const ownerName = updated.name || 'there';
       if (data.status === 'approved') {
         const propertyUrl = `https://growperty.com/property/${updated._id}`;
-        await sendTemplateMessage(updated.mobileNumber, 'property_approved', { userName: ownerName, propertyUrl });
+        console.log('🟡 [property_approved] Sending WA to:', updated.mobileNumber);
+        const waRes = await sendTemplateMessage(updated.mobileNumber, 'property_approved', { userName: ownerName, propertyUrl });
+        console.log('🟢 [property_approved] WA result:', JSON.stringify(waRes));
         logger.info('[WA] property_approved sent', { id: req.params.id, phone: updated.mobileNumber });
       } else if (data.status === 'rejected') {
         const reason = data.rejectReason || data.rejectionReason || 'Not specified';
-        await sendTemplateMessage(updated.mobileNumber, 'property_rejected', { userName: ownerName, reason, teamContact: '+91 9891117876' });
+        console.log('🟡 [property_rejected] Sending WA to:', updated.mobileNumber);
+        const waRes = await sendTemplateMessage(updated.mobileNumber, 'property_rejected', { userName: ownerName, reason, teamContact: '+91 9891117876' });
+        console.log('🟢 [property_rejected] WA result:', JSON.stringify(waRes));
         logger.info('[WA] property_rejected sent', { id: req.params.id, phone: updated.mobileNumber });
+      } else {
+        console.log('⏭ [WA] No trigger — data.status is:', data.status);
       }
+    } else {
+      console.log('⏭ [WA] Skipped — no mobileNumber on property');
     }
 
     return res.status(200).json({ success: true, propertyId: updated._id.toString() });
