@@ -18,16 +18,21 @@ router.post('/', async (req, res) => {
     const request = new VisitRequest({ propertyId, visitorName, visitorPhone, visitorCity: visitorCity || '', visitDate, visitTime, message: message || '' });
     const saved = await request.save();
     logger.info('VisitRequest created', { id: saved._id, propertyId });
+    console.log('✅ Visit request saved, propertyId:', propertyId);
 
     // Send the visit confirmation matching the seller's preferred-visit-time type
+    console.log('🟡 About to trigger WhatsApp');
     try {
       const property = await Property.findById(propertyId).lean();
-      if (property) {
+      if (!property) {
+        console.log('🔴 WhatsApp trigger error: property not found for id', propertyId);
+      } else {
         const templateByType = {
           fixed: 'seller_fixedslot_visit_confirmation',
           flexible: 'seller_flexibleslot_visit_confirmation',
         };
         const templateName = templateByType[property.visitTimeType] || 'seller_visit_confirmation';
+        console.log('🟢 Property found — sellerPhone:', property.mobileNumber, '| sellerName:', property.name, '| visitTimeType:', property.visitTimeType, '| template:', templateName);
         sendTemplateAsync(property.mobileNumber, templateName, {
           userName: property.name,
           bhk: property.bhk,
@@ -40,9 +45,11 @@ router.post('/', async (req, res) => {
           visitDate,
           visitTime,
         });
+        console.log('🟢 sendTemplateAsync called (fire-and-forget)');
         logger.info('[WA] visit confirmation queued', { template: templateName, phone: property.mobileNumber, propertyId });
       }
     } catch (waErr) {
+      console.log('🔴 WhatsApp trigger error:', waErr.message, waErr.stack);
       logger.error('[WA] visit confirmation error', { error: waErr.message });
     }
 

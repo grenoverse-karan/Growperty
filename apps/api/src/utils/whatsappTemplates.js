@@ -194,11 +194,7 @@ async function sendOnce(to, templateName, parameters, attempt) {
 
   const json = await res.json();
 
-  console.log('[DEBUG] reply_callback Meta response:', {
-    statusCode: res.status,
-    body: JSON.stringify(json),
-    error: json?.error ?? null,
-  });
+  console.log('📡 Full WhatsApp API response:', JSON.stringify({ statusCode: res.status, body: json, error: json?.error ?? null }));
 
   logger.info(`[WA] ← API response`, {
     attempt,
@@ -243,9 +239,11 @@ async function sendOnce(to, templateName, parameters, attempt) {
  * });
  */
 export async function sendTemplateMessage(recipientPhone, templateName, parameters = {}) {
+  console.log('📱 sendTemplateMessage called | template:', templateName, '| phone:', recipientPhone, '| params:', JSON.stringify(parameters));
   logger.info(`[WA] sendTemplateMessage called`, { templateName, recipientPhone, parameters });
 
   if (!WHATSAPP_TOKEN || !PHONE_NUMBER_ID) {
+    console.log('🔴 MISSING CREDENTIALS — hasToken:', !!WHATSAPP_TOKEN, '| hasPhoneNumberId:', !!PHONE_NUMBER_ID);
     logger.error('[WA] MISSING CREDENTIALS — WHATSAPP_TOKEN or PHONE_NUMBER_ID not set', {
       hasToken: !!WHATSAPP_TOKEN,
       hasPhoneNumberId: !!PHONE_NUMBER_ID,
