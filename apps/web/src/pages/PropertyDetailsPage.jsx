@@ -10,11 +10,12 @@ import {
   MapPin, Bed, Bath, Maximize, Phone, MessageCircle,
   ArrowLeft, ShieldCheck, Car, Bike, Building2,
   CheckCircle2, ChevronLeft, ChevronRight, Image as ImageIcon,
-  Home, IndianRupee, Tag, Info, Clock,
+  Home, IndianRupee, Tag, Info, Clock, CalendarDays,
 } from 'lucide-react';
 import { formatIndianPrice } from '@/hooks/useProperties.js';
 import apiServerClient from '@/lib/apiServerClient.js';
 import { PLATFORM_PHONE, PLATFORM_WHATSAPP } from '@/constants/contactInfo.js';
+import VisitRequestModal from '@/components/VisitRequestModal.jsx';
 
 const PLACEHOLDER = 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=1200&q=80';
 
@@ -60,6 +61,7 @@ const PropertyDetailsPage = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [activeImg, setActiveImg] = useState(0);
+  const [visitModalOpen, setVisitModalOpen] = useState(false);
 
   useEffect(() => {
     if (!id || id === 'undefined') {
@@ -531,6 +533,13 @@ const PropertyDetailsPage = () => {
                     >
                       <MessageCircle className="mr-2 h-4 w-4" /> WhatsApp
                     </Button>
+                    <Button
+                      onClick={() => setVisitModalOpen(true)}
+                      variant="outline"
+                      className="w-full h-12 text-base font-bold rounded-xl border-2 border-primary text-primary hover:bg-primary/5 shadow-sm transition-all active:scale-[0.98]"
+                    >
+                      <CalendarDays className="mr-2 h-4 w-4" /> Request to Visit
+                    </Button>
                   </div>
 
                   <p className="text-xs text-center text-muted-foreground">
@@ -544,6 +553,16 @@ const PropertyDetailsPage = () => {
         </main>
         <Footer />
       </div>
+
+      <VisitRequestModal
+        open={visitModalOpen}
+        onClose={() => setVisitModalOpen(false)}
+        propertyId={id}
+        propertyLabel={property ? `${property.bhk ? property.bhk + ' ' : ''}${property.propertyType} in ${property.sector}, ${property.city}` : ''}
+        visitTimeType={property?.visitTimeType}
+        visitFixedSlots={property?.visitFixedSlots}
+        visitFlexibleSlots={property?.visitFlexibleSlots}
+      />
     </>
   );
 };
