@@ -2,7 +2,7 @@ import express from 'express';
 import VisitRequest from '../models/VisitRequest.js';
 import Property from '../models/Property.js';
 import logger from '../utils/logger.js';
-import { sendTemplateAsync } from '../utils/whatsappTemplates.js';
+import { sendTemplateMessage } from '../utils/whatsappTemplates.js';
 
 const router = express.Router();
 
@@ -33,7 +33,7 @@ router.post('/', async (req, res) => {
         };
         const templateName = templateByType[property.visitTimeType] || 'seller_visit_confirmation';
         console.log('🟢 Property found — sellerPhone:', property.mobileNumber, '| sellerName:', property.name, '| visitTimeType:', property.visitTimeType, '| template:', templateName);
-        sendTemplateAsync(property.mobileNumber, templateName, {
+        const waResult = await sendTemplateMessage(property.mobileNumber, templateName, {
           userName: property.name,
           bhk: property.bhk,
           propertyType: property.propertyType,
@@ -45,7 +45,7 @@ router.post('/', async (req, res) => {
           visitDate,
           visitTime,
         });
-        console.log('🟢 sendTemplateAsync called (fire-and-forget)');
+        console.log('🟢 WhatsApp trigger result:', JSON.stringify(waResult));
         logger.info('[WA] visit confirmation queued', { template: templateName, phone: property.mobileNumber, propertyId });
       }
     } catch (waErr) {
