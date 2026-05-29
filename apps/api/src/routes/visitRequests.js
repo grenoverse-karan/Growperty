@@ -28,8 +28,8 @@ router.post('/', async (req, res) => {
           flexible: 'seller_flexibleslot_visit_confirmation',
         };
         const templateName = templateByType[property.visitTimeType] || 'seller_visit_confirmation';
-        sendTemplateAsync(visitorPhone, templateName, {
-          userName: visitorName,
+        sendTemplateAsync(property.mobileNumber, templateName, {
+          userName: property.name,
           bhk: property.bhk,
           propertyType: property.propertyType,
           houseNo: property.houseNo,
@@ -40,7 +40,7 @@ router.post('/', async (req, res) => {
           visitDate,
           visitTime,
         });
-        logger.info('[WA] visit confirmation queued', { template: templateName, phone: visitorPhone, propertyId });
+        logger.info('[WA] visit confirmation queued', { template: templateName, phone: property.mobileNumber, propertyId });
       }
     } catch (waErr) {
       logger.error('[WA] visit confirmation error', { error: waErr.message });
