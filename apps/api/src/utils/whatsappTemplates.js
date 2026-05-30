@@ -151,12 +151,12 @@ const TEMPLATES = {
   },
 
   // Sent to BUYER when seller confirms their visit request.
-  // {{1}} buyerName  {{2}} visitDate  {{3}} visitTime  {{4}} listingUrl
+  // {{1}} buyerName  {{2}} visitDate  {{3}} listingUrl
   buyer_visit_confirmed: {
     name: 'buyer_visit_confirmed',
     language: 'en',
-    buildComponents: ({ buyerName, visitDate, visitTime, listingUrl }) =>
-      body(buyerName, visitDate, visitTime, listingUrl),
+    buildComponents: ({ buyerName, visitDate, listingUrl }) =>
+      body(buyerName, visitDate, listingUrl),
   },
 
   // Standard Meta hello_world template — no dynamic params

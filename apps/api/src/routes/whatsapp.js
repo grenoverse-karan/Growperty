@@ -344,7 +344,6 @@ async function handleButtonPress(fromPhone, buttonText, payload) {
       await sendTemplateMessage(buyerPhone, 'buyer_visit_confirmed', {
         buyerName,
         visitDate: visitRequest.visitDate,
-        visitTime: visitRequest.visitTime,
         listingUrl,
       });
     }
