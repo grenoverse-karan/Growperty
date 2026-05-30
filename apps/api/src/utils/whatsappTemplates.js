@@ -121,6 +121,24 @@ const TEMPLATES = {
       body(userName, bhk, propertyType, houseNo, tower, society, sector, city, visitDate, visitTime),
   },
 
+  // Sent to SELLER when they confirm a visit via QR button.
+  // {{1}} sellerName {{2}} visitorName {{3}} visitDate {{4}} visitTime
+  seller_visit_confirmed: {
+    name: 'seller_visit_confirmed',
+    language: 'en',
+    buildComponents: ({ sellerName, visitorName, visitDate, visitTime }) =>
+      body(sellerName, visitorName, visitDate, visitTime),
+  },
+
+  // Sent to BUYER when seller confirms their visit request.
+  // {{1}} buyerName {{2}} visitDate {{3}} visitTime
+  buyer_visit_confirmed: {
+    name: 'buyer_visit_confirmed',
+    language: 'en',
+    buildComponents: ({ buyerName, visitDate, visitTime }) =>
+      body(buyerName, visitDate, visitTime),
+  },
+
   // Standard Meta hello_world template — no dynamic params
   hello_world: {
     name: 'hello_world',

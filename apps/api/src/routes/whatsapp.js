@@ -4,7 +4,9 @@ import logger from '../utils/logger.js';
 import User from '../models/User.js';
 import { signToken } from '../utils/jwt.js';
 import { connectMongoDB } from '../utils/mongodb.js';
-import { sendTemplateAsync } from '../utils/whatsappTemplates.js';
+import { sendTemplateMessage } from '../utils/whatsappTemplates.js';
+import Property from '../models/Property.js';
+import VisitRequest from '../models/VisitRequest.js';
 
 const router = express.Router();
 
@@ -266,19 +268,129 @@ router.get('/webhook', (req, res) => {
   return res.status(403).send('Forbidden');
 });
 
+// ── Webhook button handler ────────────────────────────────────────
+// Called once per incoming button-press. All DB + WA calls are awaited
+// so they complete before Vercel terminates the function.
+async function handleButtonPress(fromPhone, buttonText) {
+  const btn = buttonText.toLowerCase().trim();
+  console.log('[WA Webhook] 🔘 Button:', JSON.stringify(btn), '| from:', fromPhone);
+
+  await connectMongoDB();
+
+  // ── "Interested" (property_alert QR) ────────────────────────────
+  if (btn === 'interested') {
+    logger.info('[WA] interested_reply → ', fromPhone);
+    await sendTemplateMessage(fromPhone, 'interested_reply', {});
+    return;
+  }
+
+  // ── "Request to Call Back" (sign_up QR) ─────────────────────────
+  if (btn.includes('call back')) {
+    logger.info('[WA] reply_callback → ', fromPhone);
+    await sendTemplateMessage(fromPhone, 'reply_callback', {});
+    return;
+  }
+
+  // ── "Confirm" (seller_*_visit_confirmation QR) ───────────────────
+  // fromPhone is the SELLER. Look up their most recent pending visit request
+  // to find the BUYER's phone, then send confirmations to both.
+  if (btn === 'confirm') {
+    // Find properties owned by this seller
+    const sellerProperties = await Property.find({ mobileNumber: fromPhone }).lean();
+    const propertyIds = sellerProperties.map(p => p._id.toString());
+
+    if (!propertyIds.length) {
+      logger.warn('[WA] Confirm: no properties found for seller', { fromPhone });
+      return;
+    }
+
+    // Most recent pending visit request across all seller's properties
+    const visitRequest = await VisitRequest.findOne(
+      { propertyId: { $in: propertyIds }, status: 'pending' },
+    ).sort({ createdAt: -1 }).lean();
+
+    if (!visitRequest) {
+      logger.warn('[WA] Confirm: no pending visit request found', { propertyIds });
+      return;
+    }
+
+    const property = sellerProperties.find(p => p._id.toString() === visitRequest.propertyId);
+    const sellerName = property?.name || 'there';
+    const buyerName  = visitRequest.visitorName || 'there';
+    const buyerPhone = visitRequest.visitorPhone;
+
+    logger.info('[WA] Confirm visit', {
+      sellerPhone: fromPhone, buyerPhone,
+      visitDate: visitRequest.visitDate, visitTime: visitRequest.visitTime,
+    });
+
+    // Send seller_visit_confirmed → SELLER
+    await sendTemplateMessage(fromPhone, 'seller_visit_confirmed', {
+      sellerName,
+      visitorName: buyerName,
+      visitDate: visitRequest.visitDate,
+      visitTime: visitRequest.visitTime,
+    });
+
+    // Send buyer_visit_confirmed → BUYER
+    if (buyerPhone) {
+      await sendTemplateMessage(buyerPhone, 'buyer_visit_confirmed', {
+        buyerName,
+        visitDate: visitRequest.visitDate,
+        visitTime: visitRequest.visitTime,
+      });
+    }
+
+    // Mark visit request as confirmed
+    await VisitRequest.findByIdAndUpdate(visitRequest._id, { status: 'confirmed' });
+    logger.info('[WA] Visit confirmed', { visitRequestId: visitRequest._id });
+    return;
+  }
+
+  // ── "Reschedule Visit" ───────────────────────────────────────────
+  if (btn.includes('reschedule')) {
+    logger.info('[WA] Reschedule requested by', fromPhone, '— no template configured yet');
+    return;
+  }
+
+  // ── "Mark as Sold" ───────────────────────────────────────────────
+  if (btn.includes('sold') || btn.includes('mark as sold')) {
+    // Find the seller's property and mark it sold
+    const updated = await Property.findOneAndUpdate(
+      { mobileNumber: fromPhone, status: { $in: ['approved', 'unlisted'] } },
+      { $set: { status: 'sold' } },
+      { new: true, sort: { createdAt: -1 } },
+    ).lean();
+    if (updated) {
+      logger.info('[WA] Property marked sold via WhatsApp', { id: updated._id, phone: fromPhone });
+    } else {
+      logger.warn('[WA] Mark as sold: no property found for', fromPhone);
+    }
+    return;
+  }
+
+  // ── "Done" (buyer_visit_confirmed QR) ───────────────────────────
+  if (btn === 'done') {
+    logger.info('[WA] Buyer tapped Done — acknowledgment only', { fromPhone });
+    return;
+  }
+
+  logger.info('[WA Webhook] Unhandled button:', btn);
+}
+
 // =====================
 // POST /webhook — Receive incoming WhatsApp messages
 // =====================
 router.post('/webhook', async (req, res) => {
-  const body = req.body;
+  const payload = req.body;
 
-  console.log('[DEBUG] Webhook POST hit — object:', body?.object, '| entries:', body?.entry?.length);
-  logger.info('[WA Webhook] POST received', { raw: JSON.stringify(body) });
+  console.log('[WA Webhook] POST hit — object:', payload?.object, '| entries:', payload?.entry?.length);
+  logger.info('[WA Webhook] POST received', { raw: JSON.stringify(payload) });
 
-  // Process FIRST, then send 200 — Vercel stops execution after res.send()
+  // Process FIRST, respond last — Vercel stops execution after res.send()
   try {
-    if (body.object === 'whatsapp_business_account') {
-      const changes = body.entry?.[0]?.changes?.[0]?.value;
+    if (payload.object === 'whatsapp_business_account') {
+      const changes = payload.entry?.[0]?.changes?.[0]?.value;
       const messages = changes?.messages;
 
       if (!messages?.length) {
@@ -288,39 +400,19 @@ router.post('/webhook', async (req, res) => {
       } else {
         for (const msg of messages) {
           const fromPhone = msg.from;
-
-          logger.info('[WA Webhook] Message', {
-            type: msg.type,
-            from: fromPhone,
-            buttonText: msg.button?.text,
-            buttonReplyTitle: msg.interactive?.button_reply?.title,
-            fullMsg: JSON.stringify(msg),
-          });
-
-          // Extract button text — template quick reply or interactive button
           const buttonTextRaw =
             msg.button?.text ||
             msg.interactive?.button_reply?.title ||
             msg.interactive?.list_reply?.title ||
             null;
 
+          logger.info('[WA Webhook] Message', {
+            type: msg.type, from: fromPhone, buttonText: buttonTextRaw,
+          });
+
           if (buttonTextRaw) {
-            const buttonText = buttonTextRaw.toLowerCase().trim();
-            console.log('[DEBUG] Button text received:', JSON.stringify(buttonText), '| from:', fromPhone);
-            logger.info('[WA Webhook] Button matched check', { buttonText, from: fromPhone });
-
-            if (buttonText.includes('call back')) {
-              console.log('[DEBUG] reply_callback firing to:', fromPhone);
-              logger.info('[WA Webhook] ✅ Triggering reply_callback', { fromPhone });
-
-              const { sendTemplateMessage } = await import('../utils/whatsappTemplates.js');
-              const result = await sendTemplateMessage(fromPhone, 'reply_callback', {});
-              console.log('[DEBUG] reply_callback result:', JSON.stringify(result));
-              logger.info('[WA Webhook] reply_callback result', result);
-            }
-          }
-
-          if (msg.type === 'text' && msg.text?.body?.trim().toUpperCase() === 'STOP') {
+            await handleButtonPress(fromPhone, buttonTextRaw);
+          } else if (msg.type === 'text' && msg.text?.body?.trim().toUpperCase() === 'STOP') {
             logger.info('[WA Webhook] STOP received', { from: fromPhone });
           }
         }
@@ -330,7 +422,7 @@ router.post('/webhook', async (req, res) => {
     logger.error('[WA Webhook] Processing error', { error: err.message, stack: err.stack });
   }
 
-  // Send 200 AFTER all processing — critical for Vercel serverless
+  // Send 200 AFTER all processing
   res.status(200).send('EVENT_RECEIVED');
 });
 
