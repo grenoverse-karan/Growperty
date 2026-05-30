@@ -3,6 +3,8 @@ import { Helmet } from 'react-helmet';
 import { toast } from 'sonner';
 import { CheckCircle, XCircle, Loader2, MapPin, User, Calendar } from 'lucide-react';
 import pb from '@/lib/pocketbaseClient.js';
+import apiServerClient from '@/lib/apiServerClient.js';
+import { useAdminAuth } from '@/contexts/AdminAuthContext.jsx';
 import Header from '@/components/Header.jsx';
 import Footer from '@/components/Footer.jsx';
 import { Button } from '@/components/ui/button';
@@ -20,6 +22,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 
 const AdminApprovalsPage = () => {
+  const { token } = useAdminAuth();
   const [properties, setProperties] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(null);
@@ -50,10 +53,12 @@ const AdminApprovalsPage = () => {
   const handleApprove = async (propertyId) => {
     setActionLoading(propertyId);
     try {
-      await pb.collection('properties').update(propertyId, {
-        status: 'approved'
-      }, { $autoCancel: false });
-      
+      const res = await apiServerClient.fetch(`/properties/${propertyId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ status: 'approved' }),
+      });
+      if (!res.ok) throw new Error('Failed to approve');
       toast.success('Property approved successfully');
       await fetchPendingProperties();
     } catch (error) {
@@ -74,10 +79,12 @@ const AdminApprovalsPage = () => {
     setActionLoading(propertyId);
     
     try {
-      await pb.collection('properties').update(propertyId, {
-        status: 'rejected'
-      }, { $autoCancel: false });
-      
+      const res = await apiServerClient.fetch(`/properties/${propertyId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ status: 'rejected', rejectReason: rejectionReason.trim() || 'Not specified' }),
+      });
+      if (!res.ok) throw new Error('Failed to reject');
       toast.success('Property rejected');
       setRejectDialog({ open: false, propertyId: null });
       await fetchPendingProperties();
