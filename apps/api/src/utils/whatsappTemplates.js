@@ -5,8 +5,8 @@ const WHATSAPP_TOKEN = (process.env.WHATSAPP_TOKEN || '').trim();
 const PHONE_NUMBER_ID = (process.env.WHATSAPP_PHONE_NUMBER_ID || '').trim();
 const API_URL = `https://graph.facebook.com/v18.0/${PHONE_NUMBER_ID}/messages`;
 
-const RETRY_ATTEMPTS = 3;
-const RETRY_DELAY_MS = 1000;
+const RETRY_ATTEMPTS = 1;  // Vercel serverless — no retries to avoid timeout
+const RETRY_DELAY_MS = 0;
 
 // ── Param sanitizer ───────────────────────────────────────────────
 // Meta rejects empty strings, newlines/tabs, and >4 consecutive spaces.
@@ -30,9 +30,9 @@ const visitButtonPayloads = (visitRequestId) => {
   if (!visitRequestId) return [];
   const p = String(visitRequestId);
   return [
-    { type: 'button', sub_type: 'quick_reply', index: 0, parameters: [{ type: 'payload', payload: `confirm:${p}` }] },
-    { type: 'button', sub_type: 'quick_reply', index: 1, parameters: [{ type: 'payload', payload: `reschedule:${p}` }] },
-    { type: 'button', sub_type: 'quick_reply', index: 2, parameters: [{ type: 'payload', payload: `sold:${p}` }] },
+    { type: 'button', sub_type: 'quick_reply', index: '0', parameters: [{ type: 'payload', payload: `confirm:${p}` }] },
+    { type: 'button', sub_type: 'quick_reply', index: '1', parameters: [{ type: 'payload', payload: `reschedule:${p}` }] },
+    { type: 'button', sub_type: 'quick_reply', index: '2', parameters: [{ type: 'payload', payload: `sold:${p}` }] },
   ];
 };
 
