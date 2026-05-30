@@ -23,6 +23,19 @@ const body = (...vals) => [
   { type: 'body', parameters: vals.map((v) => ({ type: 'text', text: txt(v) })) },
 ];
 
+// Build quick-reply button payload components for visit confirmation templates.
+// Index 0 = Confirm, 1 = Reschedule Visit, 2 = Mark as Sold
+// visitRequestId is embedded so the webhook knows exactly which request was acted on.
+const visitButtonPayloads = (visitRequestId) => {
+  if (!visitRequestId) return [];
+  const p = String(visitRequestId);
+  return [
+    { type: 'button', sub_type: 'quick_reply', index: 0, parameters: [{ type: 'payload', payload: `confirm:${p}` }] },
+    { type: 'button', sub_type: 'quick_reply', index: 1, parameters: [{ type: 'payload', payload: `reschedule:${p}` }] },
+    { type: 'button', sub_type: 'quick_reply', index: 2, parameters: [{ type: 'payload', payload: `sold:${p}` }] },
+  ];
+};
+
 // ── Template definitions ──────────────────────────────────────────
 // Each entry maps a templateName → { name, language, buildComponents(params) }
 // Add new templates here as the business grows.
@@ -98,27 +111,34 @@ const TEMPLATES = {
   // Visit confirmation — seller's "Any Time" preference.
   // {{1}} userName {{2}} bhk {{3}} propertyType {{4}} houseNo {{5}} tower
   // {{6}} society {{7}} sector {{8}} city {{9}} visitDate {{10}} visitTime
+  // visitRequestId is passed as button payload (not a template variable)
   seller_visit_confirmation: {
     name: 'seller_visit_confirmation',
     language: 'en',
-    buildComponents: ({ userName, bhk, propertyType, houseNo, tower, society, sector, city, visitDate, visitTime }) =>
-      body(userName, bhk, propertyType, houseNo, tower, society, sector, city, visitDate, visitTime),
+    buildComponents: ({ userName, bhk, propertyType, houseNo, tower, society, sector, city, visitDate, visitTime, visitRequestId }) => [
+      ...body(userName, bhk, propertyType, houseNo, tower, society, sector, city, visitDate, visitTime),
+      ...visitButtonPayloads(visitRequestId),
+    ],
   },
 
-  // Visit confirmation — seller's "Fixed Time" preference (same 10 params).
+  // Visit confirmation — seller's "Fixed Time" preference (same params + visitRequestId payload).
   seller_fixedslot_visit_confirmation: {
     name: 'seller_fixedslot_visit_confirmation',
     language: 'en',
-    buildComponents: ({ userName, bhk, propertyType, houseNo, tower, society, sector, city, visitDate, visitTime }) =>
-      body(userName, bhk, propertyType, houseNo, tower, society, sector, city, visitDate, visitTime),
+    buildComponents: ({ userName, bhk, propertyType, houseNo, tower, society, sector, city, visitDate, visitTime, visitRequestId }) => [
+      ...body(userName, bhk, propertyType, houseNo, tower, society, sector, city, visitDate, visitTime),
+      ...visitButtonPayloads(visitRequestId),
+    ],
   },
 
-  // Visit confirmation — seller's "Flexible Time" preference (same 10 params).
+  // Visit confirmation — seller's "Flexible Time" preference (same params + visitRequestId payload).
   seller_flexibleslot_visit_confirmation: {
     name: 'seller_flexibleslot_visit_confirmation',
     language: 'en',
-    buildComponents: ({ userName, bhk, propertyType, houseNo, tower, society, sector, city, visitDate, visitTime }) =>
-      body(userName, bhk, propertyType, houseNo, tower, society, sector, city, visitDate, visitTime),
+    buildComponents: ({ userName, bhk, propertyType, houseNo, tower, society, sector, city, visitDate, visitTime, visitRequestId }) => [
+      ...body(userName, bhk, propertyType, houseNo, tower, society, sector, city, visitDate, visitTime),
+      ...visitButtonPayloads(visitRequestId),
+    ],
   },
 
   // Sent to SELLER when they confirm a visit via QR button.

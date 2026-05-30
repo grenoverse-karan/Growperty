@@ -44,6 +44,7 @@ router.post('/', async (req, res) => {
           city: property.city,
           visitDate,
           visitTime,
+          visitRequestId: saved._id.toString(),
         });
         console.log('🟢 WhatsApp trigger result:', JSON.stringify(waResult));
         logger.info('[WA] visit confirmation queued', { template: templateName, phone: property.mobileNumber, propertyId });

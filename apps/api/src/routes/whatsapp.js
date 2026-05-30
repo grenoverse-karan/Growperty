@@ -271,7 +271,7 @@ router.get('/webhook', (req, res) => {
 // ── Webhook button handler ────────────────────────────────────────
 // Called once per incoming button-press. All DB + WA calls are awaited
 // so they complete before Vercel terminates the function.
-async function handleButtonPress(fromPhone, buttonText) {
+async function handleButtonPress(fromPhone, buttonText, payload) {
   const btn = buttonText.toLowerCase().trim();
   console.log('[WA Webhook] 🔘 Button:', JSON.stringify(btn), '| from:', fromPhone);
 
@@ -292,29 +292,25 @@ async function handleButtonPress(fromPhone, buttonText) {
   }
 
   // ── "Confirm" (seller_*_visit_confirmation QR) ───────────────────
-  // fromPhone is the SELLER. Look up their most recent pending visit request
-  // to find the BUYER's phone, then send confirmations to both.
-  if (btn === 'confirm') {
-    // Find properties owned by this seller
-    const sellerProperties = await Property.find({ mobileNumber: fromPhone }).lean();
-    const propertyIds = sellerProperties.map(p => p._id.toString());
+  // Payload format: "confirm:<visitRequestId>" — exact ID, no guessing.
+  if (btn === 'confirm' || payload?.startsWith('confirm:')) {
+    const visitRequestId = payload?.startsWith('confirm:') ? payload.slice(8) : null;
 
-    if (!propertyIds.length) {
-      logger.warn('[WA] Confirm: no properties found for seller', { fromPhone });
-      return;
+    let visitRequest;
+    if (visitRequestId) {
+      visitRequest = await VisitRequest.findById(visitRequestId).lean();
+    } else {
+      // Fallback: find most recent pending request for this seller's properties
+      const propertyIds = (await Property.find({ mobileNumber: fromPhone }).lean()).map(p => p._id.toString());
+      visitRequest = await VisitRequest.findOne({ propertyId: { $in: propertyIds }, status: 'pending' }).sort({ createdAt: -1 }).lean();
     }
-
-    // Most recent pending visit request across all seller's properties
-    const visitRequest = await VisitRequest.findOne(
-      { propertyId: { $in: propertyIds }, status: 'pending' },
-    ).sort({ createdAt: -1 }).lean();
 
     if (!visitRequest) {
-      logger.warn('[WA] Confirm: no pending visit request found', { propertyIds });
+      logger.warn('[WA] Confirm: visit request not found', { visitRequestId, fromPhone });
       return;
     }
 
-    const property = sellerProperties.find(p => p._id.toString() === visitRequest.propertyId);
+    const property = await Property.findById(visitRequest.propertyId).lean();
     const sellerName = property?.name || 'there';
     const buyerName  = visitRequest.visitorName || 'there';
     const buyerPhone = visitRequest.visitorPhone;
@@ -348,16 +344,21 @@ async function handleButtonPress(fromPhone, buttonText) {
   }
 
   // ── "Reschedule Visit" ───────────────────────────────────────────
-  if (btn.includes('reschedule')) {
+  if (btn.includes('reschedule') || payload?.startsWith('reschedule:')) {
     logger.info('[WA] Reschedule requested by', fromPhone, '— no template configured yet');
     return;
   }
 
   // ── "Mark as Sold" ───────────────────────────────────────────────
-  if (btn.includes('sold') || btn.includes('mark as sold')) {
-    // Find the seller's property and mark it sold
+  if (btn.includes('sold') || btn.includes('mark as sold') || payload?.startsWith('sold:')) {
+    // Use visitRequestId from payload to find exact property, else fallback
+    let targetProperty = null;
+    if (payload?.startsWith('sold:')) {
+      const vr = await VisitRequest.findById(payload.slice(5)).lean();
+      if (vr) targetProperty = await Property.findById(vr.propertyId).lean();
+    }
     const updated = await Property.findOneAndUpdate(
-      { mobileNumber: fromPhone, status: { $in: ['approved', 'unlisted'] } },
+      targetProperty ? { _id: targetProperty._id } : { mobileNumber: fromPhone, status: { $in: ['approved', 'unlisted'] } },
       { $set: { status: 'sold' } },
       { new: true, sort: { createdAt: -1 } },
     ).lean();
@@ -411,7 +412,8 @@ router.post('/webhook', async (req, res) => {
           });
 
           if (buttonTextRaw) {
-            await handleButtonPress(fromPhone, buttonTextRaw);
+            const buttonPayload = msg.button?.payload || msg.interactive?.button_reply?.id || null;
+            await handleButtonPress(fromPhone, buttonTextRaw, buttonPayload);
           } else if (msg.type === 'text' && msg.text?.body?.trim().toUpperCase() === 'STOP') {
             logger.info('[WA Webhook] STOP received', { from: fromPhone });
           }
