@@ -332,10 +332,8 @@ async function handleButtonPress(fromPhone, buttonText, payload) {
       visitDate: visitRequest.visitDate, visitTime: visitRequest.visitTime,
     });
 
-    // Send seller_visit_confirmed → SELLER
+    // Send seller_visit_confirmed → SELLER ({{1}} date, {{2}} time)
     await sendTemplateMessage(fromPhone, 'seller_visit_confirmed', {
-      sellerName,
-      visitorName: buyerName,
       visitDate: visitRequest.visitDate,
       visitTime: visitRequest.visitTime,
     });
