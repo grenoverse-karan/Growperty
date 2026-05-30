@@ -2,6 +2,12 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Helmet } from 'react-helmet';
 import { toast } from 'sonner';
 import { MapPin, User, Phone, Calendar, Trash2, RefreshCw, Loader2, Search, ChevronDown, ChevronUp, Image as ImageIcon } from 'lucide-react';
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
 import apiServerClient from '@/lib/apiServerClient.js';
 import { useAdminAuth } from '@/contexts/AdminAuthContext.jsx';
 import { formatIndianPrice } from '@/hooks/useProperties.js';
@@ -220,6 +226,8 @@ const AdminPropertiesPage = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(null);
   const [search, setSearch] = useState('');
+  const [rejectDialog, setRejectDialog] = useState({ open: false, id: null });
+  const [rejectReason, setRejectReason] = useState('');
 
   const authHeaders = { Authorization: `Bearer ${token}` };
 
@@ -245,7 +253,23 @@ const AdminPropertiesPage = () => {
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
-  const handleAction = async (id, action) => {
+  // Intercept reject to show reason dialog first
+  const handleAction = (id, action) => {
+    if (action === 'reject') {
+      setRejectReason('');
+      setRejectDialog({ open: true, id });
+      return;
+    }
+    doAction(id, action);
+  };
+
+  const handleRejectConfirm = async () => {
+    const { id } = rejectDialog;
+    setRejectDialog({ open: false, id: null });
+    await doAction(id, 'reject', rejectReason.trim());
+  };
+
+  const doAction = async (id, action, reason = '') => {
     if (action === 'delete') {
       if (!window.confirm('Delete this property permanently?')) return;
       setActionLoading(`${id}-delete`);
@@ -278,7 +302,7 @@ const AdminPropertiesPage = () => {
       const res = await apiServerClient.fetch(`/properties/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', ...authHeaders },
-        body: JSON.stringify({ status: newStatus }),
+        body: JSON.stringify({ status: newStatus, ...(action === 'reject' && reason ? { rejectReason: reason } : {}) }),
       });
       if (!res.ok) throw new Error();
       toast.success(`Property ${ACTION_META[action].label.toLowerCase()}d`);
@@ -407,6 +431,31 @@ const AdminPropertiesPage = () => {
       </div>
 
       <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
+
+      {/* Reject reason dialog */}
+      <Dialog open={rejectDialog.open} onOpenChange={(o) => !o && setRejectDialog({ open: false, id: null })}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Reject Listing</DialogTitle>
+            <DialogDescription>Give a reason — it will be sent to the seller via WhatsApp.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 py-2">
+            <Label htmlFor="rejectReason">Reason for rejection</Label>
+            <Textarea
+              id="rejectReason"
+              placeholder="e.g. Incomplete details, duplicate listing, incorrect price..."
+              rows={3}
+              value={rejectReason}
+              onChange={(e) => setRejectReason(e.target.value)}
+              className="resize-none"
+            />
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setRejectDialog({ open: false, id: null })}>Cancel</Button>
+            <Button variant="destructive" onClick={handleRejectConfirm}>Confirm Reject</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 };
