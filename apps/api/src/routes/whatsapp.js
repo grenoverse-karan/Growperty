@@ -323,27 +323,29 @@ async function handleButtonPress(fromPhone, buttonText, payload) {
     }
 
     const property = await Property.findById(visitRequest.propertyId).lean();
-    const sellerName = property?.name || 'there';
     const buyerName  = visitRequest.visitorName || 'there';
     const buyerPhone = visitRequest.visitorPhone;
+    const listingUrl = `https://growperty.com/property/${visitRequest.propertyId}`;
 
     logger.info('[WA] Confirm visit', {
       sellerPhone: fromPhone, buyerPhone,
       visitDate: visitRequest.visitDate, visitTime: visitRequest.visitTime,
     });
 
-    // Send seller_visit_confirmed → SELLER ({{1}} date, {{2}} time)
+    // Send seller_visit_confirmed → SELLER ({{1}} date, {{2}} time, {{3}} listingUrl)
     await sendTemplateMessage(fromPhone, 'seller_visit_confirmed', {
       visitDate: visitRequest.visitDate,
       visitTime: visitRequest.visitTime,
+      listingUrl,
     });
 
-    // Send buyer_visit_confirmed → BUYER
+    // Send buyer_visit_confirmed → BUYER ({{1}} name, {{2}} date, {{3}} time, {{4}} listingUrl)
     if (buyerPhone) {
       await sendTemplateMessage(buyerPhone, 'buyer_visit_confirmed', {
         buyerName,
         visitDate: visitRequest.visitDate,
         visitTime: visitRequest.visitTime,
+        listingUrl,
       });
     }
 

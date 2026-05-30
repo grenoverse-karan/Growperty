@@ -142,21 +142,21 @@ const TEMPLATES = {
   },
 
   // Sent to SELLER when they confirm a visit via QR button.
-  // {{1}} visitDate  {{2}} visitTime
+  // {{1}} visitDate  {{2}} visitTime  {{3}} listingUrl
   seller_visit_confirmed: {
     name: 'seller_visit_confirmed',
     language: 'en',
-    buildComponents: ({ visitDate, visitTime }) =>
-      body(visitDate, visitTime),
+    buildComponents: ({ visitDate, visitTime, listingUrl }) =>
+      body(visitDate, visitTime, listingUrl),
   },
 
   // Sent to BUYER when seller confirms their visit request.
-  // {{1}} buyerName  {{2}} visitDate  {{3}} visitTime
+  // {{1}} buyerName  {{2}} visitDate  {{3}} visitTime  {{4}} listingUrl
   buyer_visit_confirmed: {
     name: 'buyer_visit_confirmed',
     language: 'en',
-    buildComponents: ({ buyerName, visitDate, visitTime }) =>
-      body(buyerName, visitDate, visitTime),
+    buildComponents: ({ buyerName, visitDate, visitTime, listingUrl }) =>
+      body(buyerName, visitDate, visitTime, listingUrl),
   },
 
   // Standard Meta hello_world template — no dynamic params
