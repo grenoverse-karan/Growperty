@@ -268,12 +268,20 @@ router.get('/webhook', (req, res) => {
   return res.status(403).send('Forbidden');
 });
 
+// Strip country code → 10-digit mobile for DB lookup
+// DB stores mobileNumber as 10 digits; Meta sends 12-digit (91XXXXXXXXXX)
+function toTenDigit(phone) {
+  const digits = String(phone).replace(/\D/g, '');
+  return digits.length === 12 && digits.startsWith('91') ? digits.slice(2) : digits;
+}
+
 // ── Webhook button handler ────────────────────────────────────────
 // Called once per incoming button-press. All DB + WA calls are awaited
 // so they complete before Vercel terminates the function.
 async function handleButtonPress(fromPhone, buttonText, payload) {
   const btn = buttonText.toLowerCase().trim();
-  console.log('[WA Webhook] 🔘 Button:', JSON.stringify(btn), '| from:', fromPhone);
+  const sellerPhone10 = toTenDigit(fromPhone); // for DB queries
+  console.log('[WA Webhook] 🔘 Button:', JSON.stringify(btn), '| from:', fromPhone, '| 10-digit:', sellerPhone10);
 
   await connectMongoDB();
 
@@ -299,14 +307,18 @@ async function handleButtonPress(fromPhone, buttonText, payload) {
     let visitRequest;
     if (visitRequestId) {
       visitRequest = await VisitRequest.findById(visitRequestId).lean();
-    } else {
-      // Fallback: find most recent pending request for this seller's properties
-      const propertyIds = (await Property.find({ mobileNumber: fromPhone }).lean()).map(p => p._id.toString());
+    }
+    if (!visitRequest) {
+      // Fallback: use 10-digit phone to find seller's properties, then most recent pending request
+      console.log('[WA] Confirm fallback — searching by sellerPhone10:', sellerPhone10);
+      const propertyIds = (await Property.find({ mobileNumber: sellerPhone10 }).lean()).map(p => p._id.toString());
+      console.log('[WA] Found propertyIds:', propertyIds);
       visitRequest = await VisitRequest.findOne({ propertyId: { $in: propertyIds }, status: 'pending' }).sort({ createdAt: -1 }).lean();
+      console.log('[WA] Found visitRequest:', visitRequest?._id ?? 'none');
     }
 
     if (!visitRequest) {
-      logger.warn('[WA] Confirm: visit request not found', { visitRequestId, fromPhone });
+      logger.warn('[WA] Confirm: visit request not found', { visitRequestId, sellerPhone10 });
       return;
     }
 
@@ -358,7 +370,7 @@ async function handleButtonPress(fromPhone, buttonText, payload) {
       if (vr) targetProperty = await Property.findById(vr.propertyId).lean();
     }
     const updated = await Property.findOneAndUpdate(
-      targetProperty ? { _id: targetProperty._id } : { mobileNumber: fromPhone, status: { $in: ['approved', 'unlisted'] } },
+      targetProperty ? { _id: targetProperty._id } : { mobileNumber: sellerPhone10, status: { $in: ['approved', 'unlisted'] } },
       { $set: { status: 'sold' } },
       { new: true, sort: { createdAt: -1 } },
     ).lean();
