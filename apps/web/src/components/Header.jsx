@@ -61,7 +61,7 @@ const Header = () => {
           {/* Logo */}
           <Link to="/" className="flex flex-col items-center justify-center group shrink-0" aria-label="Growperty Home">
             <img 
-              src="https://horizons-cdn.hostinger.com/fbece560-2b4f-4b3e-ad4b-d7f3fff8f8d0/a2af0fdc5a8a26c29faace6e97444834.png" 
+              src="/growperty-logo.png"
               alt="Growperty" 
               className="h-10 md:h-14 w-auto object-contain transition-transform duration-300 group-hover:scale-105"
             />
