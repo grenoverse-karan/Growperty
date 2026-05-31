@@ -215,7 +215,7 @@ async function sendOnce(to, templateName, parameters, attempt) {
     template: {
       name: tpl.name,
       language: { code: tpl.language },
-      components,
+      ...(components.length > 0 && { components }),
     },
   };
 
