@@ -30,6 +30,9 @@ app.use((req, res, next) => {
   next();
 });
 
+// Serve campaign poster images publicly
+app.use('/public', express.static(new URL('../public', import.meta.url).pathname));
+
 app.use('/api', routes());
 
 app.use(errorMiddleware);
