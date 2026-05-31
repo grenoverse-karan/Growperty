@@ -55,6 +55,7 @@ import AdminPropertiesPage from '@/pages/AdminPropertiesPage.jsx';
 import AdminListPropertyPage from '@/pages/AdminListPropertyPage.jsx';
 import AdminUsersPage from '@/pages/AdminUsersPage.jsx';
 import AdminComingSoonPage from '@/pages/AdminComingSoonPage.jsx';
+import AdminCampaignsPage from '@/pages/AdminCampaignsPage.jsx';
 
 function App() {
   console.log('[App] Rendering routes configuration');
@@ -148,6 +149,12 @@ function App() {
             <Route path="/admin/users" element={
               <AdminProtectedRoute>
                 <AdminUsersPage />
+              </AdminProtectedRoute>
+            } />
+
+            <Route path="/admin/campaigns" element={
+              <AdminProtectedRoute>
+                <AdminCampaignsPage />
               </AdminProtectedRoute>
             } />
 

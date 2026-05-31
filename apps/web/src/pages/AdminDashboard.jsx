@@ -35,6 +35,8 @@ const NAV = [
   { id: 'leads-inquiries',label: 'Inquiries',      icon: '📩', href: '/admin/inquiries' },
   { id: 'leads-traffic',  label: 'Traffic',        icon: '📡', href: '/admin/traffic' },
   { id: 'leads-txn',      label: 'Transactions',   icon: '💳', href: '/admin/lead-transactions' },
+  { divider: 'CAMPAIGN' },
+  { id: 'camp-send',      label: 'Send Campaign',  icon: '📣', href: '/admin/campaigns' },
   { divider: 'SYSTEM' },
   { id: 'announcements',  label: 'Announcements',  icon: '📢', href: '/admin/announcements' },
   { id: 'activity',       label: 'Activity Log',   icon: '📋', href: '/admin/activity' },
