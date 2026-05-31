@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
+import { Helmet } from 'react-helmet';
 import { useAdminAuth } from '@/contexts/AdminAuthContext.jsx';
-import AdminDashboard from './AdminDashboard.jsx';
 
 // ── Colour palette ────────────────────────────────────────────────
 const C = {
@@ -62,7 +61,7 @@ export default function AdminCampaignsPage() {
 
   return (
     <div style={{ minHeight: '100vh', background: C.bg, color: C.text, display: 'flex' }}>
-      {/* Reuse AdminDashboard sidebar by rendering it as layout */}
+      <Helmet><title>Send Campaign — Admin — Growperty</title></Helmet>
       <div style={{ flex: 1, padding: 32, maxWidth: 900 }}>
         {/* Header */}
         <div style={{ marginBottom: 28 }}>

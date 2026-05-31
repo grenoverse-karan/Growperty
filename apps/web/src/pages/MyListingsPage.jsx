@@ -83,7 +83,7 @@ const MyListingsPage = () => {
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <Helmet>
-        <title>My Listings - Property Portal</title>
+        <title>My Listings - Growperty</title>
         <meta name="description" content="Manage your property listings" />
       </Helmet>
       
