@@ -285,6 +285,16 @@ async function handleButtonPress(fromPhone, buttonText, payload) {
 
   await connectMongoDB();
 
+  // ── "Consent" (camp_property_alert QR) ──────────────────────────
+  if (btn === 'consent') {
+    // Look up user name for personalised sign_up welcome
+    const user = await import('../models/User.js').then(m => m.default.findOne({ phone: fromPhone }).lean()).catch(() => null);
+    const userName = user?.name || 'there';
+    logger.info('[WA] Consent received → sign_up', { fromPhone, userName });
+    await sendTemplateMessage(fromPhone, 'sign_up', { userName });
+    return;
+  }
+
   // ── "Interested" (property_alert QR) ────────────────────────────
   if (btn === 'interested') {
     logger.info('[WA] interested_reply → ', fromPhone);

@@ -159,6 +159,13 @@ const TEMPLATES = {
       body(buyerName, visitDate, listingUrl),
   },
 
+  // Campaign broadcast — no variables, QR button "Consent"
+  camp_property_alert: {
+    name: 'camp_property_alert',
+    language: 'en',
+    buildComponents: () => [],
+  },
+
   // Standard Meta hello_world template — no dynamic params
   hello_world: {
     name: 'hello_world',
