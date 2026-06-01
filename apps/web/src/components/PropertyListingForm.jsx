@@ -27,7 +27,14 @@ const CITY_OPTIONS = ['Noida', 'Greater Noida', 'YEIDA'];
 const POSSESSION_STATUS = ['Ready to Move', 'Under Construction', 'Possession Soon'];
 const OWNERSHIP_TYPE = ['Lease Hold', 'Free Hold', 'Kisan Kota', 'Power of Attorney'];
 const FURNISHING_TYPE = ['Unfurnished', 'Semi-Furnished', 'Fully Furnished'];
-const FURNISHING_ITEMS = ['Beds', 'AC', 'Sofa Set', 'Center Table', 'Dining Table', 'Dressing Table', 'Chairs', 'Wardrobes', 'TV Unit', 'Refrigerator', 'Washing Machine', 'Geyser'];
+const FURNISHING_ITEMS = [
+  'Bed', 'Sofa', 'Wardrobe', 'Dining Table',
+  'Washing Machine', 'Fridge', 'AC', 'Geyser',
+  'Chimney', 'Jacuzzi', 'TV', 'Fan',
+  'Microwave', 'Water Purifier', 'Stove', 'Modular Kitchen',
+  'Exhaust Fan', 'Curtains', 'Table', 'Chair',
+  'Cooler', 'TV Unit',
+];
 const PLOT_TYPES_RESIDENTIAL = ['Lease Hold', 'Free Hold', 'Kisan Kota 5%', 'Kisan Kota 6%', 'Kisan Kota 7%'];
 
 const AMENITIES_CATEGORIES = {
