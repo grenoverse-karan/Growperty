@@ -33,7 +33,7 @@ const FURNISHING_ITEMS = [
   'Chimney', 'Jacuzzi', 'TV', 'Fan',
   'Microwave', 'Water Purifier', 'Stove', 'Modular Kitchen',
   'Exhaust Fan', 'Curtains', 'Table', 'Chair',
-  'Cooler', 'TV Unit',
+  'Cooler', 'TV Unit', 'Lights',
 ];
 const PLOT_TYPES_RESIDENTIAL = ['Lease Hold', 'Free Hold', 'Kisan Kota 5%', 'Kisan Kota 6%', 'Kisan Kota 7%'];
 
