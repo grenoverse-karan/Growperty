@@ -68,15 +68,18 @@ router.post('/', requireAuth, async (req, res) => {
     const saved = await property.save();
     logger.info('Property created', { id: saved._id });
 
-    // Notify the lister that their submission is under review (skip admin auto-approved)
-    console.log('🏠 POST /properties — saved status:', saved.status, '| mobileNumber:', saved.mobileNumber);
-    if (saved.status === 'pending' && saved.mobileNumber) {
-      console.log('🟡 [under_review] Sending WA to:', saved.mobileNumber, '| name:', saved.name);
-      const waRes = await sendTemplateMessage(saved.mobileNumber, 'under_review', { userName: saved.name || 'there' });
-      console.log('🟢 [under_review] WA result:', JSON.stringify(waRes));
-      logger.info('[WA] under_review sent', { id: saved._id, phone: saved.mobileNumber });
-    } else {
-      console.log('⏭ [under_review] Skipped — status:', saved.status, '| hasMobile:', !!saved.mobileNumber);
+    // Notify lister based on status
+    if (saved.mobileNumber) {
+      const ownerName = saved.name || 'there';
+      if (saved.status === 'pending') {
+        await sendTemplateMessage(saved.mobileNumber, 'under_review', { userName: ownerName });
+        logger.info('[WA] under_review sent', { id: saved._id, phone: saved.mobileNumber });
+      } else if (saved.status === 'approved') {
+        // Admin-listed property — goes live directly
+        const propertyUrl = `https://growperty.com/property/${saved._id}`;
+        await sendTemplateMessage(saved.mobileNumber, 'property_approved', { userName: ownerName, propertyUrl });
+        logger.info('[WA] property_approved sent (admin listing)', { id: saved._id, phone: saved.mobileNumber });
+      }
     }
 
     return res.status(201).json({
