@@ -51,9 +51,12 @@ const HomePage = () => {
               duration: 0.6,
               ease: "easeOut"
             }} className="text-center max-w-3xl mx-auto">
-                <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold text-white mb-6 leading-tight tracking-tight text-balance">
-                  Namaste!
+                <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold text-white mb-4 leading-tight tracking-tight text-balance">
+                  Welcome to Growperty
                 </h1>
+                <p className="text-xl md:text-2xl font-semibold text-[#10B981] mb-4">
+                  🏡 Property Uploading Soon...
+                </p>
                 <p className="text-lg md:text-xl text-slate-300 max-w-[50ch] mx-auto leading-relaxed font-medium">
                   Explore verified flats, luxury villas, and premium plots across Greater Noida, Noida, and YEIDA.
                 </p>
