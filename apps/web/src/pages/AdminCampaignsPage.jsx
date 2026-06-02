@@ -152,10 +152,11 @@ export default function AdminCampaignsPage() {
               <>
                 {/* Summary */}
                 <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }}>
-                  <Stat label="Total Sent" value={analytics.summary.sent} color={C.green} sub="Delivered to recipients" />
-                  <Stat label="Replies (Consent)" value={analytics.summary.replied} color={C.blue} sub={`Reply rate: ${analytics.summary.replyRate}%`} />
+                  <Stat label="Total Sent" value={analytics.summary.sent} color={C.green} sub={`${analytics.summary.total} total attempts`} />
+                  <Stat label="Delivered" value={analytics.summary.delivered} color={C.blue} sub={`${analytics.summary.deliveryRate}% delivery rate`} />
+                  <Stat label="Read" value={analytics.summary.read} color={C.yellow} sub={`${analytics.summary.readRate}% read rate`} />
+                  <Stat label="Consent Replies" value={analytics.summary.replied} color="#533ab7" sub={`${analytics.summary.replyRate}% reply rate`} />
                   <Stat label="Failed" value={analytics.summary.failed} color={C.red} sub="Delivery failed" />
-                  <Stat label="Success Rate" value={`${analytics.summary.successRate}%`} color={C.yellow} sub={`Out of ${analytics.summary.total} total`} />
                 </div>
 
                 {/* Daily stats */}
@@ -218,7 +219,7 @@ export default function AdminCampaignsPage() {
                     <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                       <thead>
                         <tr style={{ color: C.sub }}>
-                          {['#', 'Phone', 'Template', 'Status', 'Reply', 'Date & Time'].map(h => (
+                          {['#', 'Phone', 'Template', 'Sent', 'Delivered', 'Read', 'Consent', 'Date & Time'].map(h => (
                             <th key={h} style={{ padding: '8px 12px', fontWeight: 600, borderBottom: `1px solid ${C.border}`, textAlign: 'left', whiteSpace: 'nowrap' }}>{h}</th>
                           ))}
                         </tr>
@@ -231,8 +232,10 @@ export default function AdminCampaignsPage() {
                             <td style={{ padding: '9px 12px', color: C.muted }}>{((page - 1) * 50) + i + 1}</td>
                             <td style={{ padding: '9px 12px', fontFamily: 'monospace', color: C.text }}>{r.phone}</td>
                             <td style={{ padding: '9px 12px', color: C.sub, fontSize: 12 }}>{r.templateName}</td>
-                            <td style={{ padding: '9px 12px', fontWeight: 700, color: r.status === 'sent' ? C.green : C.red }}>{r.status === 'sent' ? '✅ Sent' : '❌ Failed'}</td>
-                            <td style={{ padding: '9px 12px', color: r.replied ? C.blue : C.muted }}>{r.replied ? `💬 Yes` : '—'}</td>
+                            <td style={{ padding: '9px 12px', color: r.status === 'sent' ? C.green : C.red }}>✅</td>
+                            <td style={{ padding: '9px 12px', color: r.delivered ? C.blue : C.muted }}>{r.delivered ? '📬' : '—'}</td>
+                            <td style={{ padding: '9px 12px', color: r.read ? C.yellow : C.muted }}>{r.read ? '👁' : '—'}</td>
+                            <td style={{ padding: '9px 12px', color: r.replied ? '#533ab7' : C.muted }}>{r.replied ? '💬' : '—'}</td>
                             <td style={{ padding: '9px 12px', color: C.muted, whiteSpace: 'nowrap' }}>
                               {new Date(r.createdAt).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
                             </td>

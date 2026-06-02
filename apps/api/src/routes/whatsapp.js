@@ -424,10 +424,31 @@ router.post('/webhook', async (req, res) => {
       const changes = payload.entry?.[0]?.changes?.[0]?.value;
       const messages = changes?.messages;
 
+      // ── Delivery/read status updates ─────────────────────────────
+      const statuses = changes?.statuses;
+      if (statuses?.length) {
+        try {
+          await connectMongoDB();
+          const CampaignLog = (await import('../models/CampaignLog.js')).default;
+          for (const s of statuses) {
+            const { id: messageId, status, timestamp } = s;
+            const ts = timestamp ? new Date(Number(timestamp) * 1000) : new Date();
+            if (status === 'delivered') {
+              await CampaignLog.findOneAndUpdate({ messageId }, { $set: { delivered: true, deliveredAt: ts } });
+            } else if (status === 'read') {
+              await CampaignLog.findOneAndUpdate({ messageId }, { $set: { delivered: true, read: true, readAt: ts } });
+            } else if (status === 'failed') {
+              await CampaignLog.findOneAndUpdate({ messageId }, { $set: { status: 'failed' } });
+            }
+          }
+          logger.info('[WA Webhook] Status updates processed', { count: statuses.length });
+        } catch (e) {
+          logger.error('[WA Webhook] Status update error', { error: e.message });
+        }
+      }
+
       if (!messages?.length) {
-        logger.info('[WA Webhook] No messages — likely a status update', {
-          statuses: changes?.statuses?.length ?? 0,
-        });
+        logger.info('[WA Webhook] No messages in this update');
       } else {
         for (const msg of messages) {
           const fromPhone = msg.from;

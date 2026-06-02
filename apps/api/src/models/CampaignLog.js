@@ -5,9 +5,13 @@ const campaignLogSchema = new mongoose.Schema(
     templateName: { type: String, required: true },
     phone:        { type: String, required: true },
     status:       { type: String, enum: ['sent', 'failed'], required: true },
-    replied:      { type: Boolean, default: false },   // true when user taps Consent/QR
+    delivered:    { type: Boolean, default: false },   // Meta webhook: delivered
+    read:         { type: Boolean, default: false },   // Meta webhook: read
+    deliveredAt:  { type: Date },
+    readAt:       { type: Date },
+    replied:      { type: Boolean, default: false },   // user tapped Consent QR
     repliedAt:    { type: Date },
-    messageId:    { type: String },
+    messageId:    { type: String, index: true },       // Meta wamid — used to match status webhooks
     error:        { type: String },
     sentBy:       { type: String, default: 'admin' },
   },

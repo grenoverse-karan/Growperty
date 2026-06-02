@@ -78,10 +78,12 @@ router.get('/analytics', async (req, res) => {
     ? { phone: { $regex: search.replace(/\D/g, ''), $options: 'i' } }
     : {};
 
-  const [total, sent, failed, replied, byTemplate, recipients, recipientTotal, dailyStats] = await Promise.all([
-    CampaignLog.countDocuments({ status: 'sent' }),
+  const [total, sent, failed, delivered, read, replied, byTemplate, recipients, recipientTotal, dailyStats] = await Promise.all([
+    CampaignLog.countDocuments(),
     CampaignLog.countDocuments({ status: 'sent' }),
     CampaignLog.countDocuments({ status: 'failed' }),
+    CampaignLog.countDocuments({ status: 'sent', delivered: true }),
+    CampaignLog.countDocuments({ status: 'sent', read: true }),
     CampaignLog.countDocuments({ status: 'sent', replied: true }),
     CampaignLog.aggregate([
       { $group: { _id: '$templateName', sent: { $sum: { $cond: [{ $eq: ['$status', 'sent'] }, 1, 0] } }, failed: { $sum: { $cond: [{ $eq: ['$status', 'failed'] }, 1, 0] } }, replied: { $sum: { $cond: ['$replied', 1, 0] } }, total: { $sum: 1 } } },
@@ -108,8 +110,11 @@ router.get('/analytics', async (req, res) => {
       total: grandTotal,
       sent,
       failed,
+      delivered,
+      read,
       replied,
-      successRate:  grandTotal ? Math.round((sent / grandTotal) * 100) : 0,
+      deliveryRate: sent ? Math.round((delivered / sent) * 100) : 0,
+      readRate:     sent ? Math.round((read / sent) * 100) : 0,
       replyRate:    sent ? Math.round((replied / sent) * 100) : 0,
     },
     byTemplate,
