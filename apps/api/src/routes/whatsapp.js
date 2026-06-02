@@ -287,11 +287,20 @@ async function handleButtonPress(fromPhone, buttonText, payload) {
 
   // ── "Consent" (camp_property_alert QR) ──────────────────────────
   if (btn === 'consent') {
-    // Look up user name for personalised sign_up welcome
     const user = await import('../models/User.js').then(m => m.default.findOne({ phone: fromPhone }).lean()).catch(() => null);
     const userName = user?.name || 'there';
     logger.info('[WA] Consent received → sign_up', { fromPhone, userName });
     await sendTemplateMessage(fromPhone, 'sign_up', { userName });
+    // Mark this phone's campaign log as replied
+    try {
+      const CampaignLog = (await import('../models/CampaignLog.js')).default;
+      const phone10 = fromPhone.replace(/\D/g, '').slice(-10);
+      await CampaignLog.findOneAndUpdate(
+        { phone: { $regex: phone10 }, status: 'sent', replied: false },
+        { $set: { replied: true, repliedAt: new Date() } },
+        { sort: { createdAt: -1 } }
+      );
+    } catch {}
     return;
   }
 

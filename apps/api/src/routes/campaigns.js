@@ -66,32 +66,73 @@ router.post('/send', async (req, res) => {
   return res.status(200).json({ success: true, messageId });
 });
 
-// GET /campaigns/analytics
+// GET /campaigns/analytics?search=phone&page=1&limit=50
 router.get('/analytics', async (req, res) => {
   await connectMongoDB();
+  const search = req.query.search?.trim();
+  const page   = Math.max(1, parseInt(req.query.page) || 1);
+  const limit  = Math.min(100, parseInt(req.query.limit) || 50);
+  const skip   = (page - 1) * limit;
 
-  const [total, sent, failed, byTemplate, recent, dailyStats] = await Promise.all([
-    CampaignLog.countDocuments(),
+  const searchFilter = search
+    ? { phone: { $regex: search.replace(/\D/g, ''), $options: 'i' } }
+    : {};
+
+  const [total, sent, failed, replied, byTemplate, recipients, recipientTotal, dailyStats] = await Promise.all([
+    CampaignLog.countDocuments({ status: 'sent' }),
     CampaignLog.countDocuments({ status: 'sent' }),
     CampaignLog.countDocuments({ status: 'failed' }),
+    CampaignLog.countDocuments({ status: 'sent', replied: true }),
     CampaignLog.aggregate([
-      { $group: { _id: '$templateName', sent: { $sum: { $cond: [{ $eq: ['$status', 'sent'] }, 1, 0] } }, failed: { $sum: { $cond: [{ $eq: ['$status', 'failed'] }, 1, 0] } }, total: { $sum: 1 } } },
+      { $group: { _id: '$templateName', sent: { $sum: { $cond: [{ $eq: ['$status', 'sent'] }, 1, 0] } }, failed: { $sum: { $cond: [{ $eq: ['$status', 'failed'] }, 1, 0] } }, replied: { $sum: { $cond: ['$replied', 1, 0] } }, total: { $sum: 1 } } },
       { $sort: { total: -1 } },
     ]),
-    CampaignLog.find().sort({ createdAt: -1 }).limit(20).lean(),
+    CampaignLog.find(searchFilter).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
+    CampaignLog.countDocuments(searchFilter),
     CampaignLog.aggregate([
-      { $group: { _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } }, sent: { $sum: { $cond: [{ $eq: ['$status', 'sent'] }, 1, 0] } }, failed: { $sum: { $cond: [{ $eq: ['$status', 'failed'] }, 1, 0] } } } },
+      { $match: { status: 'sent' } },
+      { $group: {
+          _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
+          sent: { $sum: 1 },
+          replied: { $sum: { $cond: ['$replied', 1, 0] } },
+        }
+      },
       { $sort: { _id: -1 } },
-      { $limit: 7 },
+      { $limit: 30 },
     ]),
   ]);
 
+  const grandTotal = sent + failed;
   return res.json({
-    summary: { total, sent, failed, successRate: total ? Math.round((sent / total) * 100) : 0 },
+    summary: {
+      total: grandTotal,
+      sent,
+      failed,
+      replied,
+      successRate:  grandTotal ? Math.round((sent / grandTotal) * 100) : 0,
+      replyRate:    sent ? Math.round((replied / sent) * 100) : 0,
+    },
     byTemplate,
-    recent,
+    recipients,
+    recipientTotal,
     dailyStats: dailyStats.reverse(),
+    page,
+    totalPages: Math.ceil(recipientTotal / limit),
   });
+});
+
+// POST /campaigns/mark-reply — called from webhook when user taps Consent
+router.post('/mark-reply', async (req, res) => {
+  const { phone } = req.body || {};
+  if (!phone) return res.status(400).json({ success: false });
+  await connectMongoDB();
+  // Mark the most recent sent campaign log for this phone as replied
+  await CampaignLog.findOneAndUpdate(
+    { phone: { $regex: phone.replace(/\D/g, '').slice(-10) }, status: 'sent', replied: false },
+    { $set: { replied: true, repliedAt: new Date() } },
+    { sort: { createdAt: -1 } }
+  );
+  return res.json({ success: true });
 });
 
 export default router;
