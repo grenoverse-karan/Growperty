@@ -78,11 +78,11 @@ router.get('/me', authenticate, async (req, res) => {
 
 router.patch('/me', authenticate, async (req, res) => {
   await connectMongoDB();
-  const { name, city, role } = req.body;
+  const { name, city, role, source } = req.body;
 
-  logger.info('[PATCH /users/me] Request received', { userId: req.userId, body: { name, city, role } });
+  logger.info('[PATCH /users/me] Request received', { userId: req.userId, body: { name, city, role, source } });
 
-  const existing = await User.findById(req.userId).select('name phone provider whatsappOptIn');
+  const existing = await User.findById(req.userId).select('name phone');
   if (!existing) {
     logger.warn('[PATCH /users/me] User not found', { userId: req.userId });
     return res.status(404).json({ error: 'User not found' });
@@ -90,17 +90,6 @@ router.patch('/me', authenticate, async (req, res) => {
 
   const hadNoName = !existing.name || existing.name.trim() === '';
   const settingName = !!(name && name.trim() !== '');
-
-  logger.info('[PATCH /users/me] sign_up trigger check', {
-    userId: req.userId,
-    existingName: existing.name || '(empty)',
-    hadNoName,
-    incomingName: name || '(not provided)',
-    settingName,
-    hasPhone: !!existing.phone,
-    phone: existing.phone || '(none)',
-    willTrigger: hadNoName && settingName && !!existing.phone,
-  });
 
   const update = {};
   if (name !== undefined) update.name = name.trim();
@@ -110,27 +99,15 @@ router.patch('/me', authenticate, async (req, res) => {
   const user = await User.findByIdAndUpdate(req.userId, update, { new: true }).select('-passwordHash');
   logger.info('[PATCH /users/me] User updated in DB', { userId: req.userId, updatedFields: Object.keys(update) });
 
-  // Send sign_up welcome message the first time a user sets their name (website signups only)
-  const skipDueToWhatsApp = existing.provider === 'whatsapp' || existing.whatsappOptIn === true;
-  if (hadNoName && settingName && existing.phone && !skipDueToWhatsApp) {
-    console.log('🔴 SIGNUP TRIGGER FIRED FROM:', new Error().stack);
-    logger.info('[PATCH /users/me] Triggering sign_up WhatsApp template', {
-      phone: existing.phone,
-      userName: name.trim(),
-    });
-
-    const result = await sendTemplateMessage(existing.phone, 'sign_up', {
-      userName: name.trim(),
-    });
-
-    logger.info('[PATCH /users/me] sign_up template result', {
-      success: result.success,
-      messageId: result.messageId,
-      error: result.error,
-    });
+  // sign_up welcome message only for OTP signups completing their profile for the first time
+  if (hadNoName && settingName && existing.phone && source === 'otp_signup') {
+    console.log('🔴 SIGN_UP FIRED. Stack:', new Error().stack);
+    logger.info('[PATCH /users/me] Triggering sign_up WhatsApp template', { phone: existing.phone, userName: name.trim() });
+    const result = await sendTemplateMessage(existing.phone, 'sign_up', { userName: name.trim() });
+    logger.info('[PATCH /users/me] sign_up template result', { success: result.success, messageId: result.messageId, error: result.error });
   } else {
     logger.info('[PATCH /users/me] sign_up NOT triggered', {
-      reason: skipDueToWhatsApp ? 'whatsapp user (optIn or provider)' : !hadNoName ? 'user already had a name' : !settingName ? 'no name in request' : 'no phone number',
+      reason: source !== 'otp_signup' ? 'source is not otp_signup' : !hadNoName ? 'user already had a name' : !settingName ? 'no name in request' : 'no phone',
     });
   }
 
