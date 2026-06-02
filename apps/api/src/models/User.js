@@ -11,6 +11,7 @@ const userSchema = new mongoose.Schema(
     provider:     { type: String, enum: ['whatsapp', 'email', 'google'], default: 'email' },
     googleId:     { type: String, unique: true, sparse: true },
     avatar:       { type: String, default: '' },
+    whatsappOptIn: { type: Boolean, default: false },
   },
   { timestamps: true }
 );

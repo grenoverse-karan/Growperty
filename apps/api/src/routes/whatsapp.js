@@ -287,10 +287,16 @@ async function handleButtonPress(fromPhone, buttonText, payload) {
 
   // ── "Consent" (camp_property_alert QR) ──────────────────────────
   if (btn === 'consent') {
-    const user = await import('../models/User.js').then(m => m.default.findOne({ phone: fromPhone }).lean()).catch(() => null);
-    const userName = user?.name || 'there';
-    logger.info('[WA] Consent received → sign_up', { fromPhone, userName });
-    await sendTemplateMessage(fromPhone, 'sign_up', { userName });
+    logger.info('[WA] Consent received (no sign_up trigger)', { fromPhone });
+    // Mark user as WhatsApp opt-in so sign_up template is never sent to them
+    try {
+      const User = (await import('../models/User.js')).default;
+      const phone10 = fromPhone.replace(/\D/g, '').slice(-10);
+      await User.findOneAndUpdate(
+        { phone: { $regex: phone10 } },
+        { $set: { whatsappOptIn: true } }
+      );
+    } catch {}
     // Mark this phone's campaign log as replied
     try {
       const CampaignLog = (await import('../models/CampaignLog.js')).default;
