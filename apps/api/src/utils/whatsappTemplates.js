@@ -40,10 +40,10 @@ const visitButtonPayloads = (visitRequestId) => {
 // Each entry maps a templateName → { name, language, buildComponents(params) }
 // Add new templates here as the business grows.
 const TEMPLATES = {
-  // Triggered on new WhatsApp user registration
+  // Triggered on new WhatsApp user registration or when phone is linked to existing account
   // params: { userName }
-  sign_up: {
-    name: 'sign_up',
+  welcome: {
+    name: 'welcome',
     language: 'en',
     buildComponents: ({ userName }) => [
       {
@@ -286,24 +286,6 @@ async function sendOnce(to, templateName, parameters, attempt) {
 export async function sendTemplateMessage(recipientPhone, templateName, parameters = {}) {
   console.log('📱 sendTemplateMessage called | template:', templateName, '| phone:', recipientPhone, '| params:', JSON.stringify(parameters));
   logger.info(`[WA] sendTemplateMessage called`, { templateName, recipientPhone, parameters });
-
-  // Global guard: never send sign_up to a WhatsApp user (provider=whatsapp or whatsappOptIn=true)
-  if (templateName === 'sign_up') {
-    try {
-      const { connectMongoDB } = await import('./mongodb.js');
-      await connectMongoDB();
-      const User = (await import('../models/User.js')).default;
-      const phone10 = String(recipientPhone).replace(/\D/g, '').slice(-10);
-      const user = await User.findOne({ phone: { $regex: phone10 } }).select('provider whatsappOptIn').lean();
-      if (user && (user.provider === 'whatsapp' || user.whatsappOptIn === true)) {
-        console.log('🛡️ sign_up BLOCKED — WhatsApp user:', phone10);
-        logger.warn('[WA] sign_up blocked for WhatsApp user', { phone10, provider: user.provider, whatsappOptIn: user.whatsappOptIn });
-        return { success: false, messageId: null, error: 'blocked: whatsapp user' };
-      }
-    } catch (e) {
-      logger.error('[WA] sign_up guard check failed', { error: e.message });
-    }
-  }
 
   if (!WHATSAPP_TOKEN || !PHONE_NUMBER_ID) {
     console.log('🔴 MISSING CREDENTIALS — hasToken:', !!WHATSAPP_TOKEN, '| hasPhoneNumberId:', !!PHONE_NUMBER_ID);

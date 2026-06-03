@@ -103,9 +103,9 @@ router.patch('/me', authenticate, async (req, res) => {
   const isWhatsAppUser = existing.provider === 'whatsapp' || existing.whatsappOptIn === true;
   if (hadNoName && settingName && existing.phone && source === 'otp_signup' && !isWhatsAppUser) {
     console.log('🔴 SIGN_UP FIRED. Stack:', new Error().stack);
-    logger.info('[PATCH /users/me] Triggering sign_up WhatsApp template', { phone: existing.phone, userName: name.trim() });
-    const result = await sendTemplateMessage(existing.phone, 'sign_up', { userName: name.trim() });
-    logger.info('[PATCH /users/me] sign_up template result', { success: result.success, messageId: result.messageId, error: result.error });
+    logger.info('[PATCH /users/me] Triggering welcome WhatsApp template', { phone: existing.phone, userName: name.trim() });
+    const result = await sendTemplateMessage(existing.phone, 'welcome', { userName: name.trim() });
+    logger.info('[PATCH /users/me] welcome template result', { success: result.success, messageId: result.messageId, error: result.error });
   } else {
     logger.info('[PATCH /users/me] sign_up NOT triggered', {
       reason: isWhatsAppUser ? 'whatsapp user (provider or optIn)' : source !== 'otp_signup' ? 'source is not otp_signup' : !hadNoName ? 'already had name' : !settingName ? 'no name in request' : 'no phone',

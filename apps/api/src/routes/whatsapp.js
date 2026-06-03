@@ -2,11 +2,19 @@ import 'dotenv/config';
 import express from 'express';
 import logger from '../utils/logger.js';
 import User from '../models/User.js';
-import { signToken } from '../utils/jwt.js';
+import { signToken, verifyToken } from '../utils/jwt.js';
 import { connectMongoDB } from '../utils/mongodb.js';
 import { sendTemplateMessage } from '../utils/whatsappTemplates.js';
 import Property from '../models/Property.js';
 import VisitRequest from '../models/VisitRequest.js';
+
+const authenticateOpt = (req, res, next) => {
+  const auth = req.headers.authorization;
+  if (auth?.startsWith('Bearer ')) {
+    try { req.userId = verifyToken(auth.slice(7)).userId; } catch {}
+  }
+  next();
+};
 
 const router = express.Router();
 
@@ -233,6 +241,73 @@ router.post('/verify-otp', async (req, res) => {
     user: { _id: user._id, phone: user.phone, name: user.name, city: user.city, role: user.role, provider: user.provider },
     isProfileComplete,
   });
+});
+
+// =====================
+// POST /link-phone — Verify OTP and link phone to existing logged-in user
+// Called from UserProfilePage when email/Google user adds their WhatsApp number
+// =====================
+router.post('/link-phone', authenticateOpt, async (req, res) => {
+  const { phoneNumber, userEnteredOtp } = req.body;
+
+  if (!phoneNumber || !userEnteredOtp) {
+    return res.status(400).json({ success: false, message: 'Phone number and OTP are required' });
+  }
+  if (!req.userId) {
+    return res.status(401).json({ success: false, message: 'Login required' });
+  }
+
+  const normalizedPhone = normalizePhoneNumber(phoneNumber);
+
+  if (!otpStore[normalizedPhone]) {
+    return res.status(400).json({ success: false, message: 'No OTP found. Request a new one.' });
+  }
+
+  const storedData = otpStore[normalizedPhone];
+  const elapsedMinutes = (Date.now() - storedData.timestamp) / (1000 * 60);
+
+  if (elapsedMinutes > OTP_EXPIRY_MINUTES) {
+    delete otpStore[normalizedPhone];
+    return res.status(400).json({ success: false, message: 'OTP expired. Request a new one.' });
+  }
+
+  if (storedData.attempts >= MAX_VERIFY_ATTEMPTS) {
+    delete otpStore[normalizedPhone];
+    return res.status(400).json({ success: false, message: 'Too many attempts. Request a new OTP.' });
+  }
+
+  const isDevBypass = process.env.NODE_ENV !== 'production' && userEnteredOtp === '000000';
+
+  if (!isDevBypass && userEnteredOtp !== storedData.otp) {
+    storedData.attempts += 1;
+    return res.status(400).json({ success: false, message: 'Invalid OTP' });
+  }
+
+  delete otpStore[normalizedPhone];
+
+  await connectMongoDB();
+
+  // Check phone not already taken by another user
+  const phoneConflict = await User.findOne({ phone: normalizedPhone, _id: { $ne: req.userId } }).lean();
+  if (phoneConflict) {
+    return res.status(409).json({ success: false, message: 'This number is already linked to another account.' });
+  }
+
+  const user = await User.findByIdAndUpdate(
+    req.userId,
+    { $set: { phone: normalizedPhone } },
+    { new: true }
+  ).select('-passwordHash');
+
+  if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+
+  logger.info('[link-phone] Phone linked', { userId: req.userId, phone: normalizedPhone });
+
+  // Send welcome template
+  const userName = user.name || 'there';
+  await sendTemplateMessage(normalizedPhone, 'welcome', { userName });
+
+  return res.status(200).json({ success: true, user });
 });
 
 // =====================

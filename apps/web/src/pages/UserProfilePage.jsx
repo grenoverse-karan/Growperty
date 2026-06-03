@@ -17,6 +17,8 @@ import {
 import { Loader2, User, MapPin, Phone, Mail, CheckCircle2, LogOut, Trash2, Save, ArrowLeft, Home, Briefcase, MessageCircle } from 'lucide-react';
 import { toast } from 'sonner';
 
+const API = import.meta.env.VITE_API_URL || '';
+
 const UserProfilePage = () => {
   const { currentUser, getToken, logout, updateCurrentUser } = useAuth();
   const navigate = useNavigate();
@@ -27,9 +29,60 @@ const UserProfilePage = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
+  // Phone linking flow
+  const [phoneInput, setPhoneInput] = useState('');
+  const [otpInput, setOtpInput] = useState('');
+  const [otpSent, setOtpSent] = useState(false);
+  const [isSendingOtp, setIsSendingOtp] = useState(false);
+  const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
+
   const displayPhone = currentUser?.phone
     ? currentUser.phone.replace(/^91/, '')
     : null;
+
+  const handleSendOtp = async () => {
+    const digits = phoneInput.replace(/\D/g, '');
+    if (digits.length !== 10) { toast.error('Valid 10-digit number enter karo'); return; }
+    setIsSendingOtp(true);
+    try {
+      const res = await fetch(`${API}/api/whatsapp/send-otp`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phoneNumber: digits }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'OTP bhejne mein error');
+      setOtpSent(true);
+      toast.success('OTP WhatsApp par bheja gaya');
+    } catch (e) {
+      toast.error(e.message || 'OTP send failed');
+    } finally {
+      setIsSendingOtp(false);
+    }
+  };
+
+  const handleLinkPhone = async () => {
+    if (!otpInput.trim()) { toast.error('OTP daalo'); return; }
+    setIsVerifyingOtp(true);
+    try {
+      const res = await fetch(`${API}/api/whatsapp/link-phone`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
+        body: JSON.stringify({ phoneNumber: phoneInput.replace(/\D/g, ''), userEnteredOtp: otpInput.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Verification failed');
+      updateCurrentUser(data.user);
+      toast.success('WhatsApp number link ho gaya!');
+      setOtpSent(false);
+      setPhoneInput('');
+      setOtpInput('');
+    } catch (e) {
+      toast.error(e.message || 'OTP verify failed');
+    } finally {
+      setIsVerifyingOtp(false);
+    }
+  };
 
   const handleUpdateProfile = async (e) => {
     e.preventDefault();
@@ -154,6 +207,57 @@ const UserProfilePage = () => {
               </CardContent>
             </Card>
           </motion.div>
+
+          {/* Add WhatsApp Number — shown only when user has no phone */}
+          {!displayPhone && (
+            <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35, delay: 0.05 }}>
+              <Card className="rounded-2xl border-[#25D366]/30 bg-[#25D366]/5 shadow-sm">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base font-bold flex items-center gap-2">
+                    <MessageCircle className="h-4 w-4 text-[#25D366]" />
+                    Add WhatsApp Number
+                  </CardTitle>
+                  <CardDescription>Apna WhatsApp number verify karo aur property alerts pao.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {!otpSent ? (
+                    <div className="flex gap-2">
+                      <div className="relative flex-1">
+                        <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          value={phoneInput}
+                          onChange={e => setPhoneInput(e.target.value)}
+                          placeholder="10-digit WhatsApp number"
+                          maxLength={10}
+                          className="pl-9 h-11 rounded-xl bg-white dark:bg-slate-950"
+                        />
+                      </div>
+                      <Button onClick={handleSendOtp} disabled={isSendingOtp} className="h-11 rounded-xl font-bold bg-[#25D366] hover:bg-[#1ebe5d] text-white">
+                        {isSendingOtp ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Send OTP'}
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      <p className="text-sm text-muted-foreground">OTP WhatsApp par bheja gaya <span className="font-bold text-slate-700 dark:text-slate-300">+91 {phoneInput}</span> pe</p>
+                      <div className="flex gap-2">
+                        <Input
+                          value={otpInput}
+                          onChange={e => setOtpInput(e.target.value)}
+                          placeholder="6-digit OTP"
+                          maxLength={6}
+                          className="h-11 rounded-xl bg-white dark:bg-slate-950"
+                        />
+                        <Button onClick={handleLinkPhone} disabled={isVerifyingOtp} className="h-11 rounded-xl font-bold bg-[#25D366] hover:bg-[#1ebe5d] text-white">
+                          {isVerifyingOtp ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Verify'}
+                        </Button>
+                      </div>
+                      <button onClick={() => setOtpSent(false)} className="text-xs text-muted-foreground underline">Number change karo</button>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </motion.div>
+          )}
 
           {/* Edit Profile */}
           <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35, delay: 0.05 }}>
