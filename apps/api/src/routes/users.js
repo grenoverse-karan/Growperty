@@ -82,7 +82,7 @@ router.patch('/me', authenticate, async (req, res) => {
 
   logger.info('[PATCH /users/me] Request received', { userId: req.userId, body: { name, city, role, source } });
 
-  const existing = await User.findById(req.userId).select('name phone');
+  const existing = await User.findById(req.userId).select('name phone provider whatsappOptIn');
   if (!existing) {
     logger.warn('[PATCH /users/me] User not found', { userId: req.userId });
     return res.status(404).json({ error: 'User not found' });
@@ -99,15 +99,16 @@ router.patch('/me', authenticate, async (req, res) => {
   const user = await User.findByIdAndUpdate(req.userId, update, { new: true }).select('-passwordHash');
   logger.info('[PATCH /users/me] User updated in DB', { userId: req.userId, updatedFields: Object.keys(update) });
 
-  // sign_up welcome message only for OTP signups completing their profile for the first time
-  if (hadNoName && settingName && existing.phone && source === 'otp_signup') {
+  // Triple-lock: sign_up only for OTP signups, never for WhatsApp users
+  const isWhatsAppUser = existing.provider === 'whatsapp' || existing.whatsappOptIn === true;
+  if (hadNoName && settingName && existing.phone && source === 'otp_signup' && !isWhatsAppUser) {
     console.log('🔴 SIGN_UP FIRED. Stack:', new Error().stack);
     logger.info('[PATCH /users/me] Triggering sign_up WhatsApp template', { phone: existing.phone, userName: name.trim() });
     const result = await sendTemplateMessage(existing.phone, 'sign_up', { userName: name.trim() });
     logger.info('[PATCH /users/me] sign_up template result', { success: result.success, messageId: result.messageId, error: result.error });
   } else {
     logger.info('[PATCH /users/me] sign_up NOT triggered', {
-      reason: source !== 'otp_signup' ? 'source is not otp_signup' : !hadNoName ? 'user already had a name' : !settingName ? 'no name in request' : 'no phone',
+      reason: isWhatsAppUser ? 'whatsapp user (provider or optIn)' : source !== 'otp_signup' ? 'source is not otp_signup' : !hadNoName ? 'already had name' : !settingName ? 'no name in request' : 'no phone',
     });
   }
 
