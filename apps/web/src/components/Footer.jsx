@@ -72,13 +72,6 @@ const Footer = () => {
               <li>
                 <span className="text-base font-medium text-muted-foreground">RERA Disclaimer</span>
               </li>
-              <li className="pt-4">
-                {!isAdminAuthenticated ? <Link to="/admin-login" className="text-sm font-bold text-muted-foreground hover:text-primary flex items-center gap-1 transition-colors duration-200">
-                    <ShieldAlert className="h-4 w-4" /> Admin Login
-                  </Link> : <Link to="/admin-dashboard" className="text-sm font-bold text-primary flex items-center gap-1 transition-colors duration-200">
-                    <ShieldAlert className="h-4 w-4" /> Admin Dashboard
-                  </Link>}
-              </li>
             </ul>
           </div>
 
