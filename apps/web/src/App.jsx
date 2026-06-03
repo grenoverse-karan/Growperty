@@ -44,6 +44,8 @@ import PrivacyPolicyPage from '@/pages/PrivacyPolicyPage.jsx';
 import RERADisclaimerPage from '@/pages/RERADisclaimerPage.jsx';
 import MyListingsPage from '@/pages/MyListingsPage.jsx';
 import SitemapPage from '@/pages/SitemapPage.jsx';
+import GoogleSuccessPage from '@/pages/GoogleSuccessPage.jsx';
+import GoogleCompleteProfilePage from '@/pages/GoogleCompleteProfilePage.jsx';
 
 import AdminLoginPage from '@/pages/AdminLoginPage.jsx';
 import AdminDashboard from '@/pages/AdminDashboard.jsx';
@@ -95,6 +97,8 @@ function App() {
             <Route path="/terms-and-conditions" element={<TermsAndConditionsPage />} />
             <Route path="/terms" element={<TermsAndConditionsPage />} />
             <Route path="/disclaimer" element={<DisclaimerPage />} />
+            <Route path="/auth/google/success" element={<GoogleSuccessPage />} />
+            <Route path="/complete-profile/google" element={<GoogleCompleteProfilePage />} />
             <Route path="/privacy" element={<PrivacyPolicyPage />} />
             <Route path="/rera-disclaimer" element={<RERADisclaimerPage />} />
             <Route path="/sitemap" element={<SitemapPage />} />
