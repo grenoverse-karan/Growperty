@@ -38,7 +38,7 @@ const SetupProfilePage = () => {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${getToken()}`,
         },
-        body: JSON.stringify({ name: name.trim(), city: city.trim(), source: 'otp_signup' }),
+        body: JSON.stringify({ name: name.trim(), city: city.trim() }),
       });
       if (!res.ok) throw new Error((await res.json()).error || 'Failed to update profile');
       const updated = await res.json();
