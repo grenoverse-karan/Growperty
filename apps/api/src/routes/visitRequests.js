@@ -61,10 +61,15 @@ router.post('/', async (req, res) => {
   }
 });
 
-// GET /?propertyId=... — List visit requests for a property (admin use)
+// GET /?propertyId=...&visitorPhone=... — List visit requests
 router.get('/', async (req, res) => {
   try {
-    const filter = req.query.propertyId ? { propertyId: req.query.propertyId } : {};
+    const filter = {};
+    if (req.query.propertyId) filter.propertyId = req.query.propertyId;
+    if (req.query.visitorPhone) {
+      const phone10 = req.query.visitorPhone.replace(/\D/g, '').slice(-10);
+      filter.visitorPhone = { $regex: phone10 };
+    }
     const docs = await VisitRequest.find(filter).sort({ createdAt: -1 }).lean();
     return res.status(200).json({ items: docs.map(d => ({ ...d, id: d._id.toString() })) });
   } catch (err) {
