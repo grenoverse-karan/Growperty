@@ -273,14 +273,13 @@ async function sendOnce(to, templateName, parameters, attempt) {
  * Send a WhatsApp template message with retry logic.
  *
  * @param {string|number} recipientPhone  - 10-digit or full international number
- * @param {string}        templateName   - Key from TEMPLATES map (e.g. "sign_up")
+ * @param {string}        templateName   - Key from TEMPLATES map (e.g. "welcome")
  * @param {Object}        parameters     - Dynamic values required by the template
  * @returns {Promise<{ success: boolean, messageId: string|null, error: string|null }>}
  *
  * @example
- * const result = await sendTemplateMessage('9891117876', 'sign_up', {
+ * const result = await sendTemplateMessage('9891117876', 'welcome', {
  *   userName: 'Karan',
- *   websiteLink: 'https://growperty.com',
  * });
  */
 export async function sendTemplateMessage(recipientPhone, templateName, parameters = {}) {

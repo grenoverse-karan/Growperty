@@ -364,8 +364,8 @@ async function handleButtonPress(fromPhone, buttonText, payload) {
   // HARD RULE: Consent NEVER sends any template back. Only DB updates.
   if (btn === 'consent') {
     console.log('✅ Consent received — NO template will be sent', fromPhone);
-    logger.info('[WA] Consent received (no sign_up trigger)', { fromPhone });
-    // Mark user as WhatsApp opt-in so sign_up template is never sent to them
+    logger.info('[WA] Consent received', { fromPhone });
+    // Mark user as WhatsApp opt-in
     try {
       const User = (await import('../models/User.js')).default;
       const phone10 = fromPhone.replace(/\D/g, '').slice(-10);
@@ -394,7 +394,7 @@ async function handleButtonPress(fromPhone, buttonText, payload) {
     return;
   }
 
-  // ── "Request to Call Back" (sign_up QR) ─────────────────────────
+  // ── "Request to Call Back" ──────────────────────────────────────
   if (btn.includes('call back')) {
     logger.info('[WA] reply_callback → ', fromPhone);
     await sendTemplateMessage(fromPhone, 'reply_callback', {});
