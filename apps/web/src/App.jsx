@@ -41,6 +41,7 @@ import SearchResultsPage from '@/pages/SearchResultsPage.jsx';
 import TermsAndConditionsPage from '@/pages/TermsAndConditionsPage.jsx';
 import DisclaimerPage from '@/pages/DisclaimerPage.jsx';
 import PrivacyPolicyPage from '@/pages/PrivacyPolicyPage.jsx';
+import RERADisclaimerPage from '@/pages/RERADisclaimerPage.jsx';
 import MyListingsPage from '@/pages/MyListingsPage.jsx';
 import SitemapPage from '@/pages/SitemapPage.jsx';
 
@@ -95,6 +96,7 @@ function App() {
             <Route path="/terms" element={<TermsAndConditionsPage />} />
             <Route path="/disclaimer" element={<DisclaimerPage />} />
             <Route path="/privacy" element={<PrivacyPolicyPage />} />
+            <Route path="/rera-disclaimer" element={<RERADisclaimerPage />} />
             <Route path="/sitemap" element={<SitemapPage />} />
             
             <Route path="/login" element={<LoginPage />} />

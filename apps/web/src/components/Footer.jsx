@@ -70,7 +70,7 @@ const Footer = () => {
                 <Link to="/terms" className="text-base font-medium text-muted-foreground hover:text-primary transition-colors duration-200">Terms of Service</Link>
               </li>
               <li>
-                <span className="text-base font-medium text-muted-foreground">RERA Disclaimer</span>
+                <Link to="/rera-disclaimer" className="text-base font-medium text-muted-foreground hover:text-primary transition-colors duration-200">RERA Disclaimer</Link>
               </li>
               <li>
                 <Link to="/disclaimer" className="text-base font-medium text-muted-foreground hover:text-primary transition-colors duration-200">Disclaimer</Link>
@@ -108,6 +108,10 @@ const Footer = () => {
           <p className="text-center text-xs text-muted-foreground/70 max-w-3xl mx-auto leading-relaxed">
             Information on Growperty.com is provided for general informational purposes only. Property details, pricing, availability, approvals, maps, and analytics may be approximate, third-party supplied, or subject to change. Users must conduct independent legal, financial, and technical due diligence before entering into any transaction.{' '}
             <Link to="/disclaimer" className="underline hover:text-primary transition-colors">Read full Disclaimer</Link>
+          </p>
+          <p className="text-center text-xs text-muted-foreground/70 max-w-3xl mx-auto leading-relaxed">
+            Growperty does not claim RERA agent registration unless a valid registration number is expressly published on the Platform. Users must independently verify project-specific RERA registration and related statutory disclosures before transacting.{' '}
+            <Link to="/rera-disclaimer" className="underline hover:text-primary transition-colors">Read RERA Disclaimer</Link>
           </p>
           <p className="text-center text-sm font-medium text-muted-foreground">
             © {currentYear} Growperty.com. A venture of Grenoverse Multi Ventures LLP. All rights reserved.
