@@ -148,45 +148,6 @@ const WhyChooseGrowperty = () => {
         </div>
       </section>
 
-      {/* Section 3: Stats Grid */}
-      <section className="py-16 md:py-24 bg-white dark:bg-background">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.6 }}
-            className="grid grid-cols-1 md:grid-cols-3 bg-slate-50 dark:bg-slate-900/50 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm divide-y md:divide-y-0 md:divide-x divide-slate-200 dark:divide-slate-800 overflow-hidden"
-          >
-            <div className="flex flex-col items-center justify-center p-10 md:p-12 text-center group hover:bg-white dark:hover:bg-slate-900 transition-colors duration-300">
-              <span className="text-5xl md:text-6xl font-black text-emerald-500 mb-4 tracking-tight group-hover:scale-105 transition-transform duration-300">
-                100%
-              </span>
-              <span className="text-lg font-semibold text-slate-700 dark:text-slate-300">
-                Free Listings
-              </span>
-            </div>
-            
-            <div className="flex flex-col items-center justify-center p-10 md:p-12 text-center group hover:bg-white dark:hover:bg-slate-900 transition-colors duration-300">
-              <span className="text-5xl md:text-6xl font-black text-emerald-500 mb-4 tracking-tight group-hover:scale-105 transition-transform duration-300">
-                0
-              </span>
-              <span className="text-lg font-semibold text-slate-700 dark:text-slate-300">
-                Hidden Owner Contacts
-              </span>
-            </div>
-            
-            <div className="flex flex-col items-center justify-center p-10 md:p-12 text-center group hover:bg-white dark:hover:bg-slate-900 transition-colors duration-300">
-              <span className="text-5xl md:text-6xl font-black text-emerald-500 mb-4 tracking-tight group-hover:scale-105 transition-transform duration-300">
-                1 Number
-              </span>
-              <span className="text-lg font-semibold text-slate-700 dark:text-slate-300">
-                All enquiries through +91 9953537876
-              </span>
-            </div>
-          </motion.div>
-        </div>
-      </section>
     </div>
   );
 };
