@@ -61,7 +61,7 @@ const Footer = () => {
           </div>
 
           <div>
-            <span className="text-base font-bold text-foreground mb-6 block">Legal & Admin</span>
+            <span className="text-base font-bold text-foreground mb-6 block">Legal</span>
             <ul className="space-y-4">
               <li>
                 <Link to="/privacy" className="text-base font-medium text-muted-foreground hover:text-primary transition-colors duration-200">Privacy Policy</Link>
