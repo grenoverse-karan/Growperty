@@ -286,7 +286,9 @@ async function handleButtonPress(fromPhone, buttonText, payload) {
   await connectMongoDB();
 
   // ── "Consent" (camp_property_alert QR) ──────────────────────────
+  // HARD RULE: Consent NEVER sends any template back. Only DB updates.
   if (btn === 'consent') {
+    console.log('✅ Consent received — NO template will be sent', fromPhone);
     logger.info('[WA] Consent received (no sign_up trigger)', { fromPhone });
     // Mark user as WhatsApp opt-in so sign_up template is never sent to them
     try {
