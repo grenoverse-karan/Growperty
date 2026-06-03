@@ -99,6 +99,12 @@ router.patch('/me', authenticate, async (req, res) => {
   const user = await User.findByIdAndUpdate(req.userId, update, { new: true }).select('-passwordHash');
   logger.info('[PATCH /users/me] User updated in DB', { userId: req.userId, updatedFields: Object.keys(update) });
 
+  // Send welcome on first-time profile setup (OTP signup)
+  if (hadNoName && settingName && existing.phone && source === 'otp_signup') {
+    logger.info('[PATCH /users/me] Sending welcome template', { phone: existing.phone, userName: name.trim() });
+    sendTemplateMessage(existing.phone, 'welcome', { userName: name.trim() }).catch(() => {});
+  }
+
   res.json(user);
 });
 

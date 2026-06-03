@@ -231,12 +231,6 @@ router.post('/verify-otp', async (req, res) => {
     role: 'buyer',
   });
 
-  // Send welcome template to new users immediately on first OTP signup
-  if (isNewUser) {
-    logger.info('[verify-otp] New user — sending welcome template', { phone: normalizedPhone });
-    sendTemplateMessage(normalizedPhone, 'welcome', { userName: 'there' }).catch(() => {});
-  }
-
   const token = signToken(user);
   const isProfileComplete = !!(user.name && user.city);
 
