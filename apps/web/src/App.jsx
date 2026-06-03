@@ -39,6 +39,7 @@ import SetupProfilePage from '@/pages/SetupProfilePage.jsx';
 import UserProfilePage from '@/pages/UserProfilePage.jsx';
 import SearchResultsPage from '@/pages/SearchResultsPage.jsx';
 import TermsAndConditionsPage from '@/pages/TermsAndConditionsPage.jsx';
+import DisclaimerPage from '@/pages/DisclaimerPage.jsx';
 import MyListingsPage from '@/pages/MyListingsPage.jsx';
 import SitemapPage from '@/pages/SitemapPage.jsx';
 
@@ -91,6 +92,7 @@ function App() {
             <Route path="/search" element={<SearchResultsPage />} />
             <Route path="/terms-and-conditions" element={<TermsAndConditionsPage />} />
             <Route path="/terms" element={<TermsAndConditionsPage />} />
+            <Route path="/disclaimer" element={<DisclaimerPage />} />
             <Route path="/sitemap" element={<SitemapPage />} />
             
             <Route path="/login" element={<LoginPage />} />

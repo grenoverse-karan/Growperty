@@ -561,6 +561,14 @@ const PropertyDetailsPage = () => {
 
             </div>{/* end grid */}
           </div>
+
+          {/* Disclaimer block */}
+          <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pb-10">
+            <div className="rounded-xl border border-amber-200 dark:border-amber-800/40 bg-amber-50 dark:bg-amber-900/10 p-4 text-xs text-amber-800 dark:text-amber-300 leading-relaxed space-y-1">
+              <p><strong>Disclaimer:</strong> Property details, pricing, approvals, and availability are provided by the owner/developer and may be subject to change. Please conduct independent legal, financial, and technical due diligence before making any payment or signing any document.</p>
+              <p>Exact property location may be masked for privacy and anti-circumvention purposes. Verified location will be shared during authorized site visit coordination.</p>
+            </div>
+          </div>
         </main>
         <Footer />
       </div>
