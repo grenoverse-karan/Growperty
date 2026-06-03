@@ -100,18 +100,51 @@ router.post('/', requireAuth, async (req, res) => {
 // =====================
 // GET / — List properties
 // =====================
+// LIST_PROJECTION: only fields needed for the property card + admin table.
+// Excludes large/unused fields (description, furnishingItems, amenities, etc.)
+// and returns only the FIRST image to minimise payload size.
+const LIST_PROJECTION = {
+  propertyType: 1, propertySubType: 1, bhk: 1, bathrooms: 1, balconies: 1,
+  city: 1, sector: 1, houseNo: 1, landmark: 1, towerBlock: 1,
+  totalPrice: 1, totalArea: 1, areaUnit: 1,
+  name: 1, mobileNumber: 1, email: 1,
+  ownerType: 1, status: 1, listedBy: 1,
+  possessionStatus: 1, furnishingType: 1, saleType: 1,
+  visitTimeType: 1, visitFixedSlots: 1, visitFlexibleSlots: 1,
+  createdAt: 1, updatedAt: 1, liveAt: 1,
+  // Return only the first image — huge savings when images are base64
+  images: { $slice: 1 },
+};
+
 router.get('/', async (req, res) => {
   try {
     const page  = Math.max(1, parseInt(req.query.page)  || 1);
-    const limit = Math.max(1, Math.min(100, parseInt(req.query.limit) || 10));
+    const limit = Math.max(1, Math.min(1000, parseInt(req.query.limit) || 20));
     const skip  = (page - 1) * limit;
-    const filter = req.query.status ? { status: req.query.status } : {};
-    const [docs, totalItems] = await Promise.all([
-      Property.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
-      Property.countDocuments(filter),
-    ]);
+    const filter = {};
+    if (req.query.status) filter.status = req.query.status;
+    if (req.query.city)   filter.city   = req.query.city;
+
+    // Admin pages that pass limit=1000 need full images; others get the slim projection
+    const isAdminFetch = limit > 50;
+    const projection = isAdminFetch ? {} : LIST_PROJECTION;
+
+    const docs = await Property.find(filter, projection)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .lean();
+
     const items = docs.map(p => ({ ...p, id: p._id.toString() }));
-    return res.status(200).json({ items, page, perPage: limit, totalItems, totalPages: Math.ceil(totalItems / limit) });
+
+    // Cache public approved listings for 30s; admin fetches are not cached
+    if (!req.query.status || req.query.status === 'approved') {
+      res.set('Cache-Control', 'public, max-age=30, stale-while-revalidate=60');
+    } else {
+      res.set('Cache-Control', 'no-store');
+    }
+
+    return res.status(200).json({ items, page, perPage: limit, totalItems: items.length });
   } catch (err) {
     logger.error('GET /api/properties error', { message: err.message });
     return res.status(500).json({ success: false, message: err.message });

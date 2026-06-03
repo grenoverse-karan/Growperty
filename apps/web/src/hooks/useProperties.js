@@ -2,6 +2,21 @@ import { useState, useCallback } from 'react';
 import apiServerClient from '@/lib/apiServerClient.js';
 import { toast } from 'sonner';
 
+// Module-level cache — survives re-renders but not full page reload
+const _cache = {};
+const CACHE_TTL_MS = 45_000; // 45s — aligns with API's max-age=30 + stale window
+
+function getCached(key) {
+  const entry = _cache[key];
+  if (!entry) return null;
+  if (Date.now() - entry.ts > CACHE_TTL_MS) { delete _cache[key]; return null; }
+  return entry.data;
+}
+
+function setCache(key, data) {
+  _cache[key] = { data, ts: Date.now() };
+}
+
 /**
  * Formats a price number using Indian numbering system
  * Examples: 500000 → '₹ 5,00,000', 5000000 → '₹ 50,00,000', 10000000 → '₹ 1,00,00,000'
@@ -32,13 +47,21 @@ export const useProperties = () => {
   const [error, setError] = useState(null);
 
   const fetchProperties = useCallback(async (status = 'approved') => {
+    const cacheKey = `props_${status}`;
+
+    // Serve cached data instantly, show loading only on genuine cold fetch
+    const cached = getCached(cacheKey);
+    if (cached) {
+      setProperties(cached);
+      setIsLoading(false);
+      return cached;
+    }
+
     setIsLoading(true);
     setError(null);
     try {
       const params = new URLSearchParams({ limit: 100 });
       if (status && status !== 'all') params.set('status', status);
-
-      console.log(`[useProperties] Fetching properties with status: ${status}`);
 
       const response = await apiServerClient.fetch(`/properties?${params.toString()}`);
 
@@ -50,11 +73,10 @@ export const useProperties = () => {
       const data = await response.json();
       const records = data.items || [];
 
-      console.log(`[useProperties] Fetched ${records.length} properties successfully.`);
+      setCache(cacheKey, records);
       setProperties(records);
       return records;
     } catch (err) {
-      console.error('[useProperties] Error fetching properties:', err);
       setError(err.message || 'Failed to fetch properties');
       toast.error('Failed to load properties. Please try again.');
       return [];

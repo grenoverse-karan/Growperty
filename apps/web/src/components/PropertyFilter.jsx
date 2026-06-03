@@ -14,17 +14,14 @@ const PropertyFilter = ({ onFilter }) => {
     type: 'all',
     plotType: 'all',
     bhk: 'all',
-    maxPrice: 50000000, // 5 Cr default max
+    maxPrice: 500000000, // 50 Cr default max
     verified: false
   });
 
   const locations = [
     { id: 'all', label: 'All Locations' },
-    { id: 'Noida', label: 'Noida' },
     { id: 'Greater Noida', label: 'Greater Noida' },
-    { id: 'Delhi', label: 'Delhi' },
-    { id: 'Gurgaon', label: 'Gurgaon' },
-    { id: 'Faridabad', label: 'Faridabad' },
+    { id: 'Noida', label: 'Noida' },
     { id: 'YEIDA', label: 'YEIDA' }
   ];
 
@@ -33,6 +30,7 @@ const PropertyFilter = ({ onFilter }) => {
     { id: 'Flat', label: 'Flat / Apartment' },
     { id: 'Villa', label: 'Villa / House' },
     { id: 'Plot', label: 'Residential Plot' },
+    { id: 'Industrial Plot', label: 'Industrial Plot' },
     { id: 'Commercial', label: 'Commercial Space' }
   ];
 
@@ -49,7 +47,8 @@ const PropertyFilter = ({ onFilter }) => {
     { id: '1', label: '1 BHK' },
     { id: '2', label: '2 BHK' },
     { id: '3', label: '3 BHK' },
-    { id: '4+', label: '4+ BHK' }
+    { id: '4', label: '4 BHK' },
+    { id: '5+', label: '5+ BHK' }
   ];
 
   const handleApply = () => {
@@ -62,7 +61,7 @@ const PropertyFilter = ({ onFilter }) => {
       type: 'all',
       plotType: 'all',
       bhk: 'all',
-      maxPrice: 50000000,
+      maxPrice: 500000000,
       verified: false
     };
     setLocalFilters(resetState);
@@ -166,16 +165,16 @@ const PropertyFilter = ({ onFilter }) => {
             </span>
           </div>
           <Slider
-            min={2000000} // 20 Lac
-            max={50000000} // 5 Cr
+            min={1000000} // 10 Lac
+            max={500000000} // 50 Cr
             step={1000000} // 1 Lac steps
             value={[localFilters.maxPrice]}
             onValueChange={(val) => setLocalFilters({ ...localFilters, maxPrice: val[0] })}
             className="py-4"
           />
           <div className="flex items-center justify-between text-xs font-medium text-muted-foreground">
-            <span>₹20 Lac</span>
-            <span>₹5 Cr+</span>
+            <span>₹10 Lac</span>
+            <span>₹50 Cr+</span>
           </div>
         </div>
 

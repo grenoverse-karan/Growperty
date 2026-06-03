@@ -290,13 +290,11 @@ const PropertyListingForm = ({ isAdmin = false }) => {
   const calculatePricePerSqft = () => {
     if (!formData.totalPrice || !formData.totalArea || isNaN(formData.totalPrice) || isNaN(formData.totalArea)) return null;
     const price = Number(formData.totalPrice);
-    let area = Number(formData.totalArea);
-    
-    if (formData.areaUnit === 'Sq.yd') area = area * 9;
-    if (formData.areaUnit === 'Sq.m') area = area * 10.764;
-    
-    const perSqft = price / area;
-    return perSqft > 0 ? `₹ ${Math.round(perSqft).toLocaleString('en-IN')} / sq.ft` : null;
+    const area = Number(formData.totalArea);
+    const unit = formData.areaUnit || 'Sq.ft';
+    const perUnit = price / area;
+    const unitLabel = unit === 'Sq.yd' ? 'sq.yd' : unit === 'Sq.m' ? 'sq.m' : 'sq.ft';
+    return perUnit > 0 ? `₹ ${Math.round(perUnit).toLocaleString('en-IN')} / ${unitLabel}` : null;
   };
 
   const sanitizeDescription = (text) => {

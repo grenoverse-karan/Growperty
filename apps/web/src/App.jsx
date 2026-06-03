@@ -1,6 +1,7 @@
 
 import React, { useEffect } from 'react';
 import { Route, Routes, BrowserRouter as Router, Navigate } from 'react-router-dom';
+import { usePageTracking } from '@/hooks/usePageTracking.js';
 import { Toaster } from '@/components/ui/sonner.jsx';
 
 import ScrollToTop from '@/components/ScrollToTop.jsx';
@@ -61,6 +62,18 @@ import AdminListPropertyPage from '@/pages/AdminListPropertyPage.jsx';
 import AdminUsersPage from '@/pages/AdminUsersPage.jsx';
 import AdminComingSoonPage from '@/pages/AdminComingSoonPage.jsx';
 import AdminCampaignsPage from '@/pages/AdminCampaignsPage.jsx';
+import AdminVisitsPage from '@/pages/AdminVisitsPage.jsx';
+import AdminRequirementsPage from '@/pages/AdminRequirementsPage.jsx';
+import AdminLeadsOverviewPage from '@/pages/AdminLeadsOverviewPage.jsx';
+import AdminInventoryOverviewPage from '@/pages/AdminInventoryOverviewPage.jsx';
+import AdminAnalyticsPage from '@/pages/AdminAnalyticsPage.jsx';
+import AdminTrafficPage from '@/pages/AdminTrafficPage.jsx';
+import AdminWebAnalyticsPage from '@/pages/AdminWebAnalyticsPage.jsx';
+
+function PageTracker() {
+  usePageTracking();
+  return null;
+}
 
 function App() {
   console.log('[App] Rendering routes configuration');
@@ -75,6 +88,7 @@ function App() {
       <AdminAuthProvider>
         <Router>
           <ScrollToTop />
+          <PageTracker />
           <Routes>
             <Route path="/" element={<HomePage />} />
             <Route path="/about" element={<AboutPage />} />
@@ -169,15 +183,53 @@ function App() {
               </AdminProtectedRoute>
             } />
 
+            <Route path="/admin/visits" element={
+              <AdminProtectedRoute>
+                <AdminVisitsPage />
+              </AdminProtectedRoute>
+            } />
+
+            <Route path="/admin/requirements" element={
+              <AdminProtectedRoute>
+                <AdminRequirementsPage />
+              </AdminProtectedRoute>
+            } />
+
+            <Route path="/admin/leads" element={
+              <AdminProtectedRoute>
+                <AdminLeadsOverviewPage />
+              </AdminProtectedRoute>
+            } />
+
+            <Route path="/admin/analytics" element={
+              <AdminProtectedRoute>
+                <AdminAnalyticsPage />
+              </AdminProtectedRoute>
+            } />
+
+            <Route path="/admin/traffic" element={
+              <AdminProtectedRoute>
+                <AdminTrafficPage />
+              </AdminProtectedRoute>
+            } />
+
+            <Route path="/admin/web-analytics" element={
+              <AdminProtectedRoute>
+                <AdminWebAnalyticsPage />
+              </AdminProtectedRoute>
+            } />
+
+            <Route path="/admin/inventory" element={
+              <AdminProtectedRoute>
+                <AdminInventoryOverviewPage />
+              </AdminProtectedRoute>
+            } />
+
             {/* Coming-soon stubs for sidebar links */}
             {[
-              '/admin/inventory',
-              '/admin/analytics',
               '/admin/transactions',
-              '/admin/leads',
               '/admin/buyers',
               '/admin/inquiries',
-              '/admin/traffic',
               '/admin/lead-transactions',
               '/admin/announcements',
               '/admin/activity',

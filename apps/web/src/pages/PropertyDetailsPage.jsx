@@ -149,6 +149,23 @@ const PropertyDetailsPage = () => {
   }
 
   // ── Derived values ───────────────────────────────────────────
+  const listedAgo = (() => {
+    const dateStr = property.createdAt;
+    if (!dateStr) return null;
+    const diff  = Date.now() - new Date(dateStr).getTime();
+    const mins  = Math.floor(diff / 60000);
+    const hours = Math.floor(diff / 3600000);
+    const days  = Math.floor(diff / 86400000);
+    const weeks = Math.floor(days / 7);
+    if (mins < 60)   return `${mins || 1}m ago`;
+    if (hours < 24)  return `${hours}hr ago`;
+    if (days === 1)  return 'Yesterday';
+    if (days < 7)    return `${days} days ago`;
+    if (weeks === 1) return '1 week ago';
+    if (weeks < 5)   return `${weeks} weeks ago`;
+    return new Date(dateStr).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+  })();
+
   const images = Array.isArray(property.images) && property.images.length > 0
     ? property.images
     : null;
@@ -204,7 +221,8 @@ const PropertyDetailsPage = () => {
                         />
                         {/* Badges */}
                         <div className="absolute top-3 left-3 flex gap-2">
-                          <Badge className="bg-primary text-primary-foreground font-bold px-3 uppercase tracking-wider text-xs">For Sale</Badge>
+                          {listedAgo && <Badge className="bg-black/60 backdrop-blur-sm text-white font-semibold px-3 text-xs border-0">{listedAgo}</Badge>}
+
                           {property.status === 'approved' && (
                             <Badge className="bg-[#10B981] text-white font-bold px-3 flex items-center gap-1 text-xs">
                               <ShieldCheck className="h-3 w-3" /> Verified

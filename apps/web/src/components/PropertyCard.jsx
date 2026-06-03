@@ -10,6 +10,22 @@ import { PLATFORM_PHONE, PLATFORM_WHATSAPP } from '@/constants/contactInfo.js';
 
 const PLACEHOLDER = 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=800&q=80';
 
+function timeAgo(dateStr) {
+  if (!dateStr) return null;
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins  = Math.floor(diff / 60000);
+  const hours = Math.floor(diff / 3600000);
+  const days  = Math.floor(diff / 86400000);
+  const weeks = Math.floor(days / 7);
+  if (mins < 60)   return `${mins || 1}m ago`;
+  if (hours < 24)  return `${hours}hr ago`;
+  if (days === 1)  return 'Yesterday';
+  if (days < 7)    return `${days} days ago`;
+  if (weeks === 1) return '1 week ago';
+  if (weeks < 5)   return `${weeks} weeks ago`;
+  return new Date(dateStr).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+}
+
 const PropertyCard = ({ property }) => {
   const formattedPrice = formatIndianPrice(property.totalPrice || property.price);
   const displayAddress = getFilteredAddress(property);
@@ -34,14 +50,18 @@ const PropertyCard = ({ property }) => {
           src={imageUrl}
           alt={property.title || 'Property Image'}
           className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+          loading="lazy"
+          decoding="async"
           onError={(e) => { e.target.src = PLACEHOLDER; }}
         />
         <div className="absolute inset-0 bg-gradient-to-t from-slate-950/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
         
         <div className="absolute top-4 left-4 flex flex-col gap-2">
-          <Badge className="bg-primary text-primary-foreground shadow-md font-bold px-3 py-1 uppercase tracking-wider text-xs">
-            For Sale
-          </Badge>
+          {timeAgo(property.createdAt) && (
+            <Badge className="bg-black/60 backdrop-blur-sm text-white shadow-md font-semibold px-3 py-1 text-xs border-0">
+              {timeAgo(property.createdAt)}
+            </Badge>
+          )}
         </div>
 
         {property.status === 'approved' && (

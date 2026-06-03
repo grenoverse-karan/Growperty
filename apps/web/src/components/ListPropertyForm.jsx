@@ -155,7 +155,7 @@ const ListPropertyForm = () => {
       ...prev,
       pricePerUnit: price > 0 && area > 0 ? Math.round(price / area) : 0,
     }));
-  }, [formData.totalPrice, formData.totalArea]);
+  }, [formData.totalPrice, formData.totalArea, formData.areaUnit]);
 
   useEffect(() => {
     return () => {

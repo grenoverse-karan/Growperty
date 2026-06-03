@@ -4,12 +4,16 @@ import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import cookieParser from 'cookie-parser';
+import compression from 'compression';
 
 import routes from './routes/index.js';
 import { errorMiddleware } from './middleware/index.js';
 import logger from './utils/logger.js';
 
 const app = express();
+
+// Gzip all responses — critical for large JSON payloads (base64 images compress ~70-80%)
+app.use(compression());
 
 app.use(helmet({
   crossOriginResourcePolicy: { policy: 'cross-origin' },

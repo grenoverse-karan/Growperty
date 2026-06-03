@@ -56,4 +56,9 @@ const propertySchema = new mongoose.Schema(
   }
 );
 
+// Compound index for the main listing query: filter by status, sort by newest
+propertySchema.index({ status: 1, createdAt: -1 });
+// Support city/sector filtering
+propertySchema.index({ city: 1, status: 1 });
+
 export default mongoose.model('Property', propertySchema);

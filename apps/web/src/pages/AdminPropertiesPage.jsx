@@ -72,6 +72,18 @@ const STATUS_UPDATE = {
 
 const formatDate = (d) => d ? new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
 
+function groupByDate(items) {
+  const map = {};
+  for (const p of items) {
+    const key = p.createdAt
+      ? new Date(p.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
+      : 'No Date';
+    if (!map[key]) map[key] = { label: key, ts: p.createdAt ? new Date(p.createdAt).setHours(0,0,0,0) : 0, items: [] };
+    map[key].items.push(p);
+  }
+  return Object.values(map).sort((a, b) => b.ts - a.ts);
+}
+
 // ── Property Card ─────────────────────────────────────────────────
 const PropertyCard = ({ property, onAction, actionLoading }) => {
   const id = property._id || property.id;
@@ -405,7 +417,7 @@ const AdminPropertiesPage = () => {
           })}
         </div>
 
-        {/* List */}
+        {/* List — grouped by listing date */}
         {isLoading ? (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 200 }}>
             <Loader2 size={32} color={C.muted} style={{ animation: 'spin 1s linear infinite' }} />
@@ -419,13 +431,25 @@ const AdminPropertiesPage = () => {
             <p style={{ color: C.sub, fontSize: 15 }}>No properties found</p>
           </div>
         ) : (
-          filtered.map(p => (
-            <PropertyCard
-              key={p._id || p.id}
-              property={p}
-              onAction={handleAction}
-              actionLoading={actionLoading}
-            />
+          groupByDate(filtered).map(group => (
+            <div key={group.label} style={{ marginBottom: 28 }}>
+              {/* Date separator */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+                <span style={{ fontSize: 12, fontWeight: 700, color: C.blue, background: 'rgba(24,95,165,0.15)', padding: '3px 12px', borderRadius: 20, whiteSpace: 'nowrap' }}>
+                  📅 {group.label}
+                </span>
+                <span style={{ fontSize: 12, color: C.muted }}>{group.items.length} listing{group.items.length !== 1 ? 's' : ''}</span>
+                <div style={{ flex: 1, height: 1, background: C.border }} />
+              </div>
+              {group.items.map(p => (
+                <PropertyCard
+                  key={p._id || p.id}
+                  property={p}
+                  onAction={handleAction}
+                  actionLoading={actionLoading}
+                />
+              ))}
+            </div>
           ))
         )}
       </div>

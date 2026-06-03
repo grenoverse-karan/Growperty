@@ -3,6 +3,7 @@ import VisitRequest from '../models/VisitRequest.js';
 import Property from '../models/Property.js';
 import logger from '../utils/logger.js';
 import { sendTemplateMessage } from '../utils/whatsappTemplates.js';
+import verifyAdminToken from '../middleware/verifyAdminToken.js';
 
 const router = express.Router();
 
@@ -75,6 +76,38 @@ router.get('/', async (req, res) => {
   } catch (err) {
     logger.error('GET /api/visit-requests error', { message: err.message });
     return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// PATCH /:id — Update status/notes (admin only)
+router.patch('/:id', verifyAdminToken, async (req, res) => {
+  try {
+    const { status, notes } = req.body || {};
+    const allowed = ['pending', 'confirmed', 'visit_done', 'rescheduled', 'deal_closed', 'cancelled'];
+    if (status && !allowed.includes(status)) {
+      return res.status(400).json({ error: 'Invalid status' });
+    }
+    const update = {};
+    if (status) update.status = status;
+    if (notes !== undefined) update.notes = notes;
+    const doc = await VisitRequest.findByIdAndUpdate(req.params.id, update, { new: true });
+    if (!doc) return res.status(404).json({ error: 'Not found' });
+    return res.json({ success: true, item: doc });
+  } catch (err) {
+    logger.error('PATCH /api/visit-requests/:id error', { message: err.message });
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// DELETE /:id — Delete a visit request (admin only)
+router.delete('/:id', verifyAdminToken, async (req, res) => {
+  try {
+    const doc = await VisitRequest.findByIdAndDelete(req.params.id);
+    if (!doc) return res.status(404).json({ error: 'Not found' });
+    return res.json({ success: true });
+  } catch (err) {
+    logger.error('DELETE /api/visit-requests/:id error', { message: err.message });
+    return res.status(500).json({ error: err.message });
   }
 });
 
