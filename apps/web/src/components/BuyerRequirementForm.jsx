@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Loader2, CheckCircle2, Info, AlertTriangle } from 'lucide-react';
-import pb from '@/lib/pocketbaseClient';
+import apiServerClient from '@/lib/apiServerClient.js';
 import { useAuth } from '@/contexts/AuthContext.jsx';
 import { formatPriceInWords } from '@/lib/priceUtils.js';
 import { cn } from '@/lib/utils';
@@ -135,7 +135,12 @@ const BuyerRequirementForm = () => {
         status: 'active'
       };
 
-      await pb.collection('buyer_requirements').create(payload, { $autoCancel: false });
+      const res = await apiServerClient.fetch('/requirements', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) throw new Error((await res.json()).error || 'Submission failed');
       
       toast.success('Requirement posted successfully!');
       setIsSuccess(true);
