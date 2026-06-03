@@ -13,7 +13,7 @@ import { Textarea } from '@/components/ui/textarea.jsx';
 import { Checkbox } from '@/components/ui/checkbox.jsx';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group.jsx';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select.jsx';
-import pb from '@/lib/pocketbaseClient.js';
+import apiServerClient from '@/lib/apiServerClient.js';
 import { toast } from 'sonner';
 
 const PROPERTY_TYPES = [
@@ -121,7 +121,12 @@ const AddRequirementPage = () => {
         matched: false
       };
 
-      await pb.collection('buyer_requirements').create(payload, { $autoCancel: false });
+      const res = await apiServerClient.fetch('/requirements', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) throw new Error((await res.json()).error || 'Submission failed');
       
       setIsSuccess(true);
       window.scrollTo({ top: 0, behavior: 'smooth' });
