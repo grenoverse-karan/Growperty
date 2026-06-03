@@ -90,6 +90,7 @@ function App() {
             <Route path="/post-requirement" element={<PostRequirementPage />} />
             <Route path="/search" element={<SearchResultsPage />} />
             <Route path="/terms-and-conditions" element={<TermsAndConditionsPage />} />
+            <Route path="/terms" element={<TermsAndConditionsPage />} />
             <Route path="/sitemap" element={<SitemapPage />} />
             
             <Route path="/login" element={<LoginPage />} />
