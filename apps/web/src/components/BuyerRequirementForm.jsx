@@ -70,6 +70,8 @@ const BuyerRequirementForm = () => {
   const [isSuccess, setIsSuccess] = useState(false);
   const [errors, setErrors] = useState({});
   const [phoneWarning, setPhoneWarning] = useState(false);
+  const [whatsappAlerts, setWhatsappAlerts] = useState(true);
+  const [agreedToTnC, setAgreedToTnC] = useState(false);
 
   // OTP state
   const [otpSent, setOtpSent] = useState(false);
@@ -219,6 +221,9 @@ const BuyerRequirementForm = () => {
     if (!currentUser && !otpVerified) {
       newErrors.buyerPhone = 'Please verify your number via WhatsApp OTP';
     }
+    if (!agreedToTnC) {
+      newErrors.tnc = 'Please accept the Terms & Conditions to proceed';
+    }
 
     setErrors(newErrors);
     
@@ -264,6 +269,7 @@ const BuyerRequirementForm = () => {
         buyerPhone: formData.buyerPhone,
         buyerAddress: formData.buyerAddress,
         buyerCity: formData.buyerCity,
+        whatsappAlerts,
         status: 'active'
       };
 
@@ -640,9 +646,51 @@ const BuyerRequirementForm = () => {
         </div>
       </div>
 
+      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm px-7 py-5 space-y-4">
+        {/* WhatsApp alerts */}
+        <label className="flex items-start gap-3 cursor-pointer group">
+          <input
+            type="checkbox"
+            checked={whatsappAlerts}
+            onChange={e => setWhatsappAlerts(e.target.checked)}
+            className="mt-0.5 h-4 w-4 rounded border-slate-300 accent-green-500 cursor-pointer shrink-0"
+          />
+          <span className="text-sm text-slate-700 leading-snug group-hover:text-foreground transition-colors">
+            Send me matching property alerts on{' '}
+            <span className="font-semibold text-[#25D366]">WhatsApp</span>
+          </span>
+        </label>
+
+        {/* T&C */}
+        <label className={cn('flex items-start gap-3 cursor-pointer group', errors.tnc && 'text-destructive')}>
+          <input
+            type="checkbox"
+            checked={agreedToTnC}
+            onChange={e => { setAgreedToTnC(e.target.checked); if (e.target.checked) setErrors(p => ({ ...p, tnc: null })); }}
+            className="mt-0.5 h-4 w-4 rounded border-slate-300 accent-primary cursor-pointer shrink-0"
+          />
+          <span className="text-sm leading-snug">
+            <span className={errors.tnc ? 'text-destructive' : 'text-slate-700'}>
+              I agree to the{' '}
+            </span>
+            <a href="/terms-and-conditions" target="_blank" className="font-semibold text-primary underline underline-offset-2 hover:text-primary/80">
+              Terms &amp; Conditions
+            </a>
+            <span className={errors.tnc ? 'text-destructive' : 'text-slate-700'}>
+              {' '}and{' '}
+            </span>
+            <a href="/privacy-policy" target="_blank" className="font-semibold text-primary underline underline-offset-2 hover:text-primary/80">
+              Privacy Policy
+            </a>
+            <span className="text-red-500 ml-0.5">*</span>
+          </span>
+        </label>
+        {errors.tnc && <p className="text-xs text-destructive flex items-center gap-1 -mt-1"><AlertTriangle className="h-3 w-3 shrink-0" />{errors.tnc}</p>}
+      </div>
+
       <div className="pb-10">
-        <Button type="submit" disabled={isSubmitting}
-          className="w-full h-[52px] text-base font-bold rounded-xl shadow-md transition-all active:scale-[0.98] bg-secondary hover:bg-secondary/90 text-white">
+        <Button type="submit" disabled={isSubmitting || !agreedToTnC}
+          className="w-full h-[52px] text-base font-bold rounded-xl shadow-md transition-all active:scale-[0.98] bg-secondary hover:bg-secondary/90 text-white disabled:opacity-60">
           {isSubmitting ? <><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Submitting…</> : 'Submit Requirement'}
         </Button>
         <p className="text-xs text-center text-muted-foreground mt-3">Your information is private and shared only with Growperty team</p>

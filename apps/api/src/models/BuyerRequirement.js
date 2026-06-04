@@ -22,6 +22,7 @@ const schema = new mongoose.Schema({
   profession:         { type: String, default: '' },
   nationality:        { type: String, default: '' },
   countryOfResidence: { type: String, default: '' },
+  whatsappAlerts:     { type: Boolean, default: true },
   status:             { type: String, default: 'active' },
   matched:            { type: Boolean, default: false },
 }, { timestamps: true });
