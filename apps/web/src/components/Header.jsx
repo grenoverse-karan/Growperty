@@ -35,6 +35,7 @@ const Header = () => {
   const navLinks = [
     { name: 'Home', path: '/' },
     { name: 'Properties', path: '/properties' },
+    { name: 'Buyers', path: '/buyers' },
     { 
       name: 'Area Guides', 
       type: 'dropdown',

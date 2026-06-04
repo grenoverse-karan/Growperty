@@ -69,6 +69,7 @@ import AdminInventoryOverviewPage from '@/pages/AdminInventoryOverviewPage.jsx';
 import AdminAnalyticsPage from '@/pages/AdminAnalyticsPage.jsx';
 import AdminTrafficPage from '@/pages/AdminTrafficPage.jsx';
 import AdminWebAnalyticsPage from '@/pages/AdminWebAnalyticsPage.jsx';
+import BuyersPage from '@/pages/BuyersPage.jsx';
 
 function PageTracker() {
   usePageTracking();
@@ -105,6 +106,7 @@ function App() {
             <Route path="/area-guide/greater-noida" element={<GreaterNoidaAreaGuide />} />
             <Route path="/area-guide/noida" element={<NoidaAreaGuide />} />
             <Route path="/area-guide/yeida" element={<YEIDAAreaGuide />} />
+            <Route path="/buyers" element={<BuyersPage />} />
             <Route path="/add-requirement" element={<AddRequirementPage />} />
             <Route path="/post-requirement" element={<PostRequirementPage />} />
             <Route path="/search" element={<SearchResultsPage />} />
