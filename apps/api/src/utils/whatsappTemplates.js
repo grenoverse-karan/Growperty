@@ -159,6 +159,15 @@ const TEMPLATES = {
       body(buyerName, visitDate, listingUrl),
   },
 
+  // Sent to matching buyers when a property goes live.
+  // {{1}} userName {{2}} bhk/size {{3}} propertyType {{4}} sector/area {{5}} city {{6}} price {{7}} listingUrl
+  matching_property_alert: {
+    name: 'matching_property_alert',
+    language: 'en',
+    buildComponents: ({ userName, size, propertyType, area, city, price, listingUrl }) =>
+      body(userName, size, propertyType, area, city, price, listingUrl),
+  },
+
   // Sent to buyer when requirement form is submitted.
   // {{1}} userName {{2}} bhk/plotSize/shopSize {{3}} propertyType {{4}} sector/area/village {{5}} city {{6}} maxBudget
   requirement_submitted: {

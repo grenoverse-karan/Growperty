@@ -3,6 +3,7 @@ import Property from '../models/Property.js';
 import logger from '../utils/logger.js';
 import { verifyToken } from '../utils/jwt.js';
 import { sendTemplateMessage } from '../utils/whatsappTemplates.js';
+import { notifyMatchingBuyers } from '../utils/matchBuyers.js';
 
 const router = express.Router();
 
@@ -79,6 +80,7 @@ router.post('/', requireAuth, async (req, res) => {
         const propertyUrl = `https://growperty.com/property/${saved._id}`;
         await sendTemplateMessage(saved.mobileNumber, 'property_approved', { userName: ownerName, propertyUrl });
         logger.info('[WA] property_approved sent (admin listing)', { id: saved._id, phone: saved.mobileNumber });
+        notifyMatchingBuyers(saved);
       }
     }
 
@@ -195,6 +197,7 @@ router.put('/:id', async (req, res) => {
         const waRes = await sendTemplateMessage(updated.mobileNumber, 'property_approved', { userName: ownerName, propertyUrl });
         console.log('🟢 [property_approved] WA result:', JSON.stringify(waRes));
         logger.info('[WA] property_approved sent', { id: req.params.id, phone: updated.mobileNumber });
+        notifyMatchingBuyers(updated);
       } else if (data.status === 'rejected') {
         const reason = data.rejectReason || data.rejectionReason || 'Not specified';
         console.log('🟡 [property_rejected] Sending WA to:', updated.mobileNumber);
