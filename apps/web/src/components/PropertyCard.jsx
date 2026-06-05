@@ -44,7 +44,8 @@ const PropertyCard = ({ property }) => {
   }
 
   return (
-    <Card className="group overflow-hidden bg-card border-border/50 shadow-lg hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 rounded-2xl flex flex-col h-full">
+    <Link to={`/property/${property.id}`} className="block h-full">
+    <Card className="group overflow-hidden bg-card border-border/50 shadow-lg hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 rounded-2xl flex flex-col h-full cursor-pointer">
       <div className="relative overflow-hidden aspect-[4/3] bg-slate-100 dark:bg-slate-800">
         <img
           src={imageUrl}
@@ -116,34 +117,34 @@ const PropertyCard = ({ property }) => {
         </div>
       </CardContent>
       
-      <CardFooter className="p-6 pt-0 mt-auto flex flex-col gap-3">
-        <div className="grid grid-cols-2 gap-2 w-full mb-1">
-          <Button 
-            variant="outline" 
+      <CardFooter className="p-6 pt-0 mt-auto">
+        <div className="grid grid-cols-2 gap-2 w-full">
+          <Button
+            variant="outline"
             className="w-full transition-all duration-200 active:scale-[0.98] rounded-xl h-10 text-sm font-bold border-primary/20 text-primary hover:bg-primary/10"
             onClick={(e) => {
               e.preventDefault();
+              e.stopPropagation();
               window.location.href = `tel:${PLATFORM_PHONE}`;
             }}
           >
             <Phone className="h-4 w-4 mr-1.5" /> Call
           </Button>
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             className="w-full transition-all duration-200 active:scale-[0.98] rounded-xl h-10 text-sm font-bold border-[#25D366]/20 text-[#25D366] hover:bg-[#25D366]/10"
             onClick={(e) => {
               e.preventDefault();
+              e.stopPropagation();
               window.open(`https://wa.me/${PLATFORM_WHATSAPP}`, '_blank');
             }}
           >
             <MessageCircle className="h-4 w-4 mr-1.5" /> WhatsApp
           </Button>
         </div>
-        <Button variant="default" className="w-full transition-all duration-200 active:scale-[0.98] rounded-xl h-11 text-sm font-bold" asChild>
-          <Link to={`/property/${property.id}`}>View Details</Link>
-        </Button>
       </CardFooter>
     </Card>
+    </Link>
   );
 };
 

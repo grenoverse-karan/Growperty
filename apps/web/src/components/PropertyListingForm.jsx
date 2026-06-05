@@ -90,6 +90,7 @@ const PropertyListingForm = ({ isAdmin = false }) => {
     termsAccepted: false
   });
 
+  const [whatsappAlerts, setWhatsappAlerts] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [images, setImages] = useState([]); // [{ id, file, preview }]
   const [isCompressing, setIsCompressing] = useState(false);
@@ -389,6 +390,7 @@ const PropertyListingForm = ({ isAdmin = false }) => {
         currentAddress: formData.currentAddress,
         ownerType: isAdmin ? 'Admin' : 'Individual',
         status: isAdmin ? 'approved' : 'pending',
+        whatsappAlerts,
         ...(isAdmin && { listedBy: 'admin', liveAt: new Date().toISOString() }),
       };
       console.log('✅ rawFormData built:', rawFormData);
@@ -1092,6 +1094,20 @@ const PropertyListingForm = ({ isAdmin = false }) => {
             </div>
           </div>
 
+          {/* (16b) WHATSAPP ALERTS */}
+          <label className="flex items-start gap-3 cursor-pointer group pt-2">
+            <input
+              type="checkbox"
+              checked={whatsappAlerts}
+              onChange={e => setWhatsappAlerts(e.target.checked)}
+              className="mt-0.5 h-4 w-4 rounded border-slate-300 accent-green-500 cursor-pointer shrink-0"
+            />
+            <span className="text-sm text-slate-700 dark:text-slate-300 leading-snug group-hover:text-foreground transition-colors">
+              Send me property inquiry alerts on{' '}
+              <span className="font-semibold text-[#25D366]">WhatsApp</span>
+            </span>
+          </label>
+
           {/* (17) TERMS & CONDITIONS */}
           <div id="field-termsAccepted" className="bg-transparent pt-4 pb-2">
             <div className="flex items-start space-x-3">
@@ -1106,7 +1122,11 @@ const PropertyListingForm = ({ isAdmin = false }) => {
               />
               <div className="grid gap-1.5 leading-none">
                 <label htmlFor="terms" className="text-sm font-bold text-slate-700 dark:text-slate-300 cursor-pointer">
-                  I agree to the Terms & Conditions.
+                  I agree to the{' '}
+                  <a href="/terms-and-conditions" target="_blank" className="text-[#10B981] underline underline-offset-2 hover:text-emerald-600">Terms &amp; Conditions</a>
+                  {' '}and{' '}
+                  <a href="/privacy-policy" target="_blank" className="text-[#10B981] underline underline-offset-2 hover:text-emerald-600">Privacy Policy</a>
+                  <span className="text-red-500 ml-0.5">*</span>
                 </label>
                 <p className="text-sm text-slate-500 font-medium">
                   By submitting, you confirm that the provided information is accurate and you have the right to list this property.

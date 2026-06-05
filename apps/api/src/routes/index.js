@@ -8,6 +8,7 @@ import visitRequestsRouter from './visitRequests.js';
 import campaignsRouter from './campaigns.js';
 import requirementsRouter from './requirements.js';
 import analyticsRouter from './analytics.js';
+import blogRouter from './blog.js';
 
 export default function routes() {
   const router = express.Router();
@@ -25,6 +26,7 @@ export default function routes() {
   router.use('/campaigns', campaignsRouter);
   router.use('/requirements', requirementsRouter);
   router.use('/analytics', analyticsRouter);
+  router.use('/blog', blogRouter);
 
   return router;
 }
