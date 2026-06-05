@@ -159,6 +159,15 @@ const TEMPLATES = {
       body(buyerName, visitDate, listingUrl),
   },
 
+  // Sent to buyer when requirement form is submitted.
+  // {{1}} userName {{2}} bhk/plotSize/shopSize {{3}} propertyType {{4}} sector/area/village {{5}} city {{6}} maxBudget
+  requirement_submitted: {
+    name: 'requirement_submitted',
+    language: 'en',
+    buildComponents: ({ userName, size, propertyType, area, city, maxBudget }) =>
+      body(userName, size, propertyType, area, city, maxBudget),
+  },
+
   // Campaign broadcast — no variables, QR button "Consent"
   camp_property_alert: {
     name: 'camp_property_alert',

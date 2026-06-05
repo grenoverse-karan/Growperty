@@ -2,6 +2,15 @@ import express from 'express';
 import BuyerRequirement from '../models/BuyerRequirement.js';
 import { connectMongoDB } from '../utils/mongodb.js';
 import logger from '../utils/logger.js';
+import { sendTemplateAsync } from '../utils/whatsappTemplates.js';
+
+function formatIndianPrice(n) {
+  if (!n || isNaN(n)) return '-';
+  const num = Number(n);
+  if (num >= 1e7) return `₹${(num / 1e7).toFixed(2).replace(/\.?0+$/, '')} Cr`;
+  if (num >= 1e5) return `₹${(num / 1e5).toFixed(2).replace(/\.?0+$/, '')} Lac`;
+  return `₹${num.toLocaleString('en-IN')}`;
+}
 
 const router = express.Router();
 
@@ -11,6 +20,22 @@ router.post('/', async (req, res) => {
     await connectMongoDB();
     const doc = await BuyerRequirement.create(req.body);
     logger.info('[Requirements] New requirement saved', { id: doc._id, phone: doc.buyerPhone });
+
+    // WhatsApp confirmation to buyer
+    if (doc.buyerPhone) {
+      const size = doc.preferredBhk || '-';
+      const area = (doc.areas?.length ? doc.areas[0] : doc.buyerAddress) || '-';
+      const maxBudget = doc.maxBudget ? formatIndianPrice(doc.maxBudget) : '-';
+      sendTemplateAsync(doc.buyerPhone, 'requirement_submitted', {
+        userName:     doc.buyerName || 'there',
+        size,
+        propertyType: doc.propertyType || '-',
+        area,
+        city:         doc.city || doc.buyerCity || '-',
+        maxBudget,
+      });
+    }
+
     return res.status(201).json({ success: true, id: doc._id });
   } catch (err) {
     logger.error('[Requirements] Save error', { error: err.message });
