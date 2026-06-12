@@ -59,6 +59,25 @@ const Btn = ({ onClick, disabled, color = C.green, outline, children, style = {}
   </button>
 );
 
+const Dialog = ({ title, onClose, children, maxWidth = 440 }) => (
+  <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, padding: 16 }}>
+    <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 14, padding: '26px 24px', width: '100%', maxWidth }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
+        <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>{title}</h3>
+        <button onClick={onClose} style={{ background: 'none', border: 'none', color: C.sub, fontSize: 18, cursor: 'pointer' }}>✕</button>
+      </div>
+      {children}
+    </div>
+  </div>
+);
+
+const Field = ({ label, field, type = 'text', form, setForm }) => (
+  <div style={{ marginBottom: 14 }}>
+    <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: C.sub, marginBottom: 5, textTransform: 'uppercase', letterSpacing: 0.4 }}>{label}</label>
+    <input type={type} value={form[field] || ''} onChange={e => setForm(p => ({ ...p, [field]: e.target.value }))} style={inp()} />
+  </div>
+);
+
 export default function AdminChannelPartnersPage() {
   const { token } = useAdminAuth();
 
@@ -229,26 +248,6 @@ export default function AdminChannelPartnersPage() {
     { label: 'Banned',   value: 'banned'   },
   ];
 
-  /* ── Dialog shell ── */
-  const Dialog = ({ title, onClose, children, maxWidth = 440 }) => (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, padding: 16 }}>
-      <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 14, padding: '26px 24px', width: '100%', maxWidth }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
-          <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>{title}</h3>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', color: C.sub, fontSize: 18, cursor: 'pointer' }}>✕</button>
-        </div>
-        {children}
-      </div>
-    </div>
-  );
-
-  const Field = ({ label, field, type = 'text' }) => (
-    <div style={{ marginBottom: 14 }}>
-      <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: C.sub, marginBottom: 5, textTransform: 'uppercase', letterSpacing: 0.4 }}>{label}</label>
-      <input type={type} value={editForm[field] || ''} onChange={e => setEditForm(p => ({ ...p, [field]: e.target.value }))} style={inp()} />
-    </div>
-  );
-
   return (
     <>
       <Helmet><title>Channel Partners — Admin — Growperty</title></Helmet>
@@ -368,11 +367,11 @@ export default function AdminChannelPartnersPage() {
       {/* ── Edit dialog ── */}
       {editTarget && (
         <Dialog title={`Edit — ${editTarget.name}`} onClose={() => setEditTarget(null)}>
-          <Field label="Name"    field="name" />
-          <Field label="Email"   field="email"  type="email" />
-          <Field label="Phone"   field="phone"  type="tel" />
-          <Field label="Company / Office" field="companyName" />
-          <Field label="City"    field="city" />
+          <Field label="Name"    field="name"        form={editForm} setForm={setEditForm} />
+          <Field label="Email"   field="email"       form={editForm} setForm={setEditForm} type="email" />
+          <Field label="Phone"   field="phone"       form={editForm} setForm={setEditForm} type="tel" />
+          <Field label="Company / Office" field="companyName" form={editForm} setForm={setEditForm} />
+          <Field label="City"    field="city"        form={editForm} setForm={setEditForm} />
           <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
             <Btn onClick={handleEdit} disabled={acting}>{acting ? 'Saving...' : 'Save Changes'}</Btn>
             <Btn onClick={() => setEditTarget(null)} outline color={C.sub}>Cancel</Btn>
