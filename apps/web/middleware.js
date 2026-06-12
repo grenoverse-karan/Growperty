@@ -42,7 +42,9 @@ export default async function middleware(request) {
     const descParts = [price, area, possession, location].filter(Boolean);
     const description = esc(descParts.join(' · '));
 
-    const image    = esc(p.images?.[0] || 'https://www.growperty.com/growperty-logo.png');
+    // base64 data URIs can't be used as og:image — find the first real HTTP URL
+    const rawImage = (p.images || []).find(img => typeof img === 'string' && img.startsWith('http'));
+    const image    = esc(rawImage || 'https://www.growperty.com/growperty-logo.png');
     const canonical = `https://www.growperty.com/property/${id}`;
     const fullTitle = `${title} in ${location} | Growperty`;
 
