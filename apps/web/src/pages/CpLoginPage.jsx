@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { Helmet } from 'react-helmet';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { Link, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { useCpAuth } from '@/contexts/CpAuthContext.jsx';
 
 export default function CpLoginPage() {
-  const { cpLogin, isCpAuthenticated } = useCpAuth();
+  const { cpLogin, isCpAuthenticated, isLoading } = useCpAuth();
   const navigate  = useNavigate();
   const location  = useLocation();
   const from      = location.state?.from?.pathname || '/cp/dashboard';
@@ -13,10 +13,8 @@ export default function CpLoginPage() {
   const [error, setError]       = useState('');
   const [loading, setLoading]   = useState(false);
 
-  if (isCpAuthenticated) {
-    navigate(from, { replace: true });
-    return null;
-  }
+  if (isLoading) return null;
+  if (isCpAuthenticated) return <Navigate to={from} replace />;
 
   const handleChange = (field) => (e) => {
     setFormData(prev => ({ ...prev, [field]: e.target.value }));
