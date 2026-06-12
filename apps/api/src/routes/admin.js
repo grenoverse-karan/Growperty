@@ -2,6 +2,23 @@ import express from 'express';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcrypt';
 import { randomBytes } from 'crypto';
+
+// GP{last4ofPhone}{DD}{MM}{YY} — e.g. GP0068120626
+async function generateCpShareId(phone, date = new Date()) {
+  const last4 = String(phone || '').replace(/\D/g, '').slice(-4).padStart(4, '0');
+  const dd = String(date.getDate()).padStart(2, '0');
+  const mm = String(date.getMonth() + 1).padStart(2, '0');
+  const yy = String(date.getFullYear()).slice(-2);
+  const base = `GP${last4}${dd}${mm}${yy}`;
+  // Collision guard: append A-Z suffix if base already taken
+  const existing = await ChannelPartner.findOne({ shareToken: base }).lean();
+  if (!existing) return base;
+  for (const ch of 'ABCDEFGHIJKLMNOPQRSTUVWXYZ') {
+    const candidate = `${base}${ch}`;
+    if (!await ChannelPartner.findOne({ shareToken: candidate }).lean()) return candidate;
+  }
+  return base + randomBytes(2).toString('hex').toUpperCase();
+}
 import logger from '../utils/logger.js';
 import verifyAdminToken from '../middleware/verifyAdminToken.js';
 import Property from '../models/Property.js';
@@ -214,7 +231,11 @@ router.put('/channel-partners/:id/approve', verifyAdminToken, async (req, res) =
     }
 
     const passwordHash = await bcrypt.hash(password, 10);
-    const shareToken = randomBytes(16).toString('hex');
+    // Fetch phone first to build readable CP share ID
+    const existing = await ChannelPartner.findById(req.params.id).select('phone').lean();
+    if (!existing) return res.status(404).json({ error: 'Channel partner not found' });
+
+    const shareToken = await generateCpShareId(existing.phone);
     const cp = await ChannelPartner.findByIdAndUpdate(
       req.params.id,
       { $set: { status: 'approved', passwordHash, shareToken } },

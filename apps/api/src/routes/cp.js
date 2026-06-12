@@ -291,7 +291,20 @@ router.get('/me', verifyCpToken, async (req, res) => {
 
     // Generate shareToken for already-approved CPs that don't have one yet
     if (!cp.shareToken) {
-      const shareToken = randomBytes(16).toString('hex');
+      const last4 = String(cp.phone || '').replace(/\D/g, '').slice(-4).padStart(4, '0');
+      const now = new Date();
+      const dd = String(now.getDate()).padStart(2, '0');
+      const mm = String(now.getMonth() + 1).padStart(2, '0');
+      const yy = String(now.getFullYear()).slice(-2);
+      let shareToken = `GP${last4}${dd}${mm}${yy}`;
+      // Collision guard
+      const taken = await ChannelPartner.findOne({ shareToken, _id: { $ne: req.cp.sub } }).lean();
+      if (taken) {
+        for (const ch of 'ABCDEFGHIJKLMNOPQRSTUVWXYZ') {
+          const c = `${shareToken}${ch}`;
+          if (!await ChannelPartner.findOne({ shareToken: c, _id: { $ne: req.cp.sub } }).lean()) { shareToken = c; break; }
+        }
+      }
       await ChannelPartner.findByIdAndUpdate(req.cp.sub, { $set: { shareToken } });
       cp = { ...cp, shareToken };
     }
