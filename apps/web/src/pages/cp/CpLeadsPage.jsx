@@ -155,15 +155,15 @@ function MineBuyersTable({ buyers, loading }) {
   return (
     <div style={{ background: C.surface, borderRadius: 12, border: `1px solid ${C.border}`, overflow: 'hidden' }}>
       <div style={{
-        display: 'grid', gridTemplateColumns: '1.5fr 1fr 1fr 90px 110px',
+        display: 'grid', gridTemplateColumns: '1.5fr 1fr 1fr 90px 90px 100px',
         padding: '11px 16px', borderBottom: `1px solid ${C.border}`,
         color: C.sub, fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5,
       }}>
-        <div>Buyer</div><div>Visit Date</div><div>Visit Time</div><div>Status</div><div>Received</div>
+        <div>Buyer</div><div>Visit Date</div><div>Visit Time</div><div>Status</div><div>Source</div><div>Received</div>
       </div>
       {buyers.map((b, i) => (
         <div key={b.id} style={{
-          display: 'grid', gridTemplateColumns: '1.5fr 1fr 1fr 90px 110px',
+          display: 'grid', gridTemplateColumns: '1.5fr 1fr 1fr 90px 90px 100px',
           padding: '12px 16px', alignItems: 'center',
           borderBottom: i < buyers.length - 1 ? `1px solid ${C.border}` : 'none',
         }}>
@@ -178,6 +178,9 @@ function MineBuyersTable({ buyers, loading }) {
             <span style={{ color: VISIT_STATUS[b.status] || C.sub, fontSize: 12, fontWeight: 600 }}>
               {b.status || 'pending'}
             </span>
+          </div>
+          <div>
+            <SourceBadge src={b.leadSource} />
           </div>
           <div style={{ fontSize: 12, color: C.sub }}>{fmtDate(b.createdAt)}</div>
         </div>
@@ -224,6 +227,20 @@ function GrowpertyBuyersTable({ buyers, loading }) {
       })}
     </div>
   );
+}
+
+function SourceBadge({ src }) {
+  if (src === 'whatsapp') return (
+    <span style={{ background: '#25D36622', color: '#25D366', border: '1px solid #25D36640', fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 20 }}>
+      WhatsApp
+    </span>
+  );
+  if (src === 'ad') return (
+    <span style={{ background: '#1e3a5f33', color: '#60a5fa', border: '1px solid #60a5fa40', fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 20 }}>
+      Ad
+    </span>
+  );
+  return <span style={{ fontSize: 11, color: C.muted }}>—</span>;
 }
 
 function Empty({ children }) {

@@ -46,7 +46,7 @@ export default function CpMyListingsPage() {
 
   const [shareToken, setShareToken] = useState('');
   const [shareModal, setShareModal] = useState(null); // null | { propertyId, title }
-  const [copied,     setCopied]     = useState(false);
+  const [copied,     setCopied]     = useState(''); // '' | 'whatsapp' | 'ad'
 
   // Fetch CP's own listings
   const fetchMine = useCallback(async (pg = 1) => {
@@ -92,13 +92,15 @@ export default function CpMyListingsPage() {
   const current = tab === 'mine' ? mine : growperty;
   const fetchPage = tab === 'mine' ? fetchMine : fetchGrowperty;
 
-  const getShareLink = (propertyId) =>
-    `${window.location.origin}/property/${propertyId}?ref=${shareToken}`;
+  const getShareLink = (propertyId, src) => {
+    const base = `${window.location.origin}/property/${propertyId}?ref=${shareToken}`;
+    return src ? `${base}&src=${src}` : base;
+  };
 
-  const handleCopy = (propertyId) => {
-    navigator.clipboard.writeText(getShareLink(propertyId)).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+  const handleCopy = (propertyId, src) => {
+    navigator.clipboard.writeText(getShareLink(propertyId, src)).then(() => {
+      setCopied(src);
+      setTimeout(() => setCopied(''), 2000);
     });
   };
 
@@ -273,39 +275,69 @@ export default function CpMyListingsPage() {
                 style={{ background: 'none', border: 'none', color: C.sub, fontSize: 20, cursor: 'pointer', lineHeight: 1 }}
               >×</button>
             </div>
-            <p style={{ fontSize: 13, color: C.sub, marginBottom: 12 }}>{shareModal.title}</p>
-            <div style={{
-              background: C.bg, border: `1px solid ${C.border}`, borderRadius: 8,
-              padding: '10px 12px', fontSize: 12, wordBreak: 'break-all',
-              color: C.sub, marginBottom: 16,
-            }}>
-              {getShareLink(shareModal.propertyId)}
+            <p style={{ fontSize: 13, color: C.sub, marginBottom: 18 }}>{shareModal.title}</p>
+
+            {/* WhatsApp link */}
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                <span style={{ fontSize: 11, fontWeight: 700, color: '#25D366', textTransform: 'uppercase', letterSpacing: 0.5 }}>WhatsApp Link</span>
+              </div>
+              <div style={{
+                background: C.bg, border: `1px solid ${C.border}`, borderRadius: 8,
+                padding: '8px 12px', fontSize: 11, wordBreak: 'break-all', color: C.sub, marginBottom: 8,
+              }}>
+                {getShareLink(shareModal.propertyId, 'whatsapp')}
+              </div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button
+                  onClick={() => handleCopy(shareModal.propertyId, 'whatsapp')}
+                  style={{
+                    flex: 1, background: copied === 'whatsapp' ? '#1d9e7522' : C.bg,
+                    border: `1px solid ${copied === 'whatsapp' ? C.green : C.border}`,
+                    color: copied === 'whatsapp' ? C.green : C.sub, borderRadius: 6,
+                    padding: '7px 0', fontWeight: 600, fontSize: 12, cursor: 'pointer',
+                  }}
+                >
+                  {copied === 'whatsapp' ? '✓ Copied!' : 'Copy'}
+                </button>
+                <button
+                  onClick={() => {
+                    const link = getShareLink(shareModal.propertyId, 'whatsapp');
+                    window.open(`https://wa.me/?text=${encodeURIComponent(`Hi! Check out this property: ${link}`)}`, '_blank');
+                  }}
+                  style={{
+                    flex: 2, background: '#25D36622', border: '1px solid #25D36640',
+                    color: '#25D366', borderRadius: 6,
+                    padding: '7px 0', fontWeight: 600, fontSize: 12, cursor: 'pointer',
+                  }}
+                >
+                  Share on WhatsApp ↗
+                </button>
+              </div>
             </div>
-            <div style={{ display: 'flex', gap: 10 }}>
+
+            {/* Ad link */}
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                <span style={{ fontSize: 11, fontWeight: 700, color: '#60a5fa', textTransform: 'uppercase', letterSpacing: 0.5 }}>Ad Link</span>
+                <span style={{ fontSize: 10, color: C.muted }}>(Facebook / Instagram / Google)</span>
+              </div>
+              <div style={{
+                background: C.bg, border: `1px solid ${C.border}`, borderRadius: 8,
+                padding: '8px 12px', fontSize: 11, wordBreak: 'break-all', color: C.sub, marginBottom: 8,
+              }}>
+                {getShareLink(shareModal.propertyId, 'ad')}
+              </div>
               <button
-                onClick={() => handleCopy(shareModal.propertyId)}
+                onClick={() => handleCopy(shareModal.propertyId, 'ad')}
                 style={{
-                  flex: 1, background: copied ? '#1d9e7522' : C.bg,
-                  border: `1px solid ${copied ? C.green : C.border}`,
-                  color: copied ? C.green : C.text, borderRadius: 8,
-                  padding: '10px 0', fontWeight: 600, fontSize: 13, cursor: 'pointer',
+                  width: '100%', background: copied === 'ad' ? '#1e3a5f33' : C.bg,
+                  border: `1px solid ${copied === 'ad' ? '#60a5fa' : C.border}`,
+                  color: copied === 'ad' ? '#60a5fa' : C.sub, borderRadius: 6,
+                  padding: '7px 0', fontWeight: 600, fontSize: 12, cursor: 'pointer',
                 }}
               >
-                {copied ? '✓ Copied!' : 'Copy Link'}
-              </button>
-              <button
-                onClick={() => {
-                  const link = getShareLink(shareModal.propertyId);
-                  const msg = encodeURIComponent(`Hi! Check out this property: ${link}`);
-                  window.open(`https://wa.me/?text=${msg}`, '_blank');
-                }}
-                style={{
-                  flex: 1, background: '#25D36622', border: '1px solid #25D36640',
-                  color: '#25D366', borderRadius: 8,
-                  padding: '10px 0', fontWeight: 600, fontSize: 13, cursor: 'pointer',
-                }}
-              >
-                Share on WhatsApp
+                {copied === 'ad' ? '✓ Copied!' : 'Copy Ad Link'}
               </button>
             </div>
           </div>

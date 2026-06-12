@@ -38,7 +38,7 @@ function getMaxDateStr() {
 export default function VisitRequestModal({
   open, onClose, propertyId, propertyLabel,
   visitTimeType, visitFixedSlots = [], visitFlexibleSlots = [],
-  currentUser, cpToken = '',
+  currentUser, cpToken = '', leadSource = '',
 }) {
   const [step, setStep] = useState('form');
   const [loading, setLoading] = useState(false);
@@ -89,7 +89,7 @@ export default function VisitRequestModal({
       const res = await apiServerClient.fetch('/visit-requests', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ propertyId, ...form, ...(cpToken && { cpToken }) }),
+        body: JSON.stringify({ propertyId, ...form, ...(cpToken && { cpToken }), ...(leadSource && { leadSource }) }),
       });
       const data = await res.json();
       if (!res.ok || !data.success) throw new Error(data.message || 'Submission failed.');

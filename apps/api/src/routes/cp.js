@@ -417,6 +417,7 @@ router.get('/my-buyers', verifyCpToken, async (req, res) => {
       visitTime:   r.visitTime,
       message:     r.message,
       status:      r.status,
+      leadSource:  r.leadSource || '',
       createdAt:   r.createdAt,
     }));
 

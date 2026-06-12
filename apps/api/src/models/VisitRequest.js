@@ -12,6 +12,7 @@ const visitRequestSchema = new mongoose.Schema(
     status:       { type: String, default: 'pending', enum: ['pending', 'confirmed', 'visit_done', 'rescheduled', 'deal_closed', 'cancelled'] },
     notes:        { type: String, default: '' },
     cpId:         { type: String, default: '' },
+    leadSource:   { type: String, default: '' }, // 'whatsapp' | 'ad' | ''
   },
   { timestamps: true }
 );

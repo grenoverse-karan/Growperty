@@ -124,11 +124,12 @@ const PropertyDetailsPage = () => {
     const refToken = searchParams.get('ref');
 
     if (refToken) {
+      const src = searchParams.get('src') || '';
       apiServerClient.fetch(`/cp/by-token?token=${encodeURIComponent(refToken)}`)
         .then(r => r.ok ? r.json() : null)
         .then(data => {
           if (data?.cpName) {
-            const contact = { cpName: data.cpName, cpPhone: data.cpPhone, cpToken: refToken };
+            const contact = { cpName: data.cpName, cpPhone: data.cpPhone, cpToken: refToken, leadSource: src };
             setCpContact(contact);
             try { localStorage.setItem(lsKey, JSON.stringify(contact)); } catch {}
           }
@@ -643,6 +644,7 @@ const PropertyDetailsPage = () => {
         visitFlexibleSlots={property?.visitFlexibleSlots}
         currentUser={currentUser}
         cpToken={cpContact?.cpToken || ''}
+        leadSource={cpContact?.leadSource || ''}
       />
     </>
   );

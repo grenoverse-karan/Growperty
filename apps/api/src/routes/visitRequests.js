@@ -10,7 +10,7 @@ const router = express.Router();
 
 // POST / — Submit a visit request
 router.post('/', async (req, res) => {
-  const { propertyId, visitorName, visitorPhone, visitorCity, visitDate, visitTime, message, cpToken } = req.body || {};
+  const { propertyId, visitorName, visitorPhone, visitorCity, visitDate, visitTime, message, cpToken, leadSource } = req.body || {};
 
   if (!propertyId || !visitorName || !visitorPhone || !visitDate || !visitTime) {
     return res.status(400).json({ success: false, message: 'All required fields must be provided.' });
@@ -26,7 +26,7 @@ router.post('/', async (req, res) => {
       } catch { /* non-blocking */ }
     }
 
-    const request = new VisitRequest({ propertyId, visitorName, visitorPhone, visitorCity: visitorCity || '', visitDate, visitTime, message: message || '', cpId });
+    const request = new VisitRequest({ propertyId, visitorName, visitorPhone, visitorCity: visitorCity || '', visitDate, visitTime, message: message || '', cpId, leadSource: leadSource || '' });
     const saved = await request.save();
     logger.info('VisitRequest created', { id: saved._id, propertyId });
     console.log('✅ Visit request saved, propertyId:', propertyId);
