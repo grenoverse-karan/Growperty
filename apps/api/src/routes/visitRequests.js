@@ -1,6 +1,7 @@
 import express from 'express';
 import VisitRequest from '../models/VisitRequest.js';
 import Property from '../models/Property.js';
+import ChannelPartner from '../models/ChannelPartner.js';
 import logger from '../utils/logger.js';
 import { sendTemplateMessage } from '../utils/whatsappTemplates.js';
 import verifyAdminToken from '../middleware/verifyAdminToken.js';
@@ -9,14 +10,23 @@ const router = express.Router();
 
 // POST / — Submit a visit request
 router.post('/', async (req, res) => {
-  const { propertyId, visitorName, visitorPhone, visitorCity, visitDate, visitTime, message } = req.body || {};
+  const { propertyId, visitorName, visitorPhone, visitorCity, visitDate, visitTime, message, cpToken } = req.body || {};
 
   if (!propertyId || !visitorName || !visitorPhone || !visitDate || !visitTime) {
     return res.status(400).json({ success: false, message: 'All required fields must be provided.' });
   }
 
   try {
-    const request = new VisitRequest({ propertyId, visitorName, visitorPhone, visitorCity: visitorCity || '', visitDate, visitTime, message: message || '' });
+    // Resolve CP share token to cpId for lead attribution
+    let cpId = '';
+    if (cpToken) {
+      try {
+        const cp = await ChannelPartner.findOne({ shareToken: cpToken, status: 'approved' }).select('_id').lean();
+        if (cp) cpId = cp._id.toString();
+      } catch { /* non-blocking */ }
+    }
+
+    const request = new VisitRequest({ propertyId, visitorName, visitorPhone, visitorCity: visitorCity || '', visitDate, visitTime, message: message || '', cpId });
     const saved = await request.save();
     logger.info('VisitRequest created', { id: saved._id, propertyId });
     console.log('✅ Visit request saved, propertyId:', propertyId);

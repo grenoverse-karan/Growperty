@@ -52,7 +52,8 @@ const Header = () => {
     { name: 'FAQ', path: '/faq' },
     { name: 'Blog', path: '/blog' },
     { name: 'About', path: '/about' },
-    { name: 'Contact', path: '/contact' }
+    { name: 'Contact', path: '/contact' },
+    { name: 'Channel Partner', path: '/become-channel-partner' }
   ];
 
   return (

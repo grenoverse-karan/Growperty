@@ -3,12 +3,20 @@ import { Link } from 'react-router-dom';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Bed, MapPin, ShieldCheck, Bath, Phone, MessageCircle } from 'lucide-react';
+import { Bed, MapPin, ShieldCheck, Bath, Phone, MessageCircle, BadgeCheck, Building2, TreePine, Store, Home } from 'lucide-react';
 import { formatIndianPrice } from '@/hooks/useProperties.js';
 import { getFilteredAddress } from '@/lib/contentFilteringUtils.js';
 import { PLATFORM_PHONE, PLATFORM_WHATSAPP } from '@/constants/contactInfo.js';
 
-const PLACEHOLDER = 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=800&q=80';
+const TYPE_PLACEHOLDER = {
+  'Flat/Apartment':     { gradient: 'from-blue-600 to-teal-500',   Icon: Building2 },
+  'Independent House':  { gradient: 'from-orange-500 to-amber-400', Icon: Home },
+  'Villa':              { gradient: 'from-emerald-600 to-green-400',Icon: Home },
+  'Penthouse':          { gradient: 'from-purple-600 to-pink-500',  Icon: Building2 },
+  'Plot/Land':          { gradient: 'from-lime-600 to-green-500',   Icon: TreePine },
+  'Commercial':         { gradient: 'from-slate-600 to-blue-500',   Icon: Store },
+};
+const DEFAULT_PLACEHOLDER = { gradient: 'from-primary to-primary/60', Icon: Building2 };
 
 function timeAgo(dateStr) {
   if (!dateStr) return null;
@@ -34,27 +42,29 @@ const PropertyCard = ({ property }) => {
     : property.name || property.title || 'Untitled Property';
   const bedrooms = property.bhk ? parseInt(property.bhk) || 0 : (property.bedrooms || 0);
 
-  let imageUrl = PLACEHOLDER;
   const firstImage = Array.isArray(property.images) && property.images.length > 0
     ? property.images[0]
     : (typeof property.images === 'string' ? property.images : null);
 
-  if (firstImage) {
-    imageUrl = firstImage; // base64 data URL or any URL
-  }
+  const ph = TYPE_PLACEHOLDER[property.propertyType] || DEFAULT_PLACEHOLDER;
 
   return (
     <Link to={`/property/${property.id}`} className="block h-full">
     <Card className="group overflow-hidden bg-card border-border/50 shadow-lg hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 rounded-2xl flex flex-col h-full cursor-pointer">
       <div className="relative overflow-hidden aspect-[4/3] bg-slate-100 dark:bg-slate-800">
-        <img
-          src={imageUrl}
-          alt={property.title || 'Property Image'}
-          className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-          loading="lazy"
-          decoding="async"
-          onError={(e) => { e.target.src = PLACEHOLDER; }}
-        />
+        {firstImage ? (
+          <img
+            src={firstImage}
+            alt={property.title || 'Property Image'}
+            className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+            loading="lazy"
+            decoding="async"
+          />
+        ) : (
+          <div className={`w-full h-full bg-gradient-to-br ${ph.gradient} flex items-center justify-center transition-transform duration-700 group-hover:scale-110`}>
+            <ph.Icon className="h-16 w-16 text-white/30" strokeWidth={1} />
+          </div>
+        )}
         <div className="absolute inset-0 bg-gradient-to-t from-slate-950/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
         
         <div className="absolute top-4 left-4 flex flex-col gap-2">
@@ -65,13 +75,13 @@ const PropertyCard = ({ property }) => {
           )}
         </div>
 
-        {property.status === 'approved' && (
-          <div className="absolute top-4 right-4">
+        <div className="absolute top-4 right-4 flex flex-col items-end gap-2">
+          {property.status === 'approved' && (
             <Badge className="bg-accent text-accent-foreground shadow-md font-bold px-3 py-1 flex items-center gap-1 border-none">
               <ShieldCheck className="h-3.5 w-3.5" /> Verified
             </Badge>
-          </div>
-        )}
+          )}
+        </div>
       </div>
       
       <CardContent className="p-6 flex-grow">

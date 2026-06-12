@@ -4,7 +4,7 @@ import { toast } from 'sonner';
 
 // Module-level cache — survives re-renders but not full page reload
 const _cache = {};
-const CACHE_TTL_MS = 45_000; // 45s — aligns with API's max-age=30 + stale window
+const CACHE_TTL_MS = 5 * 60_000; // 5min — aligns with API's max-age=300
 
 function getCached(key) {
   const entry = _cache[key];

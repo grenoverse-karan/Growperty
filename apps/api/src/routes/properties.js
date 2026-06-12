@@ -1,9 +1,12 @@
 import express from 'express';
+import multer from 'multer';
 import Property from '../models/Property.js';
 import logger from '../utils/logger.js';
 import { verifyToken } from '../utils/jwt.js';
 import { sendTemplateMessage } from '../utils/whatsappTemplates.js';
 import { notifyMatchingBuyers } from '../utils/matchBuyers.js';
+
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024, files: 20 } });
 
 const router = express.Router();
 
@@ -102,9 +105,10 @@ router.post('/', requireAuth, async (req, res) => {
 // =====================
 // GET / — List properties
 // =====================
-// LIST_PROJECTION: only fields needed for the property card + admin table.
-// Excludes large/unused fields (description, furnishingItems, amenities, etc.)
-// and returns only the FIRST image to minimise payload size.
+// LIST_PROJECTION: metadata only — NO images.
+// Base64 images average 600KB each; excluding them cuts the list payload
+// from ~3MB to ~8KB, reducing cold-start response time from 8s → <1s.
+// Images are fetched only on the detail page (GET /:id).
 const LIST_PROJECTION = {
   propertyType: 1, propertySubType: 1, bhk: 1, bathrooms: 1, balconies: 1,
   city: 1, sector: 1, houseNo: 1, landmark: 1, towerBlock: 1,
@@ -114,8 +118,8 @@ const LIST_PROJECTION = {
   possessionStatus: 1, furnishingType: 1, saleType: 1,
   visitTimeType: 1, visitFixedSlots: 1, visitFlexibleSlots: 1,
   createdAt: 1, updatedAt: 1, liveAt: 1,
-  // Return only the first image — huge savings when images are base64
-  images: { $slice: 1 },
+  // images intentionally omitted — base64 images (~600KB each) are served
+  // only on the detail page (GET /:id), not the list endpoint.
 };
 
 router.get('/', async (req, res) => {
@@ -139,9 +143,9 @@ router.get('/', async (req, res) => {
 
     const items = docs.map(p => ({ ...p, id: p._id.toString() }));
 
-    // Cache public approved listings for 30s; admin fetches are not cached
+    // Cache public approved listings for 5min at the CDN edge + 10min stale window
     if (!req.query.status || req.query.status === 'approved') {
-      res.set('Cache-Control', 'public, max-age=30, stale-while-revalidate=60');
+      res.set('Cache-Control', 'public, max-age=300, stale-while-revalidate=600');
     } else {
       res.set('Cache-Control', 'no-store');
     }
@@ -214,6 +218,37 @@ router.put('/:id', async (req, res) => {
     return res.status(200).json({ success: true, propertyId: updated._id.toString() });
   } catch (err) {
     logger.error('PUT /api/properties/:id error', { message: err.message });
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// =====================
+// POST /:id/images — Upload images for a property (multipart/form-data)
+// Bypasses the JSON body-size limit by accepting files directly.
+// =====================
+router.post('/:id/images', requireAuth, upload.array('images', 20), async (req, res) => {
+  try {
+    if (!req.files?.length) {
+      return res.status(400).json({ success: false, message: 'No images provided' });
+    }
+
+    const base64Images = req.files.map(f => {
+      const b64 = f.buffer.toString('base64');
+      return `data:${f.mimetype};base64,${b64}`;
+    });
+
+    const updated = await Property.findByIdAndUpdate(
+      req.params.id,
+      { $push: { images: { $each: base64Images } } },
+      { new: true }
+    ).lean();
+
+    if (!updated) return res.status(404).json({ success: false, message: 'Property not found' });
+
+    logger.info('Images uploaded', { id: req.params.id, count: base64Images.length });
+    return res.status(200).json({ success: true, imageCount: updated.images.length });
+  } catch (err) {
+    logger.error('POST /api/properties/:id/images error', { message: err.message });
     return res.status(500).json({ success: false, message: err.message });
   }
 });

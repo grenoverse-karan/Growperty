@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { Helmet } from 'react-helmet';
 import Header from '@/components/Header.jsx';
 import Footer from '@/components/Footer.jsx';
@@ -58,12 +58,15 @@ const Chip = ({ children, color = 'slate' }) => {
 const PropertyDetailsPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { currentUser, isAuthenticated } = useAuth();
   const [property, setProperty] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [activeImg, setActiveImg] = useState(0);
   const [visitModalOpen, setVisitModalOpen] = useState(false);
+  // CP referral: { cpName, cpPhone, cpToken } or null
+  const [cpContact, setCpContact] = useState(null);
 
   // Require login before requesting a visit; otherwise send guests to login
   const handleRequestVisit = () => {
@@ -113,6 +116,31 @@ const PropertyDetailsPage = () => {
       }
     })();
   }, [id]);
+
+  // ── CP referral resolution ───────────────────────────────────
+  useEffect(() => {
+    if (!id) return;
+    const lsKey = `cpRef_${id}`;
+    const refToken = searchParams.get('ref');
+
+    if (refToken) {
+      apiServerClient.fetch(`/cp/by-token?token=${encodeURIComponent(refToken)}`)
+        .then(r => r.ok ? r.json() : null)
+        .then(data => {
+          if (data?.cpName) {
+            const contact = { cpName: data.cpName, cpPhone: data.cpPhone, cpToken: refToken };
+            setCpContact(contact);
+            try { localStorage.setItem(lsKey, JSON.stringify(contact)); } catch {}
+          }
+        })
+        .catch(() => {});
+    } else {
+      try {
+        const saved = localStorage.getItem(lsKey);
+        if (saved) setCpContact(JSON.parse(saved));
+      } catch {}
+    }
+  }, [id, searchParams]);
 
   // ── Loading skeleton ─────────────────────────────────────────
   if (isLoading) {
@@ -542,8 +570,10 @@ const PropertyDetailsPage = () => {
                         <ShieldCheck className="h-5 w-5 text-primary" />
                       </div>
                       <div>
-                        <p className="font-bold text-foreground text-sm">Verified Owner</p>
-                        <p className="text-xs text-muted-foreground">Growperty Protected</p>
+                        <p className="font-bold text-foreground text-sm">Growperty</p>
+                        {cpContact && (
+                          <p className="text-xs text-muted-foreground mt-0.5">via {cpContact.cpName}</p>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -551,13 +581,25 @@ const PropertyDetailsPage = () => {
                   {/* CTA buttons */}
                   <div className="space-y-2">
                     <Button
-                      onClick={() => window.location.href = `tel:${PLATFORM_PHONE}`}
+                      onClick={() => {
+                        const phone = cpContact ? cpContact.cpPhone.replace(/\D/g, '') : PLATFORM_PHONE;
+                        window.location.href = `tel:${phone}`;
+                      }}
                       className="w-full h-12 text-base font-bold rounded-xl bg-primary text-primary-foreground shadow-md hover:shadow-lg transition-all active:scale-[0.98]"
                     >
                       <Phone className="mr-2 h-4 w-4" /> Call Now
                     </Button>
                     <Button
-                      onClick={() => window.open(`https://wa.me/${PLATFORM_WHATSAPP}`, '_blank')}
+                      onClick={() => {
+                        if (cpContact) {
+                          const phone = `91${cpContact.cpPhone.replace(/\D/g, '').slice(-10)}`;
+                          const url = window.location.href.split('?')[0];
+                          const msg = encodeURIComponent(`Hi, I'm interested in this property ${url}`);
+                          window.open(`https://wa.me/${phone}?text=${msg}`, '_blank');
+                        } else {
+                          window.open(`https://wa.me/${PLATFORM_WHATSAPP}`, '_blank');
+                        }
+                      }}
                       className="w-full h-12 text-base font-bold rounded-xl bg-[#25D366] hover:bg-[#20bd5a] text-white shadow-md hover:shadow-lg transition-all active:scale-[0.98]"
                     >
                       <MessageCircle className="mr-2 h-4 w-4" /> WhatsApp
@@ -600,6 +642,7 @@ const PropertyDetailsPage = () => {
         visitFixedSlots={property?.visitFixedSlots}
         visitFlexibleSlots={property?.visitFlexibleSlots}
         currentUser={currentUser}
+        cpToken={cpContact?.cpToken || ''}
       />
     </>
   );

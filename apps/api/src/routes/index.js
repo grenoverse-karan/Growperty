@@ -9,6 +9,7 @@ import campaignsRouter from './campaigns.js';
 import requirementsRouter from './requirements.js';
 import analyticsRouter from './analytics.js';
 import blogRouter from './blog.js';
+import cpRouter from './cp.js';
 
 export default function routes() {
   const router = express.Router();
@@ -21,6 +22,7 @@ export default function routes() {
   router.use('/users', usersRouter);
   router.use('/properties', propertiesRouter);
   router.use('/admin', adminRouter);
+  router.use('/cp', cpRouter);
   router.use('/whatsapp', whatsappRouter);
   router.use('/visit-requests', visitRequestsRouter);
   router.use('/campaigns', campaignsRouter);

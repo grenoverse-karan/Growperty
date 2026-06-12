@@ -21,7 +21,15 @@ const SUB_TYPES = {
   'Plot/Land': ['Residential Plot', 'Commercial Plot', 'Industrial Plot', 'Agricultural Land']
 };
 const BHK_OPTIONS = ['1 BHK', '2 BHK', '3 BHK', '4 BHK', '5+ BHK'];
-const AREA_UNITS = ['Sq.ft', 'Sq.yd', 'Sq.m'];
+const AREA_UNITS_MAP = {
+  'Flat/Apartment':    { units: ['Sq.ft', 'Sq.yd', 'Sq.m'], default: 'Sq.ft' },
+  'Penthouse':         { units: ['Sq.ft', 'Sq.yd', 'Sq.m'], default: 'Sq.ft' },
+  'Commercial':        { units: ['Sq.ft', 'Sq.yd', 'Sq.m'], default: 'Sq.ft' },
+  'Villa':             { units: ['Sq.yd', 'Sq.ft', 'Sq.m'], default: 'Sq.yd' },
+  'Independent House': { units: ['Sq.m', 'Sq.yd', 'Sq.ft'], default: 'Sq.m' },
+  'Plot/Land':         { units: ['Sq.m', 'Sq.yd', 'Sq.ft'], default: 'Sq.m' },
+};
+const DEFAULT_AREA_UNITS = { units: ['Sq.ft', 'Sq.yd', 'Sq.m'], default: 'Sq.ft' };
 const AREA_TYPES = ['Carpet Area', 'Built-up Area', 'Super Built-up Area'];
 const CITY_OPTIONS = ['Noida', 'Greater Noida', 'YEIDA'];
 const POSSESSION_STATUS = ['Ready to Move', 'Under Construction', 'Possession Soon'];
@@ -45,7 +53,7 @@ const AMENITIES_CATEGORIES = {
 };
 const NEARBY_AMENITIES = ['Market', 'Mall', 'Public Park', 'Temple', 'School & Hospital', 'Public Transport', 'Metro'];
 
-const PropertyListingForm = ({ isAdmin = false }) => {
+const PropertyListingForm = ({ isAdmin = false, initialData = null, cpMode = false, cpToken = null }) => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const { currentUser, whatsappPhone, getToken } = useAuth();
@@ -115,13 +123,57 @@ const PropertyListingForm = ({ isAdmin = false }) => {
     if (!formData.ownershipType) errors.ownershipType = 'Ownership type select karo';
     if (showFloors && !formData.furnishingType) errors.furnishingType = 'Furnishing type select karo';
     if (!formData.visitTimeType) errors.visitTimeType = 'Preferred visit time select karo';
-    if (!formData.name?.trim()) errors.name = 'Name enter karo';
-    if (!formData.mobileNumber?.trim()) errors.mobileNumber = 'Mobile number enter karo';
+    if (!isAdmin && !formData.name?.trim()) errors.name = 'Name enter karo';
+    if (!isAdmin && !formData.mobileNumber?.trim()) errors.mobileNumber = 'Mobile number enter karo';
     return errors;
   };
 
   useEffect(() => {
-    if (currentUser) {
+    if (initialData) {
+      const d = initialData;
+      const totalParking = typeof d.carParking === 'number' ? d.carParking : 0;
+      const totalBike = typeof d.bikeParking === 'number' ? d.bikeParking : 0;
+      setFormData({
+        propertyType:     d.propertyType     || '',
+        propertySubType:  d.propertySubType  || '',
+        bhk:              d.bhk              || '',
+        bathrooms:        d.bathrooms        || 0,
+        balconies:        d.balconies        || 0,
+        totalArea:        d.totalArea        || '',
+        areaUnit:         d.areaUnit         || 'Sq.ft',
+        areaType:         d.areaType         || 'Carpet Area',
+        floorNumber:      d.floorNumber      || '',
+        totalFloors:      d.totalFloors      || '',
+        totalPrice:       d.totalPrice       || '',
+        city:             d.city             || '',
+        sector:           d.sector           || '',
+        landmark:         d.landmark         || '',
+        towerBlock:       d.towerBlock       || '',
+        houseNo:          d.houseNo          || '',
+        possessionStatus: d.possessionStatus || '',
+        ownershipType:    d.ownershipType    || '',
+        furnishingType:   d.furnishingType   || '',
+        furnishingItems:  d.furnishingItems  || {},
+        plotType:         d.plotType         || '',
+        carParking:       typeof d.carParking === 'object' ? d.carParking : { covered: totalParking, open: 0 },
+        bikeParking:      typeof d.bikeParking === 'object' ? d.bikeParking : { covered: totalBike, open: 0 },
+        amenities:        d.amenities        || [],
+        nearbyAmenities:  d.nearbyAmenities  || [],
+        description:      d.description      || '',
+        visitTimeType:    d.visitTimeType     || '',
+        visitFixedSlots:  d.visitFixedSlots   || [],
+        visitFlexibleSlots: d.visitFlexibleSlots || [],
+        name:             d.name             || '',
+        email:            d.email            || '',
+        mobileNumber:     d.mobileNumber     || '',
+        currentAddress:   d.currentAddress   || '',
+        termsAccepted:    true,
+      });
+    }
+  }, [initialData]);
+
+  useEffect(() => {
+    if (currentUser && !initialData) {
       setFormData(prev => ({
         ...prev,
         name: prev.name || currentUser.name || '',
@@ -139,6 +191,7 @@ const PropertyListingForm = ({ isAdmin = false }) => {
         newData.propertySubType = '';
         newData.bhk = '';
         newData.plotType = '';
+        newData.areaUnit = (AREA_UNITS_MAP[value] || DEFAULT_AREA_UNITS).default;
       }
       if (field === 'furnishingType' && value === 'Unfurnished') {
         newData.furnishingItems = {};
@@ -307,8 +360,10 @@ const PropertyListingForm = ({ isAdmin = false }) => {
   const showSubTypes = ['Commercial', 'Plot/Land'].includes(formData.propertyType);
   const showBhk = ['Flat/Apartment', 'Independent House', 'Villa', 'Penthouse'].includes(formData.propertyType);
   const showBathBalcony = showBhk;
-  const showFloors = formData.propertyType !== 'Plot/Land';
-  const showFloorNumber = showFloors && formData.propertyType !== 'Independent House';
+  const isPlot = formData.propertyType === 'Plot/Land';
+  const showFloors = !isPlot;
+  const areaUnitConfig = AREA_UNITS_MAP[formData.propertyType] || DEFAULT_AREA_UNITS;
+  const showFloorNumber = showFloors && !['Independent House', 'Villa'].includes(formData.propertyType);
   const showFurnishingDetails = ['Semi-Furnished', 'Fully Furnished'].includes(formData.furnishingType);
   const showPlotType = formData.propertyType === 'Plot/Land' && formData.propertySubType === 'Residential Plot';
   const showAmenities = showBhk;
@@ -319,12 +374,12 @@ const PropertyListingForm = ({ isAdmin = false }) => {
     console.log('🚀 handleSubmit triggered', { currentUser: currentUser?.id, termsAccepted: formData.termsAccepted, propertyType: formData.propertyType });
 
     const userId = currentUser?._id || currentUser?.id;
-    if (!isAdmin && !userId) {
+    if (!isAdmin && !cpMode && !userId) {
       console.log('❌ STOP: No currentUser._id — user not authenticated');
       toast({ title: 'Login Required', description: 'Please log in to list a property.', variant: 'destructive' });
       return;
     }
-    console.log('✅ Auth check passed — user:', isAdmin ? 'admin' : userId);
+    console.log('✅ Auth check passed — user:', isAdmin ? 'admin' : cpMode ? 'cp' : userId);
 
     // Run ALL field validation first — shows red errors on every empty required field
     const validationErrors = validateForm();
@@ -354,7 +409,7 @@ const PropertyListingForm = ({ isAdmin = false }) => {
 
       // Prepare form data for sanitization
       const rawFormData = {
-        owner_id: isAdmin ? 'admin' : (currentUser._id || currentUser.id),
+        owner_id: isAdmin ? 'admin' : cpMode ? 'cp' : (currentUser._id || currentUser.id),
         propertyType: formData.propertyType,
         propertySubType: formData.propertySubType,
         bhk: formData.bhk,
@@ -388,7 +443,7 @@ const PropertyListingForm = ({ isAdmin = false }) => {
         email: formData.email,
         mobileNumber: formData.mobileNumber,
         currentAddress: formData.currentAddress,
-        ownerType: isAdmin ? 'Admin' : 'Individual',
+        ownerType: isAdmin ? 'Admin' : cpMode ? 'CP' : 'Individual',
         status: isAdmin ? 'approved' : 'pending',
         whatsappAlerts,
         ...(isAdmin && { listedBy: 'admin', liveAt: new Date().toISOString() }),
@@ -421,27 +476,16 @@ const PropertyListingForm = ({ isAdmin = false }) => {
       // Tower/Block isn't in the sanitizer whitelist — inject directly
       if (formData.towerBlock?.trim()) payload.towerBlock = formData.towerBlock.trim();
 
-      // Convert images to base64 (max 10 to stay within MongoDB 16MB doc limit)
-      if (images.length > 0) {
-        const toBase64 = (file) => new Promise((resolve) => {
-          const reader = new FileReader();
-          reader.onload = () => resolve(reader.result);
-          reader.onerror = () => resolve(null);
-          reader.readAsDataURL(file);
-        });
-        const base64Images = await Promise.all(
-          images.slice(0, 10).map(img => toBase64(img.file))
-        );
-        payload.images = base64Images.filter(Boolean);
-      }
-
-      console.log('✅ Payload ready, calling API...', { imageCount: payload.images?.length || 0 });
+      console.log('✅ Payload ready, calling API...', { imageCount: images.length });
       logPropertyPayload(payload, 'PropertyListingForm Submission');
 
-      // Submit to MongoDB via Express API
-      const authToken = isAdmin ? adminToken : getToken();
-      const response = await apiServerClient.fetch('/properties', {
-        method: 'POST',
+      // Step 1: Submit property metadata (no images) — stays well under Vercel's 4.5MB body limit
+      const authToken = isAdmin ? adminToken : cpMode ? cpToken : getToken();
+      const editId = initialData?._id || initialData?.id;
+      const fetchUrl  = cpMode ? '/cp/properties' : (editId ? `/properties/${editId}` : '/properties');
+      const fetchMethod = cpMode ? 'POST' : (editId ? 'PUT' : 'POST');
+      const response = await apiServerClient.fetch(fetchUrl, {
+        method: fetchMethod,
         headers: {
           'Content-Type': 'application/json',
           ...(authToken && { Authorization: `Bearer ${authToken}` }),
@@ -455,11 +499,32 @@ const PropertyListingForm = ({ isAdmin = false }) => {
         throw new Error(result.message || `Server error: ${response.status}`);
       }
 
-      console.log('✅ Property created successfully. Record ID:', result.propertyId);
+      const propertyId = result.propertyId || editId;
+      console.log('✅ Property saved successfully. Record ID:', propertyId);
+
+      // Step 2: Upload images separately as multipart/form-data to avoid the 4.5MB Vercel limit
+      if (images.length > 0 && propertyId) {
+        const formDataImages = new FormData();
+        images.forEach(img => formDataImages.append('images', img.file));
+        const imgRes = await apiServerClient.fetch(`/properties/${propertyId}/images`, {
+          method: 'POST',
+          headers: { ...(authToken && { Authorization: `Bearer ${authToken}` }) },
+          body: formDataImages,
+        });
+        if (!imgRes.ok) {
+          const imgErr = await imgRes.json().catch(() => ({}));
+          console.warn('⚠️ Image upload failed (property was still created):', imgErr.message);
+        } else {
+          console.log('✅ Images uploaded successfully');
+        }
+      }
 
       if (isAdmin) {
-        toast({ title: 'Success', description: 'Property listed successfully and is now live.' });
+        toast({ title: 'Success', description: editId ? 'Property updated successfully.' : 'Property listed successfully and is now live.' });
         navigate('/admin/properties');
+      } else if (cpMode) {
+        toast({ title: 'Success', description: 'Property listed successfully and is pending approval.' });
+        navigate('/cp/dashboard/listings');
       } else {
         toast({ title: 'Success', description: 'Property listed successfully and is pending approval.' });
         navigate('/properties');
@@ -615,7 +680,7 @@ const PropertyListingForm = ({ isAdmin = false }) => {
               <div className="flex-1 space-y-2">
                 <Label className="text-sm font-bold text-slate-700 dark:text-slate-300">Area Unit *</Label>
                 <div className="flex h-12 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800">
-                  {AREA_UNITS.map(unit => (
+                  {areaUnitConfig.units.map(unit => (
                     <button
                       key={unit}
                       type="button"
@@ -627,12 +692,14 @@ const PropertyListingForm = ({ isAdmin = false }) => {
                   ))}
                 </div>
               </div>
+              {!isPlot && (
               <div className="flex-1 space-y-2">
                 <Label className="text-sm font-bold text-slate-700 dark:text-slate-300">Area Type</Label>
                 <select name="areaType" value={formData.areaType} onChange={handleInputChange} className="flex h-12 w-full items-center justify-between rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 px-3 py-2 text-sm font-bold ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-[#10B981] disabled:cursor-not-allowed disabled:opacity-50">
                   {AREA_TYPES.map(type => <option key={type} value={type}>{type}</option>)}
                 </select>
               </div>
+              )}
             </div>
 
             {/* Floors */}
@@ -1066,36 +1133,50 @@ const PropertyListingForm = ({ isAdmin = false }) => {
           </div>
 
           {/* (16) OWNER DETAILS */}
-          <div className="bg-white dark:bg-slate-950 rounded-2xl p-6 md:p-8 shadow-sm border border-slate-200 dark:border-slate-800 space-y-5">
-            <Label className="text-lg font-bold text-slate-900 dark:text-white block border-b border-slate-100 dark:border-slate-800 pb-3">13. Owner Details</Label>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              <div id="field-name" className="space-y-2">
-                <Label className="text-sm font-bold text-slate-700 dark:text-slate-300">Full Name *</Label>
-                <Input name="name" value={formData.name} onChange={handleInputChange} placeholder="Your Name" className={`h-12 bg-slate-50 dark:bg-slate-900 ${fieldErrors.name ? 'border-red-400 focus-visible:ring-red-400' : 'border-slate-200 dark:border-slate-800'}`} />
-                {fieldErrors.name && <p className="text-red-500 text-xs font-bold">⚠ {fieldErrors.name}</p>}
-              </div>
-              <div className="space-y-2">
-                <Label className="text-sm font-bold text-slate-700 dark:text-slate-300">Email Address <span className="text-slate-400 font-normal">(optional)</span></Label>
-                <Input name="email" type="email" value={formData.email} onChange={handleInputChange} placeholder="Email" className="h-12 bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800" />
-              </div>
-              <div id="field-mobileNumber" className="space-y-2">
-                <Label className="text-sm font-bold text-slate-700 dark:text-slate-300">Mobile Number (10 digits) *</Label>
-                <div className="relative">
-                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 font-bold">+91</span>
-                  <Input name="mobileNumber" type="tel" maxLength="10" value={formData.mobileNumber} onChange={handleInputChange} placeholder="9876543210" className={`h-12 pl-12 bg-slate-50 dark:bg-slate-900 tracking-wide font-bold ${fieldErrors.mobileNumber ? 'border-red-400 focus-visible:ring-red-400' : 'border-slate-200 dark:border-slate-800'}`} />
+          {isAdmin ? (
+            <div className="bg-white dark:bg-slate-950 rounded-2xl p-6 md:p-8 shadow-sm border border-slate-200 dark:border-slate-800">
+              <Label className="text-lg font-bold text-slate-900 dark:text-white block border-b border-slate-100 dark:border-slate-800 pb-3">13. Listed By</Label>
+              <div className="flex items-center gap-3 mt-4">
+                <div className="h-10 w-10 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center shrink-0">
+                  <span className="text-emerald-600 dark:text-emerald-400 font-extrabold text-sm">G</span>
                 </div>
-                {fieldErrors.mobileNumber && <p className="text-red-500 text-xs font-bold">⚠ {fieldErrors.mobileNumber}</p>}
-              </div>
-              <div className="space-y-2 md:col-span-2">
-                <Label className="text-sm font-bold text-slate-700 dark:text-slate-300">Current Address</Label>
-                <Textarea name="currentAddress" value={formData.currentAddress} onChange={handleInputChange} placeholder="Your current residential address" className="min-h-[80px] rounded-xl resize-none bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800" />
+                <div className="flex flex-col">
+                  <span className="text-xs text-slate-400 dark:text-slate-500 font-medium">Listed by</span>
+                  <span className="text-xl font-extrabold text-slate-900 dark:text-white tracking-tight">Growperty</span>
+                </div>
               </div>
             </div>
-          </div>
+          ) : (
+            <div className="bg-white dark:bg-slate-950 rounded-2xl p-6 md:p-8 shadow-sm border border-slate-200 dark:border-slate-800 space-y-5">
+              <Label className="text-lg font-bold text-slate-900 dark:text-white block border-b border-slate-100 dark:border-slate-800 pb-3">13. Owner Details</Label>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div id="field-name" className="space-y-2">
+                  <Label className="text-sm font-bold text-slate-700 dark:text-slate-300">Full Name *</Label>
+                  <Input name="name" value={formData.name} onChange={handleInputChange} placeholder="Your Name" className={`h-12 bg-slate-50 dark:bg-slate-900 ${fieldErrors.name ? 'border-red-400 focus-visible:ring-red-400' : 'border-slate-200 dark:border-slate-800'}`} />
+                  {fieldErrors.name && <p className="text-red-500 text-xs font-bold">⚠ {fieldErrors.name}</p>}
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-sm font-bold text-slate-700 dark:text-slate-300">Email Address <span className="text-slate-400 font-normal">(optional)</span></Label>
+                  <Input name="email" type="email" value={formData.email} onChange={handleInputChange} placeholder="Email" className="h-12 bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800" />
+                </div>
+                <div id="field-mobileNumber" className="space-y-2">
+                  <Label className="text-sm font-bold text-slate-700 dark:text-slate-300">Mobile Number (10 digits) *</Label>
+                  <div className="relative">
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 font-bold">+91</span>
+                    <Input name="mobileNumber" type="tel" maxLength="10" value={formData.mobileNumber} onChange={handleInputChange} placeholder="9876543210" className={`h-12 pl-12 bg-slate-50 dark:bg-slate-900 tracking-wide font-bold ${fieldErrors.mobileNumber ? 'border-red-400 focus-visible:ring-red-400' : 'border-slate-200 dark:border-slate-800'}`} />
+                  </div>
+                  {fieldErrors.mobileNumber && <p className="text-red-500 text-xs font-bold">⚠ {fieldErrors.mobileNumber}</p>}
+                </div>
+                <div className="space-y-2 md:col-span-2">
+                  <Label className="text-sm font-bold text-slate-700 dark:text-slate-300">Current Address</Label>
+                  <Textarea name="currentAddress" value={formData.currentAddress} onChange={handleInputChange} placeholder="Your current residential address" className="min-h-[80px] rounded-xl resize-none bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800" />
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* (16b) WHATSAPP ALERTS */}
-          <label className="flex items-start gap-3 cursor-pointer group pt-2">
+          {!isAdmin && <label className="flex items-start gap-3 cursor-pointer group pt-2">
             <input
               type="checkbox"
               checked={whatsappAlerts}
@@ -1106,7 +1187,7 @@ const PropertyListingForm = ({ isAdmin = false }) => {
               Send me property inquiry alerts on{' '}
               <span className="font-semibold text-[#25D366]">WhatsApp</span>
             </span>
-          </label>
+          </label>}
 
           {/* (17) TERMS & CONDITIONS */}
           <div id="field-termsAccepted" className="bg-transparent pt-4 pb-2">
@@ -1145,10 +1226,10 @@ const PropertyListingForm = ({ isAdmin = false }) => {
             {isSubmitting ? (
               <>
                 <Loader2 className="mr-2 h-6 w-6 animate-spin" />
-                Posting Listing...
+                {initialData ? 'Saving Changes...' : 'Posting Listing...'}
               </>
             ) : (
-              'Post Property Listing'
+              initialData ? 'Save Changes' : 'Post Property Listing'
             )}
           </Button>
 

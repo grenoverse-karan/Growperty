@@ -366,3 +366,47 @@ export function sendTemplateAsync(recipientPhone, templateName, parameters = {})
     }
   });
 }
+
+/**
+ * Send a plain-text WhatsApp message (for OTP / transactional flows).
+ * Works only within a 24-hour customer-initiated conversation window,
+ * or if the number has been pre-registered with the business.
+ */
+export async function sendTextMessage(recipientPhone, text) {
+  if (!WHATSAPP_TOKEN || !PHONE_NUMBER_ID) {
+    logger.error('[WA] sendTextMessage: credentials not configured');
+    return { success: false, error: 'WhatsApp credentials not configured' };
+  }
+
+  const to = String(recipientPhone).replace(/\D/g, '');
+  const normalised = to.startsWith('91') ? to : `91${to}`;
+
+  try {
+    const res = await fetch(API_URL, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${WHATSAPP_TOKEN}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        messaging_product: 'whatsapp',
+        recipient_type: 'individual',
+        to: normalised,
+        type: 'text',
+        text: { preview_url: false, body: text },
+      }),
+    });
+
+    const json = await res.json();
+    if (!res.ok) {
+      const err = json?.error?.message || `HTTP ${res.status}`;
+      logger.error('[WA] sendTextMessage failed', { to: normalised, error: err });
+      return { success: false, error: err };
+    }
+    logger.info('[WA] sendTextMessage sent', { to: normalised });
+    return { success: true, messageId: json?.messages?.[0]?.id ?? null };
+  } catch (err) {
+    logger.error('[WA] sendTextMessage exception', { error: err.message });
+    return { success: false, error: err.message };
+  }
+}

@@ -37,6 +37,8 @@ const NAV = [
   { id: 'leads-reqs',     label: 'Requirements',   icon: '📋', href: '/admin/requirements' },
   { id: 'leads-traffic',  label: 'Traffic',        icon: '📡', href: '/admin/traffic' },
   { id: 'leads-txn',      label: 'Transactions',   icon: '💳', href: '/admin/lead-transactions' },
+  { divider: 'CHANNEL PARTNERS' },
+  { id: 'cp-list',        label: 'Partners',        icon: '🤝', href: '/admin/channel-partners' },
   { divider: 'CAMPAIGN' },
   { id: 'camp-send',      label: 'Send Campaign',  icon: '📣', href: '/admin/campaigns' },
   { divider: 'WEB ANALYTICS' },

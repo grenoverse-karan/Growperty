@@ -7,8 +7,10 @@ import { Toaster } from '@/components/ui/sonner.jsx';
 import ScrollToTop from '@/components/ScrollToTop.jsx';
 import { AuthProvider } from '@/contexts/AuthContext.jsx';
 import { AdminAuthProvider } from '@/contexts/AdminAuthContext.jsx';
+import { CpAuthProvider } from '@/contexts/CpAuthContext.jsx';
 import ProtectedRoute from '@/components/ProtectedRoute.jsx';
 import AdminProtectedRoute from '@/components/AdminProtectedRoute.jsx';
+import CpProtectedRoute from '@/components/CpProtectedRoute.jsx';
 import { AdminRecoveryService } from '@/lib/AdminRecoveryService.js';
 
 import HomePage from '@/pages/HomePage.jsx';
@@ -48,6 +50,17 @@ import SitemapPage from '@/pages/SitemapPage.jsx';
 import GoogleSuccessPage from '@/pages/GoogleSuccessPage.jsx';
 import GoogleCompleteProfilePage from '@/pages/GoogleCompleteProfilePage.jsx';
 
+import BecomeChannelPartnerPage from '@/pages/BecomeChannelPartnerPage.jsx';
+import CpLoginPage from '@/pages/CpLoginPage.jsx';
+import CpDashboardLayout from '@/pages/cp/CpDashboardLayout.jsx';
+import CpMyListingsPage from '@/pages/cp/CpMyListingsPage.jsx';
+import CpAddPropertyPage from '@/pages/cp/CpAddPropertyPage.jsx';
+import CpLeadsPage from '@/pages/cp/CpLeadsPage.jsx';
+import CpVisitRequestsPage from '@/pages/cp/CpVisitRequestsPage.jsx';
+import CpActivitiesPage from '@/pages/cp/CpActivitiesPage.jsx';
+import CpProfilePage from '@/pages/cp/CpProfilePage.jsx';
+import AdminChannelPartnersPage from '@/pages/AdminChannelPartnersPage.jsx';
+
 import AdminLoginPage from '@/pages/AdminLoginPage.jsx';
 import AdminDashboard from '@/pages/AdminDashboard.jsx';
 import AdminPropertyDetailsPage from '@/pages/AdminPropertyDetailsPage.jsx';
@@ -59,6 +72,7 @@ import AdminSettingsPage from '@/pages/AdminSettingsPage.jsx';
 import AdminApprovalsPage from '@/pages/AdminApprovalsPage.jsx';
 import AdminPropertiesPage from '@/pages/AdminPropertiesPage.jsx';
 import AdminListPropertyPage from '@/pages/AdminListPropertyPage.jsx';
+import AdminEditPropertyPage from '@/pages/AdminEditPropertyPage.jsx';
 import AdminUsersPage from '@/pages/AdminUsersPage.jsx';
 import AdminComingSoonPage from '@/pages/AdminComingSoonPage.jsx';
 import AdminCampaignsPage from '@/pages/AdminCampaignsPage.jsx';
@@ -87,6 +101,7 @@ function App() {
   return (
     <AuthProvider>
       <AdminAuthProvider>
+        <CpAuthProvider>
         <Router>
           <ScrollToTop />
           <PageTracker />
@@ -170,6 +185,12 @@ function App() {
             <Route path="/admin/list-property" element={
               <AdminProtectedRoute>
                 <AdminListPropertyPage />
+              </AdminProtectedRoute>
+            } />
+
+            <Route path="/admin/edit-property/:id" element={
+              <AdminProtectedRoute>
+                <AdminEditPropertyPage />
               </AdminProtectedRoute>
             } />
 
@@ -285,6 +306,32 @@ function App() {
               </ProtectedRoute>
             } />
 
+            {/* Channel Partner — public */}
+            <Route path="/become-channel-partner" element={<BecomeChannelPartnerPage />} />
+            <Route path="/cp/login" element={<CpLoginPage />} />
+
+            {/* Channel Partner — protected dashboard */}
+            <Route path="/cp/dashboard" element={
+              <CpProtectedRoute>
+                <CpDashboardLayout />
+              </CpProtectedRoute>
+            }>
+              <Route index element={<Navigate to="/cp/dashboard/listings" replace />} />
+              <Route path="listings"   element={<CpMyListingsPage />} />
+              <Route path="add"        element={<CpAddPropertyPage />} />
+              <Route path="leads"      element={<CpLeadsPage />} />
+              <Route path="visits"     element={<CpVisitRequestsPage />} />
+              <Route path="activities" element={<CpActivitiesPage />} />
+              <Route path="profile"    element={<CpProfilePage />} />
+            </Route>
+
+            {/* Admin — Channel Partners */}
+            <Route path="/admin/channel-partners" element={
+              <AdminProtectedRoute>
+                <AdminChannelPartnersPage />
+              </AdminProtectedRoute>
+            } />
+
             <Route path="*" element={
               <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 dark:bg-background">
                 <h1 className="text-4xl font-extrabold mb-4 text-primary">404 - Page Not Found</h1>
@@ -295,6 +342,7 @@ function App() {
           </Routes>
           <Toaster position="top-center" richColors />
         </Router>
+        </CpAuthProvider>
       </AdminAuthProvider>
     </AuthProvider>
   );

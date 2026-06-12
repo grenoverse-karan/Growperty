@@ -7,8 +7,6 @@ import { toast } from 'sonner';
 import { CheckCircle, Loader2, UploadCloud, X, ArrowRight, Building2, ExternalLink } from 'lucide-react';
 import pb from '@/lib/pocketbaseClient.js';
 
-import Header from '@/components/Header.jsx';
-import Footer from '@/components/Footer.jsx';
 import { Button } from '@/components/ui/button.jsx';
 import { Input } from '@/components/ui/input.jsx';
 import { Label } from '@/components/ui/label.jsx';
@@ -19,8 +17,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge.jsx';
 
 const PROPERTY_TYPES = [
-  'Flat/Apartment', 'Independent House/Villa', 'Penthouse', 
-  'Studio', 'Plot/Land', 'Shop', 'Office', 'Others'
+  'Flat/Apartment', 'Independent House/Villa', 'Penthouse',
+  'Studio', 'Plot/Land', 'Shop', 'Office', 'Store', 'Others'
 ];
 
 const CONFIGURATIONS = ['1 BHK', '2 BHK', '3 BHK', '4 BHK', '5+ BHK'];
@@ -30,6 +28,17 @@ const PAYMENT_PLANS = [
 ];
 
 const AREA_TYPES = ['Carpet Area', 'Built-up Area', 'Super Built-up Area'];
+
+const PROPERTY_TYPE_CONFIG = {
+  'Flat/Apartment':          { unit: 'Sq.ft', units: ['Sq.ft', 'Sq.yd', 'Sq.m'], showAreaTypes: true },
+  'Independent House/Villa': { unit: 'Sq.yd', units: ['Sq.yd', 'Sq.ft', 'Sq.m'], showAreaTypes: false },
+  'Penthouse':               { unit: 'Sq.ft', units: ['Sq.ft', 'Sq.yd', 'Sq.m'], showAreaTypes: true },
+  'Studio':                  { unit: 'Sq.ft', units: ['Sq.ft', 'Sq.yd', 'Sq.m'], showAreaTypes: true },
+  'Plot/Land':               { unit: 'Sq.m',  units: ['Sq.m', 'Sq.yd', 'Sq.ft'], showAreaTypes: false },
+  'Shop':                    { unit: 'Sq.ft', units: ['Sq.ft', 'Sq.yd', 'Sq.m'], showAreaTypes: true },
+  'Office':                  { unit: 'Sq.ft', units: ['Sq.ft', 'Sq.yd', 'Sq.m'], showAreaTypes: true },
+  'Others':                  { unit: 'Sq.ft', units: ['Sq.ft', 'Sq.yd', 'Sq.m'], showAreaTypes: false },
+};
 
 const AMENITIES_CATEGORIES = [
   {
@@ -71,26 +80,19 @@ const ProjectListingForm = () => {
     totalTowers: '',
     totalFloors: '',
     
-    minPrice: '',
-    maxPrice: '',
-    pricePerSqft: '',
+    propertyTypePricing: {},
     paymentPlans: [],
-    
+
     projectStatus: '',
     launchYear: '',
     expectedPossession: '',
     reraNumber: '',
     reraApplied: false,
-    
+
     city: '',
     sector: '',
     landmark: '',
     projectAddress: '',
-    
-    minArea: '',
-    maxArea: '',
-    areaUnit: 'Sq.ft',
-    areaTypes: [],
     
     amenities: [],
     
@@ -116,16 +118,59 @@ const ProjectListingForm = () => {
   });
 
   const handleInputChange = (field, value) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    setFormData(prev => {
+      const next = { ...prev, [field]: value };
+      if (field === 'projectType' && value === 'Residential') {
+        next.propertyTypes = prev.propertyTypes.filter(t => !['Shop', 'Office', 'Store'].includes(t));
+      }
+      if (field === 'projectType' && value === 'Commercial') {
+        next.propertyTypes = prev.propertyTypes.filter(t => !['Flat/Apartment', 'Independent House/Villa', 'Penthouse', 'Studio', 'Others'].includes(t));
+      }
+      return next;
+    });
     if (errors[field]) setErrors(prev => ({ ...prev, [field]: null }));
   };
 
   const handleMultiSelect = (field, item, checked) => {
     setFormData(prev => {
       const array = prev[field] || [];
-      return { ...prev, [field]: checked ? [...array, item] : array.filter(i => i !== item) };
+      const next = { ...prev, [field]: checked ? [...array, item] : array.filter(i => i !== item) };
+      if (field === 'propertyTypes' && checked && !prev.propertyTypePricing[item]) {
+        const cfg = PROPERTY_TYPE_CONFIG[item] || { unit: 'Sq.ft', units: ['Sq.ft', 'Sq.yd', 'Sq.m'], showAreaTypes: false };
+        next.propertyTypePricing = {
+          ...prev.propertyTypePricing,
+          [item]: { minPrice: '', maxPrice: '', pricePerUnit: '', minArea: '', maxArea: '', areaUnit: cfg.unit, areaTypes: [] },
+        };
+      }
+      return next;
     });
     if (errors[field]) setErrors(prev => ({ ...prev, [field]: null }));
+  };
+
+  const handleTypePrice = (type, field, value) => {
+    setFormData(prev => ({
+      ...prev,
+      propertyTypePricing: {
+        ...prev.propertyTypePricing,
+        [type]: { ...prev.propertyTypePricing[type], [field]: value },
+      },
+    }));
+  };
+
+  const handleTypePriceAreaType = (type, atype, checked) => {
+    setFormData(prev => {
+      const current = prev.propertyTypePricing[type]?.areaTypes || [];
+      return {
+        ...prev,
+        propertyTypePricing: {
+          ...prev.propertyTypePricing,
+          [type]: {
+            ...prev.propertyTypePricing[type],
+            areaTypes: checked ? [...current, atype] : current.filter(i => i !== atype),
+          },
+        },
+      };
+    });
   };
 
   const checkAntiBypass = (text) => {
@@ -191,12 +236,14 @@ const ProjectListingForm = () => {
       newErrors.configurationAvailable = 'Select at least one configuration';
     }
 
-    // Section 2
-    if (!formData.minPrice) newErrors.minPrice = 'Min Price is required';
-    if (!formData.maxPrice) newErrors.maxPrice = 'Max Price is required';
-    if (formData.minPrice && formData.maxPrice && Number(formData.minPrice) > Number(formData.maxPrice)) {
-      newErrors.maxPrice = 'Max Price must be greater than or equal to Min Price';
-    }
+    // Section 2 — per property type pricing
+    formData.propertyTypes.forEach(type => {
+      const p = formData.propertyTypePricing[type] || {};
+      if (!p.minPrice) newErrors[`minPrice_${type}`] = 'Min Price is required';
+      if (!p.maxPrice) newErrors[`maxPrice_${type}`] = 'Max Price is required';
+      if (p.minPrice && p.maxPrice && Number(p.minPrice) > Number(p.maxPrice))
+        newErrors[`maxPrice_${type}`] = 'Max Price must be ≥ Min Price';
+    });
 
     // Section 3
     if (!formData.projectStatus) newErrors.projectStatus = 'Project Status is required';
@@ -275,24 +322,18 @@ const ProjectListingForm = () => {
       formPayload.append('confirmationCheckbox1', formData.confirmationCheckbox1);
       formPayload.append('confirmationCheckbox2', formData.confirmationCheckbox2);
       
-      // Default hidden fields to bypass schema limits if any (though schema says optional)
       formPayload.append('status', 'pending');
 
       // Append numeric fields
       if (formData.totalUnits) formPayload.append('totalUnits', formData.totalUnits);
       if (formData.totalTowers) formPayload.append('totalTowers', formData.totalTowers);
       if (formData.totalFloors) formPayload.append('totalFloors', formData.totalFloors);
-      formPayload.append('minPrice', formData.minPrice);
-      formPayload.append('maxPrice', formData.maxPrice);
-      if (formData.pricePerSqft) formPayload.append('pricePerSqft', formData.pricePerSqft);
-      if (formData.minArea) formPayload.append('minArea', formData.minArea);
-      if (formData.maxArea) formPayload.append('maxArea', formData.maxArea);
 
       // Append JSON fields
       formPayload.append('propertyTypes', JSON.stringify(formData.propertyTypes));
+      formPayload.append('propertyTypePricing', JSON.stringify(formData.propertyTypePricing));
       formPayload.append('configurationAvailable', JSON.stringify(formData.configurationAvailable));
       formPayload.append('paymentPlans', JSON.stringify(formData.paymentPlans));
-      formPayload.append('areaTypes', JSON.stringify(formData.areaTypes));
       formPayload.append('amenities', JSON.stringify(formData.amenities));
 
       // Append files
@@ -320,14 +361,12 @@ const ProjectListingForm = () => {
 
   if (isSuccess) {
     return (
-      <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-background">
-        <Header />
-        <main className="flex-grow flex items-center justify-center py-20 px-4">
-          <motion.div 
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="bg-white dark:bg-slate-900 rounded-3xl shadow-xl p-8 md:p-12 text-center max-w-2xl w-full border border-border/50"
-          >
+      <div className="flex items-center justify-center py-20 px-4">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="bg-white dark:bg-slate-900 rounded-3xl shadow-xl p-8 md:p-12 text-center max-w-2xl w-full border border-border/50"
+        >
             <div className="w-24 h-24 bg-brand-green/10 rounded-full flex items-center justify-center mx-auto mb-6">
               <CheckCircle className="w-12 h-12 text-brand-green" />
             </div>
@@ -346,8 +385,6 @@ const ProjectListingForm = () => {
               </Button>
             </div>
           </motion.div>
-        </main>
-        <Footer />
       </div>
     );
   }
@@ -359,11 +396,8 @@ const ProjectListingForm = () => {
         <meta name="description" content="List your residential or commercial project on Growperty and reach verified buyers." />
       </Helmet>
 
-      <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-background">
-        <Header />
-
-        <main className="flex-grow py-12 md:py-20 px-4 sm:px-6 lg:px-8">
-          <div className="max-w-5xl mx-auto">
+      <div className="py-4 md:py-8 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-5xl mx-auto">
             
             <div className="mb-10 text-center">
               <Badge className="bg-brand-blue hover:bg-brand-blue text-white px-4 py-1.5 text-xs font-bold tracking-widest mb-4 shadow-sm border-none">
@@ -423,7 +457,11 @@ const ProjectListingForm = () => {
                   <div className="md:col-span-2">
                     <Label className="form-label">Property Types <span className="text-destructive">*</span></Label>
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 mt-2">
-                      {PROPERTY_TYPES.map(type => (
+                      {PROPERTY_TYPES.filter(t => {
+                        if (formData.projectType === 'Residential') return !['Shop', 'Office', 'Store'].includes(t);
+                        if (formData.projectType === 'Commercial') return !['Flat/Apartment', 'Independent House/Villa', 'Penthouse', 'Studio', 'Others'].includes(t);
+                        return true;
+                      }).map(type => (
                         <div key={type} className="flex items-start space-x-2 bg-slate-50 dark:bg-slate-950 p-3 rounded-lg border border-border/50">
                           <Checkbox 
                             id={`prop-${type}`} 
@@ -438,7 +476,8 @@ const ProjectListingForm = () => {
                     {errors.propertyTypes && <p className="text-xs text-destructive mt-1 font-medium">{errors.propertyTypes}</p>}
                   </div>
 
-                  {['Residential', 'Mixed Use'].includes(formData.projectType) && (
+                  {['Residential', 'Mixed Use'].includes(formData.projectType) &&
+                   (formData.propertyTypes.length === 0 || formData.propertyTypes.some(t => ['Flat/Apartment', 'Independent House/Villa', 'Penthouse'].includes(t))) && (
                     <div className="md:col-span-2">
                       <Label className="form-label">Configuration Available <span className="text-destructive">*</span></Label>
                       <div className="flex flex-wrap gap-3 mt-2">
@@ -492,58 +531,107 @@ const ProjectListingForm = () => {
                 </div>
               </div>
 
-              {/* SECTION 2 - PRICING */}
+              {/* SECTION 2 - PRICING & AREA DETAILS (per property type) */}
               <div className="form-section-container">
-                <h2 className="form-section-heading">2. Pricing Details</h2>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <div>
-                    <Label className="form-label">Min Price (₹) <span className="text-destructive">*</span></Label>
-                    <Input 
-                      type="number"
-                      placeholder="e.g. 4500000" 
-                      className={`form-input ${errors.minPrice ? 'border-destructive' : ''}`}
-                      value={formData.minPrice}
-                      onChange={(e) => handleInputChange('minPrice', e.target.value)}
-                    />
-                    {errors.minPrice && <p className="text-xs text-destructive mt-1 font-medium">{errors.minPrice}</p>}
-                  </div>
-                  <div>
-                    <Label className="form-label">Max Price (₹) <span className="text-destructive">*</span></Label>
-                    <Input 
-                      type="number"
-                      placeholder="e.g. 8500000" 
-                      className={`form-input ${errors.maxPrice ? 'border-destructive' : ''}`}
-                      value={formData.maxPrice}
-                      onChange={(e) => handleInputChange('maxPrice', e.target.value)}
-                    />
-                    {errors.maxPrice && <p className="text-xs text-destructive mt-1 font-medium">{errors.maxPrice}</p>}
-                  </div>
-                  <div>
-                    <Label className="form-label">Price Per Sq.ft (Optional)</Label>
-                    <Input 
-                      type="number"
-                      placeholder="e.g. 5000" 
-                      className="form-input"
-                      value={formData.pricePerSqft}
-                      onChange={(e) => handleInputChange('pricePerSqft', e.target.value)}
-                    />
-                  </div>
+                <h2 className="form-section-heading">2. Pricing & Area Details</h2>
 
-                  <div className="md:col-span-3">
-                    <Label className="form-label">Payment Plans Available (Optional)</Label>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 mt-2">
-                      {PAYMENT_PLANS.map(plan => (
-                        <div key={plan} className="flex items-start space-x-2 bg-slate-50 dark:bg-slate-950 p-3 rounded-lg border border-border/50">
-                          <Checkbox 
-                            id={`plan-${plan}`} 
-                            checked={formData.paymentPlans.includes(plan)}
-                            onCheckedChange={(checked) => handleMultiSelect('paymentPlans', plan, checked)}
-                            className="mt-0.5"
-                          />
-                          <Label htmlFor={`plan-${plan}`} className="cursor-pointer text-sm font-medium leading-tight">{plan}</Label>
+                {formData.propertyTypes.length === 0 ? (
+                  <p className="text-muted-foreground text-sm font-medium text-center py-8 bg-slate-50 dark:bg-slate-900 rounded-xl border border-dashed border-border">
+                    Select property types above to configure pricing and area details.
+                  </p>
+                ) : (
+                  <div className="space-y-5">
+                    {formData.propertyTypes.map(type => {
+                      const cfg = PROPERTY_TYPE_CONFIG[type] || { unit: 'Sq.ft', units: ['Sq.ft', 'Sq.yd', 'Sq.m'], showAreaTypes: false };
+                      const p = formData.propertyTypePricing[type] || {};
+                      return (
+                        <div key={type} className="border border-border/60 rounded-2xl p-5 bg-white dark:bg-slate-950 space-y-4">
+                          <h3 className="font-bold text-sm text-primary border-b border-border pb-2.5 uppercase tracking-wide">{type}</h3>
+
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                              <Label className="form-label">Min Price (₹) <span className="text-destructive">*</span></Label>
+                              <Input type="number" placeholder="e.g. 4500000"
+                                className={`form-input ${errors[`minPrice_${type}`] ? 'border-destructive' : ''}`}
+                                value={p.minPrice || ''}
+                                onChange={(e) => handleTypePrice(type, 'minPrice', e.target.value)}
+                              />
+                              {errors[`minPrice_${type}`] && <p className="text-xs text-destructive mt-1 font-medium">{errors[`minPrice_${type}`]}</p>}
+                            </div>
+                            <div>
+                              <Label className="form-label">Max Price (₹) <span className="text-destructive">*</span></Label>
+                              <Input type="number" placeholder="e.g. 8500000"
+                                className={`form-input ${errors[`maxPrice_${type}`] ? 'border-destructive' : ''}`}
+                                value={p.maxPrice || ''}
+                                onChange={(e) => handleTypePrice(type, 'maxPrice', e.target.value)}
+                              />
+                              {errors[`maxPrice_${type}`] && <p className="text-xs text-destructive mt-1 font-medium">{errors[`maxPrice_${type}`]}</p>}
+                            </div>
+                          </div>
+
+                          <div>
+                            <Label className="form-label">Area Unit</Label>
+                            <div className="flex mt-1.5 rounded-xl overflow-hidden border border-border">
+                              {cfg.units.map(unit => (
+                                <div key={unit} onClick={() => handleTypePrice(type, 'areaUnit', unit)}
+                                  className={`flex-1 flex items-center justify-center text-sm font-bold cursor-pointer py-2.5 transition-colors ${(p.areaUnit || cfg.unit) === unit ? 'bg-primary text-primary-foreground' : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'}`}
+                                >
+                                  {unit}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+
+                          {cfg.showAreaTypes && (
+                            <div>
+                              <Label className="form-label">Area Type</Label>
+                              <div className="flex flex-wrap gap-3 mt-1.5">
+                                {AREA_TYPES.map(atype => (
+                                  <div key={atype} className="flex items-center space-x-2 bg-slate-50 dark:bg-slate-900 px-4 py-2.5 rounded-lg border border-border/50">
+                                    <Checkbox id={`areaType-${type}-${atype}`}
+                                      checked={(p.areaTypes || []).includes(atype)}
+                                      onCheckedChange={(checked) => handleTypePriceAreaType(type, atype, checked)}
+                                    />
+                                    <Label htmlFor={`areaType-${type}-${atype}`} className="cursor-pointer text-sm font-medium">{atype}</Label>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div>
+                              <Label className="form-label">Min Area ({p.areaUnit || cfg.unit})</Label>
+                              <Input type="number" placeholder="e.g. 950" className="form-input"
+                                value={p.minArea || ''} onChange={(e) => handleTypePrice(type, 'minArea', e.target.value)} />
+                            </div>
+                            <div>
+                              <Label className="form-label">Max Area ({p.areaUnit || cfg.unit})</Label>
+                              <Input type="number" placeholder="e.g. 2400" className="form-input"
+                                value={p.maxArea || ''} onChange={(e) => handleTypePrice(type, 'maxArea', e.target.value)} />
+                            </div>
+                            <div>
+                              <Label className="form-label">Price per {p.areaUnit || cfg.unit} (Optional)</Label>
+                              <Input type="number" placeholder="e.g. 5000" className="form-input"
+                                value={p.pricePerUnit || ''} onChange={(e) => handleTypePrice(type, 'pricePerUnit', e.target.value)} />
+                            </div>
+                          </div>
                         </div>
-                      ))}
-                    </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                <div className="mt-6">
+                  <Label className="form-label">Payment Plans Available (Optional)</Label>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 mt-2">
+                    {PAYMENT_PLANS.map(plan => (
+                      <div key={plan} className="flex items-start space-x-2 bg-slate-50 dark:bg-slate-950 p-3 rounded-lg border border-border/50">
+                        <Checkbox id={`plan-${plan}`} checked={formData.paymentPlans.includes(plan)}
+                          onCheckedChange={(checked) => handleMultiSelect('paymentPlans', plan, checked)} className="mt-0.5" />
+                        <Label htmlFor={`plan-${plan}`} className="cursor-pointer text-sm font-medium leading-tight">{plan}</Label>
+                      </div>
+                    ))}
                   </div>
                 </div>
               </div>
@@ -674,65 +762,9 @@ const ProjectListingForm = () => {
                 </div>
               </div>
 
-              {/* SECTION 5 - AREA DETAILS */}
+              {/* SECTION 5 - AMENITIES */}
               <div className="form-section-container">
-                <h2 className="form-section-heading">5. Area Details (Optional)</h2>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <div>
-                    <Label className="form-label">Min Area</Label>
-                    <Input 
-                      type="number"
-                      placeholder="e.g. 950" 
-                      className="form-input"
-                      value={formData.minArea}
-                      onChange={(e) => handleInputChange('minArea', e.target.value)}
-                    />
-                  </div>
-                  <div>
-                    <Label className="form-label">Max Area</Label>
-                    <Input 
-                      type="number"
-                      placeholder="e.g. 2400" 
-                      className="form-input"
-                      value={formData.maxArea}
-                      onChange={(e) => handleInputChange('maxArea', e.target.value)}
-                    />
-                  </div>
-                  <div>
-                    <Label className="form-label">Unit</Label>
-                    <Select value={formData.areaUnit} onValueChange={(val) => handleInputChange('areaUnit', val)}>
-                      <SelectTrigger className="form-input">
-                        <SelectValue placeholder="Select Unit" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Sq.ft">Sq.ft</SelectItem>
-                        <SelectItem value="Sq.yd">Sq.yd</SelectItem>
-                        <SelectItem value="Sq.m">Sq.m</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="md:col-span-3">
-                    <Label className="form-label">Area Types Available</Label>
-                    <div className="flex flex-wrap gap-3 mt-2">
-                      {AREA_TYPES.map(type => (
-                        <div key={type} className="flex items-center space-x-2 bg-slate-50 dark:bg-slate-950 px-4 py-2.5 rounded-lg border border-border/50">
-                          <Checkbox 
-                            id={`areaType-${type}`} 
-                            checked={formData.areaTypes.includes(type)}
-                            onCheckedChange={(checked) => handleMultiSelect('areaTypes', type, checked)}
-                          />
-                          <Label htmlFor={`areaType-${type}`} className="cursor-pointer text-sm font-medium">{type}</Label>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* SECTION 6 - AMENITIES */}
-              <div className="form-section-container">
-                <h2 className="form-section-heading">6. Project Amenities</h2>
+                <h2 className="form-section-heading">5. Project Amenities</h2>
                 <div className="space-y-8">
                   {AMENITIES_CATEGORIES.map(category => (
                     <div key={category.name}>
@@ -757,9 +789,9 @@ const ProjectListingForm = () => {
                 </div>
               </div>
 
-              {/* SECTION 7 - MEDIA */}
+              {/* SECTION 6 - MEDIA */}
               <div className="form-section-container">
-                <h2 className="form-section-heading">7. Media & Attachments (Optional)</h2>
+                <h2 className="form-section-heading">6. Media & Attachments (Optional)</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                   
                   <div className="space-y-3">
@@ -865,9 +897,9 @@ const ProjectListingForm = () => {
                 </div>
               </div>
 
-              {/* SECTION 8 - BUILDER CONTACT DETAILS */}
+              {/* SECTION 7 - BUILDER CONTACT DETAILS */}
               <div className="form-section-container">
-                <h2 className="form-section-heading">8. Official Contact Details</h2>
+                <h2 className="form-section-heading">7. Official Contact Details</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
                     <Label className="form-label">Contact Person Name <span className="text-destructive">*</span></Label>
@@ -945,9 +977,9 @@ const ProjectListingForm = () => {
                 </div>
               </div>
 
-              {/* SECTION 9 - ADDITIONAL INFO */}
+              {/* SECTION 8 - ADDITIONAL INFO */}
               <div className="form-section-container">
-                <h2 className="form-section-heading">9. Additional Info (Optional)</h2>
+                <h2 className="form-section-heading">8. Additional Info (Optional)</h2>
                 
                 {antiBypassWarning && (
                   <div className="bg-destructive/10 border border-destructive text-destructive px-4 py-3 rounded-xl mb-6 text-sm font-bold flex items-center">
@@ -1030,9 +1062,7 @@ const ProjectListingForm = () => {
 
             </form>
           </div>
-        </main>
-        <Footer />
-      </div>
+        </div>
     </>
   );
 };

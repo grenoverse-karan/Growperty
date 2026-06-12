@@ -11,6 +11,7 @@ const visitRequestSchema = new mongoose.Schema(
     message:      { type: String, default: '' },
     status:       { type: String, default: 'pending', enum: ['pending', 'confirmed', 'visit_done', 'rescheduled', 'deal_closed', 'cancelled'] },
     notes:        { type: String, default: '' },
+    cpId:         { type: String, default: '' },
   },
   { timestamps: true }
 );

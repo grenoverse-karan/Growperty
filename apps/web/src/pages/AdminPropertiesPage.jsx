@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Helmet } from 'react-helmet';
+import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { MapPin, User, Phone, Calendar, Trash2, RefreshCw, Loader2, Search, ChevronDown, ChevronUp, Image as ImageIcon } from 'lucide-react';
+import { MapPin, User, Phone, Calendar, Trash2, RefreshCw, Loader2, Search, ChevronDown, ChevronUp, Image as ImageIcon, Pencil } from 'lucide-react';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from '@/components/ui/dialog';
@@ -47,15 +48,16 @@ const STATUS_META = {
 };
 
 const ACTIONS = {
-  pending:  ['approve', 'reject', 'delete'],
-  approved: ['unlist', 'sold', 'reject', 'delete'],
-  rejected: ['approve', 'unlist', 'delete'],
-  unlisted: ['approve', 'reject', 'delete'],
-  sold:     ['approve', 'unlist', 'delete'],
-  suspended:['approve', 'delete'],
+  pending:  ['approve', 'reject', 'edit', 'delete'],
+  approved: ['unlist', 'sold', 'reject', 'edit', 'delete'],
+  rejected: ['approve', 'unlist', 'edit', 'delete'],
+  unlisted: ['approve', 'reject', 'edit', 'delete'],
+  sold:     ['approve', 'unlist', 'edit', 'delete'],
+  suspended:['approve', 'edit', 'delete'],
 };
 
 const ACTION_META = {
+  edit:    { label: 'Edit',     bg: C.hover,  color: '#4a9fd5', border: C.border },
   approve: { label: 'Approve',  bg: C.green,  color: '#fff' },
   reject:  { label: 'Reject',   bg: C.red,    color: '#fff' },
   unlist:  { label: 'Unlist',   bg: C.muted,  color: '#fff' },
@@ -85,7 +87,7 @@ function groupByDate(items) {
 }
 
 // ── Property Card ─────────────────────────────────────────────────
-const PropertyCard = ({ property, onAction, actionLoading }) => {
+const PropertyCard = ({ property, onAction, onEdit, actionLoading }) => {
   const id = property._id || property.id;
   const status = property.status || 'pending';
   const meta = STATUS_META[status] || STATUS_META.pending;
@@ -207,19 +209,20 @@ const PropertyCard = ({ property, onAction, actionLoading }) => {
           return (
             <button
               key={action}
-              onClick={() => onAction(id, action)}
-              disabled={!!actionLoading}
+              onClick={() => action === 'edit' ? onEdit(id) : onAction(id, action)}
+              disabled={action !== 'edit' && !!actionLoading}
               style={{
                 padding: '6px 16px', borderRadius: 7,
                 background: am.bg, color: am.color,
                 border: `1px solid ${am.border || am.bg}`,
-                fontSize: 12, fontWeight: 600, cursor: actionLoading ? 'not-allowed' : 'pointer',
-                opacity: actionLoading && !isLoading ? 0.5 : 1,
+                fontSize: 12, fontWeight: 600, cursor: (action !== 'edit' && actionLoading) ? 'not-allowed' : 'pointer',
+                opacity: action !== 'edit' && actionLoading && !isLoading ? 0.5 : 1,
                 display: 'flex', alignItems: 'center', gap: 5,
               }}
             >
               {isLoading && <Loader2 size={12} style={{ animation: 'spin 1s linear infinite' }} />}
               {action === 'delete' && <Trash2 size={12} />}
+              {action === 'edit' && <Pencil size={12} />}
               {am.label}
             </button>
           );
@@ -232,6 +235,7 @@ const PropertyCard = ({ property, onAction, actionLoading }) => {
 // ── Main Page ─────────────────────────────────────────────────────
 const AdminPropertiesPage = () => {
   const { token } = useAdminAuth();
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('all');
   const [properties, setProperties] = useState([]);
   const [counts, setCounts] = useState({});
@@ -446,6 +450,7 @@ const AdminPropertiesPage = () => {
                   key={p._id || p.id}
                   property={p}
                   onAction={handleAction}
+                  onEdit={(id) => navigate(`/admin/edit-property/${id}`)}
                   actionLoading={actionLoading}
                 />
               ))}

@@ -18,7 +18,15 @@ import { sanitizePropertyFormData, logPropertyPayload, logPocketBaseError, extra
 const OWNER_TYPES = ['Individual', 'Builder/Developer', 'NRI', 'Partnership firm'];
 const PROPERTY_TYPES = ['Flat/Apartment', 'Independent House', 'Villa', 'Penthouse', 'Plot/Land', 'Commercial'];
 const BHK_OPTIONS = ['1 BHK', '2 BHK', '3 BHK', '4 BHK', '5+ BHK'];
-const AREA_UNITS = ['Sq.ft', 'Sq.yd', 'Sq.m'];
+const AREA_UNITS_MAP = {
+  'Flat/Apartment':    { units: ['Sq.ft', 'Sq.yd', 'Sq.m'], default: 'Sq.ft' },
+  'Penthouse':         { units: ['Sq.ft', 'Sq.yd', 'Sq.m'], default: 'Sq.ft' },
+  'Commercial':        { units: ['Sq.ft', 'Sq.yd', 'Sq.m'], default: 'Sq.ft' },
+  'Villa':             { units: ['Sq.yd', 'Sq.ft', 'Sq.m'], default: 'Sq.yd' },
+  'Independent House': { units: ['Sq.m', 'Sq.yd', 'Sq.ft'], default: 'Sq.m' },
+  'Plot/Land':         { units: ['Sq.m', 'Sq.yd', 'Sq.ft'], default: 'Sq.m' },
+};
+const DEFAULT_AREA_UNITS = { units: ['Sq.ft', 'Sq.yd', 'Sq.m'], default: 'Sq.ft' };
 const AREA_TYPES = ['Carpet Area', 'Built-up Area', 'Super Built-up Area'];
 const FURNISHING_TYPES = ['Unfurnished', 'Semi-Furnished', 'Fully Furnished'];
 const PROPERTY_AGE = ['0-1 Year', '1-5 Years', '5-10 Years', '10+ Years'];
@@ -168,8 +176,10 @@ const ListPropertyForm = () => {
     return null;
   }
 
-  const showFloors      = formData.propertyType !== 'Plot/Land';
-  const showFloorNumber = showFloors && formData.propertyType !== 'Independent House';
+  const isPlot          = formData.propertyType === 'Plot/Land';
+  const showFloors      = !isPlot;
+  const areaUnitConfig  = AREA_UNITS_MAP[formData.propertyType] || DEFAULT_AREA_UNITS;
+  const showFloorNumber = showFloors && !['Independent House', 'Villa'].includes(formData.propertyType);
   const showPlotType    = formData.propertyType === 'Plot/Land' && formData.propertySubType === 'Residential Plot';
   const showAmenities   = formData.propertyType !== 'Plot/Land' || formData.propertySubType === 'Residential Plot';
 
@@ -188,6 +198,7 @@ const ListPropertyForm = () => {
         newData.propertySubType = '';
         newData.plotType = '';
         if (value === 'Plot/Land') newData.amenities = [];
+        newData.areaUnit = (AREA_UNITS_MAP[value] || DEFAULT_AREA_UNITS).default;
       }
       return newData;
     });
@@ -538,33 +549,9 @@ const ListPropertyForm = () => {
 
         <div className="space-y-3">
           <Label className="text-base font-bold">Area Details *</Label>
-          <div className="flex flex-col md:flex-row gap-4">
-            <div className="w-full md:w-[70%]">
-              <Input name="totalArea" type="number" min="1" value={formData.totalArea || ''} onChange={handleChange} placeholder="Total Area" className="h-12 rounded-xl" />
-            </div>
-            <div className="w-full md:w-[30%] flex gap-2">
-              <div className="flex-1 flex rounded-xl overflow-hidden border border-border">
-                {AREA_UNITS.map(unit => (
-                  <div
-                    key={unit}
-                    onClick={() => handleChipSelect('areaUnit', unit)}
-                    className={`flex-1 flex items-center justify-center text-xs font-bold cursor-pointer transition-colors break-words whitespace-normal text-center p-2 ${formData.areaUnit === unit ? 'bg-primary text-primary-foreground' : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'}`}
-                  >
-                    {unit}
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-          <div className="w-full bg-sky-50 dark:bg-sky-950/30 rounded-xl p-1 mt-2 border border-sky-100 dark:border-sky-900">
-            <Select value={formData.areaType} onValueChange={(v) => handleChipSelect('areaType', v)}>
-              <SelectTrigger className="bg-transparent border-none shadow-none text-sky-900 dark:text-sky-100 font-bold focus:ring-0 h-10">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {AREA_TYPES.map(u => <SelectItem key={u} value={u}>{u}</SelectItem>)}
-              </SelectContent>
-            </Select>
+          <div className="relative">
+            <Input name="totalArea" type="number" min="1" value={formData.totalArea || ''} onChange={handleChange} placeholder="Total Area" className="h-12 rounded-xl pr-20" />
+            <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-bold text-muted-foreground">{formData.areaUnit}</span>
           </div>
         </div>
 
@@ -583,35 +570,79 @@ const ListPropertyForm = () => {
           </div>
         )}
 
-        <div className="space-y-3">
+        <div className="space-y-4">
           <Label className="text-base font-bold">Total Price *</Label>
-          <div className="flex flex-col md:flex-row gap-4 items-start md:items-center">
-            <div className="w-full md:w-1/2 space-y-2">
-              <div className="relative">
-                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-foreground font-bold">₹</span>
-                <Input
-                  name="totalPrice"
-                  type="text"
-                  value={formData.totalPrice ? formatIndianPrice(formData.totalPrice) : ''}
-                  onChange={(e) => {
-                    const val = e.target.value.replace(/\D/g, '');
-                    handleChange({ target: { name: 'totalPrice', value: val } });
-                  }}
-                  placeholder="0"
-                  className="h-12 rounded-xl text-lg font-bold pl-8"
-                />
-              </div>
-              {formData.totalPrice && (
-                <p className="text-sm font-medium text-muted-foreground pl-1 animate-in fade-in">
-                  {formatPriceToIndianWords(formData.totalPrice)}
-                </p>
-              )}
+
+          {/* Total Price input */}
+          <div className="space-y-2">
+            <div className="relative">
+              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-foreground font-bold">₹</span>
+              <Input
+                name="totalPrice"
+                type="text"
+                value={formData.totalPrice ? formatIndianPrice(formData.totalPrice) : ''}
+                onChange={(e) => {
+                  const val = e.target.value.replace(/\D/g, '');
+                  handleChange({ target: { name: 'totalPrice', value: val } });
+                }}
+                placeholder="0"
+                className="h-12 rounded-xl text-lg font-bold pl-8"
+              />
             </div>
-            <div className="w-full md:w-1/2 bg-muted/50 p-3 rounded-xl flex items-center justify-between border border-border">
-              <span className="text-sm text-muted-foreground font-medium">Price Per {formData.areaUnit}</span>
-              <span className="font-bold text-lg text-primary">₹ {formData.pricePerUnit.toLocaleString('en-IN')}</span>
+            {formData.totalPrice && (
+              <p className="text-sm font-medium text-muted-foreground pl-1 animate-in fade-in">
+                {formatPriceToIndianWords(formData.totalPrice)}
+              </p>
+            )}
+          </div>
+
+          {/* Area Unit chips — type-specific order */}
+          <div className="space-y-2">
+            <Label className="text-sm font-bold text-muted-foreground">Area Unit</Label>
+            <div className="flex rounded-xl overflow-hidden border border-border">
+              {areaUnitConfig.units.map(unit => (
+                <div
+                  key={unit}
+                  onClick={() => handleChipSelect('areaUnit', unit)}
+                  className={`flex-1 flex items-center justify-center text-sm font-bold cursor-pointer py-2.5 transition-colors ${formData.areaUnit === unit ? 'bg-primary text-primary-foreground' : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'}`}
+                >
+                  {unit}
+                </div>
+              ))}
             </div>
           </div>
+
+          {/* Area Type — only for Flat, Penthouse, Commercial */}
+          {['Flat/Apartment', 'Penthouse', 'Commercial'].includes(formData.propertyType) && (
+            <div className="space-y-2">
+              <Label className="text-sm font-bold text-muted-foreground">Area Type</Label>
+              <div className="flex flex-wrap gap-2">
+                {AREA_TYPES.map(type => (
+                  <button
+                    key={type}
+                    type="button"
+                    onClick={() => handleChipSelect('areaType', type)}
+                    className={`chip-base flex-1 ${formData.areaType === type ? 'chip-active' : 'chip-inactive'}`}
+                  >
+                    {type}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Price per unit — auto-calculated */}
+          {formData.pricePerUnit > 0 && (
+            <div className="bg-muted/50 p-3 rounded-xl flex items-center justify-between border border-border">
+              <span className="text-sm text-muted-foreground font-medium">
+                Price per {formData.areaUnit}
+                {['Flat/Apartment', 'Penthouse', 'Commercial'].includes(formData.propertyType) && formData.areaType
+                  ? ` (${formData.areaType})`
+                  : ''}
+              </span>
+              <span className="font-bold text-lg text-primary">₹ {formData.pricePerUnit.toLocaleString('en-IN')}</span>
+            </div>
+          )}
         </div>
 
         <div className="space-y-6 animate-in fade-in slide-in-from-top-2">
