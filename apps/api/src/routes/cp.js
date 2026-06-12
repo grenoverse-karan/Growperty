@@ -189,6 +189,77 @@ router.post('/login', async (req, res) => {
 });
 
 // =====================
+// GET /cp/store/:shareToken — Public: CP profile info
+// =====================
+router.get('/store/:shareToken', async (req, res) => {
+  try {
+    await connectMongoDB();
+    const cp = await ChannelPartner.findOne({ shareToken: req.params.shareToken, status: 'approved' })
+      .select('name phone companyName city experienceYrs languages workType')
+      .lean();
+    if (!cp) return res.status(404).json({ error: 'Channel partner not found' });
+    return res.status(200).json({ cp: { ...cp, id: cp._id.toString() } });
+  } catch (err) {
+    logger.error('[CP] store info error', { error: err.message });
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// =====================
+// GET /cp/store/:shareToken/listings — Public: CP's approved listings
+// =====================
+router.get('/store/:shareToken/listings', async (req, res) => {
+  try {
+    await connectMongoDB();
+    const cp = await ChannelPartner.findOne({ shareToken: req.params.shareToken, status: 'approved' }).select('_id').lean();
+    if (!cp) return res.status(404).json({ error: 'Channel partner not found' });
+
+    const page  = Math.max(1, parseInt(req.query.page)  || 1);
+    const limit = Math.max(1, Math.min(50, parseInt(req.query.limit) || 20));
+    const skip  = (page - 1) * limit;
+
+    // CP's own listings + all Growperty-approved listings they can promote
+    const filter = { status: 'approved', $or: [{ cpId: cp._id.toString() }, { listedBy: { $in: ['owner', 'admin'] } }] };
+
+    const [docs, total] = await Promise.all([
+      Property.find(filter, { images: { $slice: 1 } }).sort({ cpId: -1, createdAt: -1 }).skip(skip).limit(limit).lean(),
+      Property.countDocuments(filter),
+    ]);
+
+    return res.status(200).json({ items: docs.map(p => ({ ...p, id: p._id.toString() })), total, page, totalPages: Math.ceil(total / limit) });
+  } catch (err) {
+    logger.error('[CP] store listings error', { error: err.message });
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// =====================
+// POST /cp/store/:shareToken/enquiry — Public: buyer submits requirement to CP
+// =====================
+router.post('/store/:shareToken/enquiry', async (req, res) => {
+  try {
+    await connectMongoDB();
+    const cp = await ChannelPartner.findOne({ shareToken: req.params.shareToken, status: 'approved' }).select('_id').lean();
+    if (!cp) return res.status(404).json({ error: 'Channel partner not found' });
+
+    const { buyerName, buyerPhone, propertyType, preferredBhk, city, maxBudget, specialRequirements } = req.body || {};
+    if (!buyerName || !buyerPhone) return res.status(400).json({ error: 'Name and phone are required' });
+
+    const req_ = await BuyerRequirement.create({
+      buyerName, buyerPhone, propertyType, preferredBhk,
+      city, maxBudget: Number(maxBudget) || 0,
+      specialRequirements, cpId: cp._id.toString(),
+    });
+
+    logger.info('[CP] store enquiry submitted', { cpId: cp._id, reqId: req_._id });
+    return res.status(201).json({ success: true, message: "Your requirement has been submitted. The partner will contact you soon." });
+  } catch (err) {
+    logger.error('[CP] store enquiry error', { error: err.message });
+    return res.status(500).json({ error: 'Failed to submit enquiry' });
+  }
+});
+
+// =====================
 // GET /cp/by-token — Public: resolve share token → CP contact details
 // =====================
 router.get('/by-token', async (req, res) => {

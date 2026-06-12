@@ -25,6 +25,7 @@ const schema = new mongoose.Schema({
   whatsappAlerts:     { type: Boolean, default: true },
   status:             { type: String, default: 'active' },
   matched:            { type: Boolean, default: false },
+  cpId:               { type: String, default: '' },
 }, { timestamps: true });
 
 export default mongoose.models.BuyerRequirement || mongoose.model('BuyerRequirement', schema);

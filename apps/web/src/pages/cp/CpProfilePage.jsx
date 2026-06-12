@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Helmet } from 'react-helmet';
 import { useCpAuth } from '@/contexts/CpAuthContext.jsx';
 import apiServerClient from '@/lib/apiServerClient';
@@ -16,6 +16,25 @@ export default function CpProfilePage() {
   const { currentCp, token } = useCpAuth();
   const [editing, setEditing] = useState(false);
   const [saving, setSaving]   = useState(false);
+  const [shareToken, setShareToken] = useState('');
+  const [copied, setCopied] = useState('');
+
+  useEffect(() => {
+    if (!token) return;
+    apiServerClient.fetch('/cp/me', { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (data?.cp?.shareToken) setShareToken(data.cp.shareToken); })
+      .catch(() => {});
+  }, [token]);
+
+  const storeBase = shareToken ? `${window.location.origin}/cp/${shareToken}` : '';
+
+  const copyLink = (type) => {
+    navigator.clipboard.writeText(`${storeBase}/${type}`).then(() => {
+      setCopied(type);
+      setTimeout(() => setCopied(''), 2000);
+    });
+  };
   const [form, setForm]       = useState({
     name:        currentCp?.name        || '',
     phone:       currentCp?.phone       || '',
@@ -132,6 +151,57 @@ export default function CpProfilePage() {
           )}
         </div>
       </div>
+
+      {/* ── Store Links ── */}
+      {storeBase && (
+        <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, padding: '24px', maxWidth: 540, marginTop: 20 }}>
+          <h2 style={{ margin: '0 0 16px', fontSize: 15, fontWeight: 700, color: C.text }}>🔗 My Store Links</h2>
+          {[
+            { key: 'listings', label: 'Listings Page',         icon: '🏘' },
+            { key: 'buyers',   label: 'Buyer Enquiry Page',    icon: '👥' },
+          ].map(({ key, label, icon }) => (
+            <div key={key} style={{ marginBottom: 14 }}>
+              <div style={{ fontSize: 12, color: C.sub, fontWeight: 600, marginBottom: 5, textTransform: 'uppercase', letterSpacing: 0.4 }}>
+                {icon} {label}
+              </div>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <div style={{
+                  flex: 1, background: '#0d1117', border: `1px solid ${C.border}`, borderRadius: 7,
+                  padding: '8px 12px', fontSize: 11, color: C.sub, wordBreak: 'break-all',
+                }}>
+                  {storeBase}/{key}
+                </div>
+                <button
+                  onClick={() => copyLink(key)}
+                  style={{
+                    background: copied === key ? '#1d9e7522' : 'transparent',
+                    border: `1px solid ${copied === key ? C.green : C.border}`,
+                    color: copied === key ? C.green : C.sub,
+                    borderRadius: 7, padding: '7px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap',
+                  }}
+                >
+                  {copied === key ? '✓ Copied' : 'Copy'}
+                </button>
+                <a
+                  href={`${storeBase}/${key}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{
+                    background: 'transparent', border: `1px solid ${C.border}`,
+                    color: C.sub, borderRadius: 7, padding: '7px 14px', fontSize: 12,
+                    textDecoration: 'none', whiteSpace: 'nowrap',
+                  }}
+                >
+                  Open ↗
+                </a>
+              </div>
+            </div>
+          ))}
+          <p style={{ fontSize: 11, color: C.muted, marginTop: 10 }}>
+            Share these links with your clients. Your contact info will appear on all property cards.
+          </p>
+        </div>
+      )}
     </>
   );
 }
