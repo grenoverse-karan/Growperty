@@ -6,6 +6,7 @@ import ChannelPartner from '../models/ChannelPartner.js';
 import OtpVerification from '../models/OtpVerification.js';
 import Property from '../models/Property.js';
 import VisitRequest from '../models/VisitRequest.js';
+import BuyerRequirement from '../models/BuyerRequirement.js';
 import verifyCpToken from '../middleware/verifyCpToken.js';
 import { connectMongoDB } from '../utils/mongodb.js';
 import { sendTextMessage } from '../utils/whatsappTemplates.js';
@@ -386,6 +387,72 @@ router.get('/leads', verifyCpToken, async (req, res) => {
   } catch (err) {
     logger.error('[CP] /leads error', { error: err.message });
     return res.status(500).json({ error: 'Failed to fetch leads' });
+  }
+});
+
+// =====================
+// GET /cp/my-buyers — Visit requests attributed to this CP via share links (protected)
+// =====================
+router.get('/my-buyers', verifyCpToken, async (req, res) => {
+  try {
+    await connectMongoDB();
+    const page  = Math.max(1, parseInt(req.query.page)  || 1);
+    const limit = Math.max(1, Math.min(100, parseInt(req.query.limit) || 30));
+    const skip  = (page - 1) * limit;
+
+    // All visit requests where this CP's share link was used
+    const filter = { cpId: req.cp.sub };
+
+    const [docs, total] = await Promise.all([
+      VisitRequest.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
+      VisitRequest.countDocuments(filter),
+    ]);
+
+    const buyers = docs.map(r => ({
+      id:          r._id.toString(),
+      propertyId:  r.propertyId,
+      name:        r.visitorName,
+      city:        r.visitorCity,
+      visitDate:   r.visitDate,
+      visitTime:   r.visitTime,
+      message:     r.message,
+      status:      r.status,
+      createdAt:   r.createdAt,
+    }));
+
+    return res.status(200).json({ buyers, total, page, totalPages: Math.ceil(total / limit) });
+  } catch (err) {
+    logger.error('[CP] /my-buyers error', { error: err.message });
+    return res.status(500).json({ error: 'Failed to fetch buyers' });
+  }
+});
+
+// =====================
+// GET /cp/growperty-buyers — All buyer requirements on the platform (protected)
+// =====================
+router.get('/growperty-buyers', verifyCpToken, async (req, res) => {
+  try {
+    await connectMongoDB();
+    const page  = Math.max(1, parseInt(req.query.page)  || 1);
+    const limit = Math.max(1, Math.min(50, parseInt(req.query.limit) || 20));
+    const skip  = (page - 1) * limit;
+
+    const filter = { status: 'active' };
+    if (req.query.city) filter.city = new RegExp(req.query.city, 'i');
+    if (req.query.type) filter.propertyType = req.query.type;
+
+    const [docs, total] = await Promise.all([
+      BuyerRequirement.find(filter)
+        .select('-buyerPhone -buyerEmail -buyerAddress') // privacy
+        .sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
+      BuyerRequirement.countDocuments(filter),
+    ]);
+
+    const buyers = docs.map(r => ({ ...r, id: r._id.toString() }));
+    return res.status(200).json({ buyers, total, page, totalPages: Math.ceil(total / limit) });
+  } catch (err) {
+    logger.error('[CP] /growperty-buyers error', { error: err.message });
+    return res.status(500).json({ error: 'Failed to fetch buyers' });
   }
 });
 

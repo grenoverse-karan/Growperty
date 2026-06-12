@@ -16,7 +16,7 @@ const C = {
 const NAV = [
   { label: 'My Listings',     icon: '🏘',  to: '/cp/dashboard/listings'  },
   { label: 'Add Property',    icon: '➕',  to: '/cp/dashboard/add'       },
-  { label: 'Leads',           icon: '📩',  to: '/cp/dashboard/leads'     },
+  { label: 'Buyers',          icon: '👥',  to: '/cp/dashboard/leads'     },
   { label: 'Visit Requests',  icon: '📅',  to: '/cp/dashboard/visits'    },
   { label: 'Activities',      icon: '📋',  to: '/cp/dashboard/activities'},
   { label: 'Profile',         icon: '👤',  to: '/cp/dashboard/profile'   },
