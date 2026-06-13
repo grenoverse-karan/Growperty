@@ -115,6 +115,8 @@ export const sanitizePropertyFormData = (formData, propertyType) => {
   const errors = [];
   const sanitized = {};
 
+  const isAdminListing = formData.ownerType === 'Admin';
+
   // Required fields validation
   const requiredFields = [
     { name: 'owner_id', type: 'text' },
@@ -126,9 +128,11 @@ export const sanitizePropertyFormData = (formData, propertyType) => {
     { name: 'totalArea', type: 'number', min: 1 },
     { name: 'areaUnit', type: 'select', values: AREA_UNITS },
     { name: 'areaType', type: 'select', values: AREA_TYPES },
-    { name: 'mobileNumber', type: 'text', maxLength: 20 },
+    ...(!isAdminListing ? [
+      { name: 'mobileNumber', type: 'text', maxLength: 20 },
+      { name: 'name', type: 'text' },
+    ] : []),
     { name: 'ownerType', type: 'text' },
-    { name: 'name', type: 'text' }
   ];
 
   // BHK is required for certain property types
