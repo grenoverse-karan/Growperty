@@ -397,14 +397,14 @@ const PropertyListingForm = ({ isAdmin = false, initialData = null, cpMode = fal
   const [progressFixed, setProgressFixed] = useState(false);
 
   useEffect(() => {
-    const el = progressRef.current;
-    if (!el) return;
-    const observer = new IntersectionObserver(
-      ([entry]) => setProgressFixed(!entry.isIntersecting),
-      { threshold: 0 }
-    );
-    observer.observe(el);
-    return () => observer.disconnect();
+    const check = () => {
+      if (!progressRef.current) return;
+      const rect = progressRef.current.getBoundingClientRect();
+      // Show fixed clone only once the inline bar has scrolled completely above viewport
+      setProgressFixed(rect.bottom < 0);
+    };
+    window.addEventListener('scroll', check, { passive: true });
+    return () => window.removeEventListener('scroll', check);
   }, []);
 
   // --- Submit ---
