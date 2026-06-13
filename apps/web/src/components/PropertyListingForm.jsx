@@ -908,13 +908,16 @@ const PropertyListingForm = ({ isAdmin = false, initialData = null, cpMode = fal
             <div className="bg-white dark:bg-slate-950 rounded-2xl p-6 md:p-8 shadow-sm border border-slate-200 dark:border-slate-800 space-y-6 animate-in fade-in">
               <Label className="text-lg font-bold text-slate-900 dark:text-white block border-b border-slate-100 dark:border-slate-800 pb-3">9. Amenities & Features</Label>
               
-              {Object.entries(AMENITIES_CATEGORIES).filter(([category]) =>
-                !(isPlot && category === 'INFRASTRUCTURE & UTILITIES')
-              ).map(([category, items]) => (
+              {Object.entries(AMENITIES_CATEGORIES).map(([category, items]) => {
+                const visibleItems = isPlot
+                  ? items.filter(item => item !== 'Lifts')
+                  : items;
+                if (!visibleItems.length) return null;
+                return (
                 <div key={category} className="space-y-3">
                   <Label className="text-xs font-extrabold text-slate-400 uppercase tracking-wider">{category}</Label>
                   <div className="flex flex-wrap gap-2">
-                    {items.map(item => {
+                    {visibleItems.map(item => {
                       const isSelected = formData.amenities.includes(item);
                       return (
                         <button
@@ -933,7 +936,8 @@ const PropertyListingForm = ({ isAdmin = false, initialData = null, cpMode = fal
                     })}
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
           )}
 

@@ -779,11 +779,14 @@ const ListPropertyForm = () => {
         {showAmenities && (
           <div className="space-y-6 animate-in fade-in slide-in-from-top-2">
             <Label className="text-xl font-extrabold border-b pb-2 block">Amenities & Features</Label>
-            {Object.entries(AMENITIES_CATEGORIES).map(([category, items]) => (
+            {Object.entries(AMENITIES_CATEGORIES).map(([category, items]) => {
+              const visibleItems = isPlot ? items.filter(item => item !== 'Lifts') : items;
+              if (!visibleItems.length) return null;
+              return (
               <div key={category} className="space-y-3">
                 <Label className="text-sm font-bold text-muted-foreground uppercase tracking-wider">{category}</Label>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                  {items.map(item => {
+                  {visibleItems.map(item => {
                     const isSelected = formData.amenities.includes(item);
                     return (
                       <div key={item} onClick={() => toggleArrayItem('amenities', item)} className={`chip-base !min-h-[56px] ${isSelected ? 'chip-active' : 'chip-inactive'}`}>
@@ -793,7 +796,8 @@ const ListPropertyForm = () => {
                   })}
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
         )}
 
