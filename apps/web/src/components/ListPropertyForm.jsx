@@ -19,6 +19,8 @@ const OWNER_TYPES = ['Individual', 'Builder/Developer', 'NRI', 'Partnership firm
 const PROPERTY_TYPES = ['Flat/Apartment', 'Independent House', 'Villa', 'Penthouse', 'Plot/Land', 'Commercial'];
 const OPEN_SIDE_OPTIONS = ['Single Side Open', 'Corner (Two Side Open)', 'Three Side Open', 'Four Side Open'];
 const OPEN_SIDE_TYPES = ['Plot/Land', 'Independent House', 'Villa'];
+const DIRECTION_FACING_OPTIONS = ['North', 'South', 'East', 'West', 'North-East', 'North-West', 'South-East', 'South-West'];
+const FACING_TYPE_OPTIONS = ['Main Road Facing', 'Park Facing', 'Green Belt Facing', 'Corner (Two Side Open)', 'Three Side Open', 'Four Side Open', 'Lake / Water Facing', 'Temple Facing', 'Garden Facing', 'Forest / Nature Facing'];
 const BHK_OPTIONS = ['1 BHK', '2 BHK', '3 BHK', '4 BHK', '5+ BHK'];
 const AREA_UNITS_MAP = {
   'Flat/Apartment':    { units: ['Sq.ft', 'Sq.yd', 'Sq.m'], default: 'Sq.ft' },
@@ -118,6 +120,8 @@ const ListPropertyForm = () => {
     bankLoanAvailable: '',
     plotType:          '',
     openSide:          '',
+    directionFacing:   '',
+    facingType:        [],
     furnishingType:    '',
     furnishingItems:   {},
     carParking:        0,
@@ -407,6 +411,8 @@ const ListPropertyForm = () => {
         floorNo: formData.floorNumber,
         plotType: formData.plotType,
         openSide: formData.openSide || undefined,
+        directionFacing: formData.directionFacing || undefined,
+        facingType: formData.facingType?.length ? formData.facingType : undefined,
         bankLoanAvailable: formData.bankLoanAvailable,
         status: 'pending',
         carParking: formData.carParking,
@@ -903,6 +909,31 @@ const ListPropertyForm = () => {
             </div>
           </div>
         )}
+
+        <div className="space-y-3 animate-in fade-in slide-in-from-top-2">
+          <Label className="text-base font-bold">Direction Facing</Label>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {DIRECTION_FACING_OPTIONS.map(opt => (
+              <div key={opt} onClick={() => handleChipSelect('directionFacing', formData.directionFacing === opt ? '' : opt)} className={`chip-base ${formData.directionFacing === opt ? 'chip-active' : 'chip-inactive'}`}>
+                <span>{opt}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="space-y-3 animate-in fade-in slide-in-from-top-2">
+          <Label className="text-base font-bold">Facing Type</Label>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+            {FACING_TYPE_OPTIONS.map(opt => (
+              <div key={opt} onClick={() => {
+                const arr = formData.facingType || [];
+                handleChipSelect('facingType', arr.includes(opt) ? arr.filter(v => v !== opt) : [...arr, opt]);
+              }} className={`chip-base ${(formData.facingType || []).includes(opt) ? 'chip-active' : 'chip-inactive'}`}>
+                <span>{opt}</span>
+              </div>
+            ))}
+          </div>
+        </div>
 
         <div className="space-y-3 animate-in fade-in slide-in-from-top-2">
           <Label className="text-base font-bold">Owner Type *</Label>

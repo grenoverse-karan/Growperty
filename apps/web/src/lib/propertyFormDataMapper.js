@@ -187,6 +187,8 @@ export const sanitizePropertyFormData = (formData, propertyType) => {
     { name: 'totalFloors', type: 'number', condition: () => FLOOR_APPLICABLE_TYPES.includes(propertyType) },
     { name: 'plotType', type: 'select', values: PLOT_TYPES, condition: () => propertyType === 'Plot/Land' },
     { name: 'openSide', type: 'text' },
+    { name: 'directionFacing', type: 'text' },
+    { name: 'facingType', type: 'json' },
     { name: 'status', type: 'select', values: ['pending', 'approved', 'rejected', 'suspended'] },
     { name: 'listedBy', type: 'text' },
     { name: 'liveAt', type: 'text' },

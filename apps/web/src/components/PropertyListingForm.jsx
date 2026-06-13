@@ -18,6 +18,8 @@ import { sanitizePropertyFormData, logPropertyPayload } from '@/lib/propertyForm
 const PROPERTY_TYPES = ['Flat/Apartment', 'Independent House', 'Villa', 'Penthouse', 'Plot/Land', 'Commercial'];
 const OPEN_SIDE_OPTIONS = ['Single Side Open', 'Corner (Two Side Open)', 'Three Side Open', 'Four Side Open'];
 const OPEN_SIDE_TYPES = ['Plot/Land', 'Independent House', 'Villa'];
+const DIRECTION_FACING_OPTIONS = ['North', 'South', 'East', 'West', 'North-East', 'North-West', 'South-East', 'South-West'];
+const FACING_TYPE_OPTIONS = ['Main Road Facing', 'Park Facing', 'Green Belt Facing', 'Corner (Two Side Open)', 'Three Side Open', 'Four Side Open', 'Lake / Water Facing', 'Temple Facing', 'Garden Facing', 'Forest / Nature Facing'];
 const SUB_TYPES = {
   'Commercial': ['Shop', 'Office Space', 'Store/Showroom', 'Warehouse'],
   'Plot/Land': ['Residential Plot', 'Commercial Plot', 'Industrial Plot', 'Agricultural Land']
@@ -86,6 +88,8 @@ const PropertyListingForm = ({ isAdmin = false, initialData = null, cpMode = fal
     furnishingItems: {},
     plotType: '',
     openSide: '',
+    directionFacing: '',
+    facingType: [],
     carParking: { covered: 0, open: 0 },
     bikeParking: { covered: 0, open: 0 },
     amenities: [],
@@ -159,6 +163,8 @@ const PropertyListingForm = ({ isAdmin = false, initialData = null, cpMode = fal
         furnishingItems:  d.furnishingItems  || {},
         plotType:         d.plotType         || '',
         openSide:         d.openSide         || '',
+        directionFacing:  d.directionFacing  || '',
+        facingType:       d.facingType       || [],
         carParking:       typeof d.carParking === 'object' ? d.carParking : { covered: totalParking, open: 0 },
         bikeParking:      typeof d.bikeParking === 'object' ? d.bikeParking : { covered: totalBike, open: 0 },
         amenities:        d.amenities        || [],
@@ -451,6 +457,8 @@ const PropertyListingForm = ({ isAdmin = false, initialData = null, cpMode = fal
         furnishingItems: formData.furnishingItems,
         plotType: mappedPlotType,
         openSide: formData.openSide || undefined,
+        directionFacing: formData.directionFacing || undefined,
+        facingType: formData.facingType?.length ? formData.facingType : undefined,
         carParking: (formData.carParking.covered + formData.carParking.open),
         bikeParking: (formData.bikeParking.covered + formData.bikeParking.open),
         amenities: formData.amenities,
@@ -868,6 +876,30 @@ const PropertyListingForm = ({ isAdmin = false, initialData = null, cpMode = fal
                   </div>
                 </div>
               )}
+
+              <div className="space-y-2 pt-2">
+                <Label className="text-sm font-bold text-slate-500">Direction Facing</Label>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  {DIRECTION_FACING_OPTIONS.map(opt => (
+                    <Chip key={opt} label={opt} selected={formData.directionFacing === opt} onClick={() => handleSelect('directionFacing', formData.directionFacing === opt ? '' : opt)} />
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-2 pt-2">
+                <Label className="text-sm font-bold text-slate-500">Facing Type</Label>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  {FACING_TYPE_OPTIONS.map(opt => (
+                    <Chip key={opt} label={opt}
+                      selected={(formData.facingType || []).includes(opt)}
+                      onClick={() => {
+                        const arr = formData.facingType || [];
+                        handleSelect('facingType', arr.includes(opt) ? arr.filter(v => v !== opt) : [...arr, opt]);
+                      }}
+                    />
+                  ))}
+                </div>
+              </div>
 
               {showFloors && (
                 <div id="field-furnishingType" className="space-y-2 pt-2">

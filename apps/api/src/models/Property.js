@@ -42,6 +42,8 @@ const propertySchema = new mongoose.Schema(
     specialFeatures: { type: mongoose.Schema.Types.Mixed },
     plotType:        { type: String },
     openSide:        { type: String },
+    directionFacing: { type: String },
+    facingType:      { type: [String] },
     floorNumber:     { type: Number },
     totalFloors:     { type: Number },
     saleType:        { type: String },
