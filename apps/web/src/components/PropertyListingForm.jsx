@@ -393,6 +393,20 @@ const PropertyListingForm = ({ isAdmin = false, initialData = null, cpMode = fal
   const totalSections = progressSections.length;
   const progressPct = Math.round((completedSections / totalSections) * 100);
 
+  const progressRef = useRef(null);
+  const [progressFixed, setProgressFixed] = useState(false);
+
+  useEffect(() => {
+    const el = progressRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => setProgressFixed(!entry.isIntersecting),
+      { threshold: 0 }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
   // --- Submit ---
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -642,8 +656,8 @@ const PropertyListingForm = ({ isAdmin = false, initialData = null, cpMode = fal
           }
         `}</style>
 
-        {/* ── Progress Bar ── */}
-        <div className="sticky top-20 md:top-24 z-40 bg-white/95 dark:bg-slate-950/95 backdrop-blur supports-[backdrop-filter]:bg-white/80 dark:supports-[backdrop-filter]:bg-slate-950/80 border-b border-slate-200 dark:border-slate-800 -mx-4 sm:-mx-6 px-4 sm:px-6 py-4 mb-4 shadow-sm">
+        {/* ── Progress Bar (inline, observed) ── */}
+        <div ref={progressRef} className="bg-white dark:bg-slate-950 rounded-2xl px-6 py-4 shadow-sm border border-slate-200 dark:border-slate-800 mb-4">
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm font-semibold text-slate-600 dark:text-slate-400">
               Form Progress — Step <span className="text-[#10B981] font-bold">{completedSections}</span> of {totalSections}
@@ -651,10 +665,7 @@ const PropertyListingForm = ({ isAdmin = false, initialData = null, cpMode = fal
             <span className="text-sm font-bold text-[#10B981]">{progressPct}%</span>
           </div>
           <div className="h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
-            <div
-              className="h-full bg-[#10B981] rounded-full transition-all duration-500 ease-out"
-              style={{ width: `${progressPct}%` }}
-            />
+            <div className="h-full bg-[#10B981] rounded-full transition-all duration-500 ease-out" style={{ width: `${progressPct}%` }} />
           </div>
           <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2">
             {progressSections.map(s => (
@@ -664,6 +675,32 @@ const PropertyListingForm = ({ isAdmin = false, initialData = null, cpMode = fal
             ))}
           </div>
         </div>
+
+        {/* ── Progress Bar (fixed clone, shown when inline bar scrolls off) ── */}
+        {progressFixed && (
+          <div
+            className={`fixed left-0 right-0 z-40 bg-white/95 dark:bg-slate-950/95 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 shadow-md px-4 sm:px-8 py-3 ${isAdmin ? 'top-0' : 'top-20 md:top-24'}`}
+          >
+            <div className="max-w-4xl mx-auto">
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-sm font-semibold text-slate-600 dark:text-slate-400">
+                  Form Progress — Step <span className="text-[#10B981] font-bold">{completedSections}</span> of {totalSections}
+                </span>
+                <span className="text-sm font-bold text-[#10B981]">{progressPct}%</span>
+              </div>
+              <div className="h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                <div className="h-full bg-[#10B981] rounded-full transition-all duration-500 ease-out" style={{ width: `${progressPct}%` }} />
+              </div>
+              <div className="flex flex-wrap gap-x-4 gap-y-0.5 mt-1.5">
+                {progressSections.map(s => (
+                  <span key={s.label} className={`text-xs font-medium ${s.done ? 'text-[#10B981]' : 'text-slate-400 dark:text-slate-600'}`}>
+                    {s.done ? '✓' : '○'} {s.label}
+                  </span>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-6">
 
