@@ -250,7 +250,7 @@ const AdminPropertiesPage = () => {
   const fetchAll = useCallback(async () => {
     setIsLoading(true);
     try {
-      const res = await apiServerClient.fetch('/properties?limit=200', { headers: authHeaders });
+      const res = await apiServerClient.fetch('/properties?limit=200&withImages=true', { headers: authHeaders });
       if (!res.ok) throw new Error();
       const data = await res.json();
       const all = data.items || [];

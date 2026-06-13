@@ -99,7 +99,7 @@ export default function AdminInventoryOverviewPage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await apiServerClient.fetch('/properties?limit=1000', {
+      const res = await apiServerClient.fetch('/properties?limit=1000&withImages=true', {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();

@@ -135,9 +135,8 @@ router.get('/', async (req, res) => {
     if (req.query.status) filter.status = req.query.status;
     if (req.query.city)   filter.city   = req.query.city;
 
-    // Admin pages that pass limit=1000 need full images; others get the slim projection
-    const isAdminFetch = limit > 50;
-    const projection = isAdminFetch ? {} : LIST_PROJECTION;
+    // Only return base64 images when explicitly requested (?withImages=true)
+    const projection = req.query.withImages === 'true' ? {} : LIST_PROJECTION;
 
     const docs = await Property.find(filter, projection)
       .sort({ createdAt: -1 })
