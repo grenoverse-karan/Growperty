@@ -366,7 +366,7 @@ const PropertyListingForm = ({ isAdmin = false, initialData = null, cpMode = fal
   const showFloorNumber = showFloors && !['Independent House', 'Villa'].includes(formData.propertyType);
   const showFurnishingDetails = ['Semi-Furnished', 'Fully Furnished'].includes(formData.furnishingType);
   const showPlotType = formData.propertyType === 'Plot/Land' && formData.propertySubType === 'Residential Plot';
-  const showAmenities = showBhk;
+  const showAmenities = showBhk || (isPlot && formData.propertySubType === 'Residential Plot');
 
   // --- Submit ---
   const handleSubmit = async (e) => {
