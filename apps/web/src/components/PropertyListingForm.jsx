@@ -1,5 +1,5 @@
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 import { toast as sonnerToast } from 'sonner';
@@ -16,6 +16,8 @@ import { sanitizePropertyFormData, logPropertyPayload } from '@/lib/propertyForm
 
 // --- Constants (Strictly matching PocketBase Schema) ---
 const PROPERTY_TYPES = ['Flat/Apartment', 'Independent House', 'Villa', 'Penthouse', 'Plot/Land', 'Commercial'];
+const OPEN_SIDE_OPTIONS = ['Single Side Open', 'Corner (Two Side Open)', 'Three Side Open', 'Four Side Open'];
+const OPEN_SIDE_TYPES = ['Plot/Land', 'Independent House', 'Villa'];
 const SUB_TYPES = {
   'Commercial': ['Shop', 'Office Space', 'Store/Showroom', 'Warehouse'],
   'Plot/Land': ['Residential Plot', 'Commercial Plot', 'Industrial Plot', 'Agricultural Land']
@@ -83,12 +85,13 @@ const PropertyListingForm = ({ isAdmin = false, initialData = null, cpMode = fal
     furnishingType: '',
     furnishingItems: {},
     plotType: '',
+    openSide: '',
     carParking: { covered: 0, open: 0 },
     bikeParking: { covered: 0, open: 0 },
     amenities: [],
     nearbyAmenities: [],
     description: '',
-    visitTimeType: '',
+    visitTimeType: 'anytime',
     visitFixedSlots: [],
     visitFlexibleSlots: [],
     name: '',
@@ -155,12 +158,13 @@ const PropertyListingForm = ({ isAdmin = false, initialData = null, cpMode = fal
         furnishingType:   d.furnishingType   || '',
         furnishingItems:  d.furnishingItems  || {},
         plotType:         d.plotType         || '',
+        openSide:         d.openSide         || '',
         carParking:       typeof d.carParking === 'object' ? d.carParking : { covered: totalParking, open: 0 },
         bikeParking:      typeof d.bikeParking === 'object' ? d.bikeParking : { covered: totalBike, open: 0 },
         amenities:        d.amenities        || [],
         nearbyAmenities:  d.nearbyAmenities  || [],
         description:      d.description      || '',
-        visitTimeType:    d.visitTimeType     || '',
+        visitTimeType:    d.visitTimeType     || 'anytime',
         visitFixedSlots:  d.visitFixedSlots   || [],
         visitFlexibleSlots: d.visitFlexibleSlots || [],
         name:             d.name             || '',
@@ -362,11 +366,26 @@ const PropertyListingForm = ({ isAdmin = false, initialData = null, cpMode = fal
   const showBathBalcony = showBhk;
   const isPlot = formData.propertyType === 'Plot/Land';
   const showFloors = !isPlot;
+  const showOpenSide = OPEN_SIDE_TYPES.includes(formData.propertyType);
   const areaUnitConfig = AREA_UNITS_MAP[formData.propertyType] || DEFAULT_AREA_UNITS;
   const showFloorNumber = showFloors && !['Independent House', 'Villa'].includes(formData.propertyType);
   const showFurnishingDetails = ['Semi-Furnished', 'Fully Furnished'].includes(formData.furnishingType);
   const showPlotType = formData.propertyType === 'Plot/Land' && formData.propertySubType === 'Residential Plot';
   const showAmenities = showBhk || (isPlot && formData.propertySubType === 'Residential Plot');
+
+  const progressSections = useMemo(() => [
+    { label: 'Property Type',  done: !!formData.propertyType },
+    { label: 'Details',        done: !showBhk || !!formData.bhk },
+    { label: 'Area & Price',   done: !!formData.totalArea && !!formData.totalPrice },
+    { label: 'Location',       done: !!formData.city && !!formData.sector && !!formData.houseNo },
+    { label: 'Status & Type',  done: !!formData.possessionStatus && !!formData.ownershipType },
+    { label: 'Visit Time',     done: !!formData.visitTimeType },
+    ...(!isAdmin ? [{ label: 'Contact', done: !!formData.name?.trim() && !!formData.mobileNumber?.trim() }] : []),
+  ], [formData, showBhk, isAdmin]);
+
+  const completedSections = progressSections.filter(s => s.done).length;
+  const totalSections = progressSections.length;
+  const progressPct = Math.round((completedSections / totalSections) * 100);
 
   // --- Submit ---
   const handleSubmit = async (e) => {
@@ -431,6 +450,7 @@ const PropertyListingForm = ({ isAdmin = false, initialData = null, cpMode = fal
         furnishingType: formData.furnishingType,
         furnishingItems: formData.furnishingItems,
         plotType: mappedPlotType,
+        openSide: formData.openSide || undefined,
         carParking: (formData.carParking.covered + formData.carParking.open),
         bikeParking: (formData.bikeParking.covered + formData.bikeParking.open),
         amenities: formData.amenities,
@@ -614,8 +634,31 @@ const PropertyListingForm = ({ isAdmin = false, initialData = null, cpMode = fal
           }
         `}</style>
 
+        {/* ── Progress Bar ── */}
+        <div className="sticky top-20 md:top-24 z-40 bg-white/95 dark:bg-slate-950/95 backdrop-blur supports-[backdrop-filter]:bg-white/80 dark:supports-[backdrop-filter]:bg-slate-950/80 border-b border-slate-200 dark:border-slate-800 -mx-4 sm:-mx-6 px-4 sm:px-6 py-4 mb-4 shadow-sm">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-sm font-semibold text-slate-600 dark:text-slate-400">
+              Form Progress — Step <span className="text-[#10B981] font-bold">{completedSections}</span> of {totalSections}
+            </span>
+            <span className="text-sm font-bold text-[#10B981]">{progressPct}%</span>
+          </div>
+          <div className="h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+            <div
+              className="h-full bg-[#10B981] rounded-full transition-all duration-500 ease-out"
+              style={{ width: `${progressPct}%` }}
+            />
+          </div>
+          <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2">
+            {progressSections.map(s => (
+              <span key={s.label} className={`text-xs font-medium ${s.done ? 'text-[#10B981]' : 'text-slate-400 dark:text-slate-600'}`}>
+                {s.done ? '✓' : '○'} {s.label}
+              </span>
+            ))}
+          </div>
+        </div>
+
         <form onSubmit={handleSubmit} className="space-y-6">
-          
+
           {/* (2) PROPERTY TYPE */}
           <div id="field-propertyType" className={`bg-white dark:bg-slate-950 rounded-2xl p-6 md:p-8 shadow-sm border dark:border-slate-800 space-y-5 ${fieldErrors.propertyType ? 'border-red-400' : 'border-slate-200'}`}>
             <Label className="text-lg font-bold text-slate-900 dark:text-white block border-b border-slate-100 dark:border-slate-800 pb-3">1. Property Type *</Label>
@@ -814,6 +857,17 @@ const PropertyListingForm = ({ isAdmin = false, initialData = null, cpMode = fal
                 </div>
                 {fieldErrors.ownershipType && <p className="text-red-500 text-xs font-bold mt-1">⚠ {fieldErrors.ownershipType}</p>}
               </div>
+
+              {showOpenSide && (
+                <div className="space-y-2 pt-2">
+                  <Label className="text-sm font-bold text-slate-500">Plot / Property Facing</Label>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    {OPEN_SIDE_OPTIONS.map(opt => (
+                      <Chip key={opt} label={opt} selected={formData.openSide === opt} onClick={() => handleSelect('openSide', formData.openSide === opt ? '' : opt)} />
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {showFloors && (
                 <div id="field-furnishingType" className="space-y-2 pt-2">

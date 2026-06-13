@@ -1,5 +1,5 @@
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Input } from '@/components/ui/input';
@@ -17,6 +17,8 @@ import { sanitizePropertyFormData, logPropertyPayload, logPocketBaseError, extra
 // --- Constants (Strictly matching PocketBase Schema) ---
 const OWNER_TYPES = ['Individual', 'Builder/Developer', 'NRI', 'Partnership firm'];
 const PROPERTY_TYPES = ['Flat/Apartment', 'Independent House', 'Villa', 'Penthouse', 'Plot/Land', 'Commercial'];
+const OPEN_SIDE_OPTIONS = ['Single Side Open', 'Corner (Two Side Open)', 'Three Side Open', 'Four Side Open'];
+const OPEN_SIDE_TYPES = ['Plot/Land', 'Independent House', 'Villa'];
 const BHK_OPTIONS = ['1 BHK', '2 BHK', '3 BHK', '4 BHK', '5+ BHK'];
 const AREA_UNITS_MAP = {
   'Flat/Apartment':    { units: ['Sq.ft', 'Sq.yd', 'Sq.m'], default: 'Sq.ft' },
@@ -115,6 +117,7 @@ const ListPropertyForm = () => {
     ownershipType:     '',
     bankLoanAvailable: '',
     plotType:          '',
+    openSide:          '',
     furnishingType:    '',
     furnishingItems:   {},
     carParking:        0,
@@ -122,7 +125,7 @@ const ListPropertyForm = () => {
     amenities:         [],
     nearbyAmenities:   [],
     description:       '',
-    visitTimeType:     '',
+    visitTimeType:     'anytime',
     visitFixedSlots:   [],
     visitFlexibleSlots: [],
     email:             '',
@@ -178,10 +181,26 @@ const ListPropertyForm = () => {
 
   const isPlot          = formData.propertyType === 'Plot/Land';
   const showFloors      = !isPlot;
+  const showOpenSide    = OPEN_SIDE_TYPES.includes(formData.propertyType);
   const areaUnitConfig  = AREA_UNITS_MAP[formData.propertyType] || DEFAULT_AREA_UNITS;
   const showFloorNumber = showFloors && !['Independent House', 'Villa'].includes(formData.propertyType);
   const showPlotType    = formData.propertyType === 'Plot/Land' && formData.propertySubType === 'Residential Plot';
   const showAmenities   = formData.propertyType !== 'Plot/Land' || formData.propertySubType === 'Residential Plot';
+  const showBhk         = ['Flat/Apartment', 'Independent House', 'Villa', 'Penthouse'].includes(formData.propertyType);
+
+  const progressSections = useMemo(() => [
+    { label: 'Property Type', done: !!formData.propertyType },
+    { label: 'Details',       done: !showBhk || !!formData.bhk },
+    { label: 'Area & Price',  done: !!formData.totalArea && !!formData.totalPrice },
+    { label: 'Location',      done: !!formData.city && !!formData.sector && !!formData.houseNo },
+    { label: 'Status & Type', done: !!formData.possessionStatus && !!formData.ownershipType },
+    { label: 'Visit Time',    done: !!formData.visitTimeType },
+    { label: 'Contact',       done: !!formData.name?.trim() && !!formData.mobileNumber?.trim() },
+  ], [formData, showBhk]);
+
+  const completedSections = progressSections.filter(s => s.done).length;
+  const totalSections = progressSections.length;
+  const progressPct = Math.round((completedSections / totalSections) * 100);
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -387,6 +406,7 @@ const ListPropertyForm = () => {
         furnishingType: formData.furnishingType,
         floorNo: formData.floorNumber,
         plotType: formData.plotType,
+        openSide: formData.openSide || undefined,
         bankLoanAvailable: formData.bankLoanAvailable,
         status: 'pending',
         carParking: formData.carParking,
@@ -464,6 +484,29 @@ const ListPropertyForm = () => {
         <p className="text-sm md:text-base text-muted-foreground font-medium">
           Get more genuine buyers and investors. Sell your property faster.
         </p>
+      </div>
+
+      {/* ── Progress Bar ── */}
+      <div className="sticky top-20 md:top-24 z-40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 border-b border-border -mx-4 sm:-mx-6 px-4 sm:px-6 py-4 mb-6 shadow-sm">
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-sm font-semibold text-muted-foreground">
+            Form Progress — Step <span className="text-[#10B981] font-bold">{completedSections}</span> of {totalSections}
+          </span>
+          <span className="text-sm font-bold text-[#10B981]">{progressPct}%</span>
+        </div>
+        <div className="h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+          <div
+            className="h-full bg-[#10B981] rounded-full transition-all duration-500 ease-out"
+            style={{ width: `${progressPct}%` }}
+          />
+        </div>
+        <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2">
+          {progressSections.map(s => (
+            <span key={s.label} className={`text-xs font-medium ${s.done ? 'text-[#10B981]' : 'text-slate-400 dark:text-slate-600'}`}>
+              {s.done ? '✓' : '○'} {s.label}
+            </span>
+          ))}
+        </div>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-10">
@@ -847,6 +890,19 @@ const ListPropertyForm = () => {
             </div>
           </div>
         </div>
+
+        {showOpenSide && (
+          <div className="space-y-3 animate-in fade-in slide-in-from-top-2">
+            <Label className="text-base font-bold">Plot / Property Facing</Label>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              {OPEN_SIDE_OPTIONS.map(opt => (
+                <div key={opt} onClick={() => handleChipSelect('openSide', formData.openSide === opt ? '' : opt)} className={`chip-base ${formData.openSide === opt ? 'chip-active' : 'chip-inactive'}`}>
+                  <span>{opt}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         <div className="space-y-3 animate-in fade-in slide-in-from-top-2">
           <Label className="text-base font-bold">Owner Type *</Label>

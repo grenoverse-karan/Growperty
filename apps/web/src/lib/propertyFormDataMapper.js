@@ -186,6 +186,7 @@ export const sanitizePropertyFormData = (formData, propertyType) => {
     { name: 'floorNo', type: 'text', maxLength: 50, condition: () => FLOOR_APPLICABLE_TYPES.includes(propertyType) },
     { name: 'totalFloors', type: 'number', condition: () => FLOOR_APPLICABLE_TYPES.includes(propertyType) },
     { name: 'plotType', type: 'select', values: PLOT_TYPES, condition: () => propertyType === 'Plot/Land' },
+    { name: 'openSide', type: 'text' },
     { name: 'status', type: 'select', values: ['pending', 'approved', 'rejected', 'suspended'] },
     { name: 'listedBy', type: 'text' },
     { name: 'liveAt', type: 'text' },

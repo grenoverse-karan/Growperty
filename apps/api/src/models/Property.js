@@ -41,6 +41,7 @@ const propertySchema = new mongoose.Schema(
     nearbyAmenities: { type: [String], default: [] },
     specialFeatures: { type: mongoose.Schema.Types.Mixed },
     plotType:        { type: String },
+    openSide:        { type: String },
     floorNumber:     { type: Number },
     totalFloors:     { type: Number },
     saleType:        { type: String },
