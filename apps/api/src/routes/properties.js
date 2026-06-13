@@ -41,8 +41,12 @@ const requiredFields = [
   'mobileNumber', 'ownerType', 'name',
 ];
 
-function validateRequiredFields(data) {
+// Admin listings don't have owner contact details
+const ADMIN_OPTIONAL_FIELDS = new Set(['name', 'mobileNumber']);
+
+function validateRequiredFields(data, isAdmin = false) {
   for (const field of requiredFields) {
+    if (isAdmin && ADMIN_OPTIONAL_FIELDS.has(field)) continue;
     const value = data[field];
     if (value === null || value === undefined || String(value).trim() === '') {
       throw new Error(`Missing required field: ${field}`);
@@ -62,7 +66,7 @@ router.post('/', requireAuth, async (req, res) => {
   }
 
   try {
-    validateRequiredFields(data);
+    validateRequiredFields(data, req.isAdmin);
 
     const property = new Property({
       ...data,
