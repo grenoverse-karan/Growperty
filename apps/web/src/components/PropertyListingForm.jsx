@@ -33,7 +33,7 @@ const DEFAULT_AREA_UNITS = { units: ['Sq.ft', 'Sq.yd', 'Sq.m'], default: 'Sq.ft'
 const AREA_TYPES = ['Carpet Area', 'Built-up Area', 'Super Built-up Area'];
 const CITY_OPTIONS = ['Noida', 'Greater Noida', 'YEIDA'];
 const POSSESSION_STATUS = ['Ready to Move', 'Under Construction', 'Possession Soon'];
-const OWNERSHIP_TYPE = ['Lease Hold', 'Free Hold', 'Kisan Kota', 'Power of Attorney'];
+const OWNERSHIP_TYPE = ['Individual', 'Joint', 'Company', 'Trust', 'Co-operative Society', 'Power of Attorney (POA)'];
 const FURNISHING_TYPE = ['Unfurnished', 'Semi-Furnished', 'Fully Furnished'];
 const FURNISHING_ITEMS = [
   'Bed', 'Sofa', 'Wardrobe', 'Dining Table',
@@ -247,7 +247,7 @@ const PropertyListingForm = ({ isAdmin = false, initialData = null, cpMode = fal
   };
 
   const MAX_IMAGES = 20;
-  const MAX_SIZE_BYTES = 1024 * 1024; // 1MB
+  const MAX_SIZE_BYTES = 400 * 1024; // 400KB — keeps uploads fast and MongoDB writes light
 
   const compressImage = (file) =>
     new Promise((resolve) => {
@@ -260,7 +260,7 @@ const PropertyListingForm = ({ isAdmin = false, initialData = null, cpMode = fal
         URL.revokeObjectURL(url);
 
         let { width, height } = img;
-        const MAX_DIM = 1920;
+        const MAX_DIM = 1200;
         if (width > MAX_DIM || height > MAX_DIM) {
           const ratio = Math.min(MAX_DIM / width, MAX_DIM / height);
           width = Math.round(width * ratio);
@@ -272,14 +272,14 @@ const PropertyListingForm = ({ isAdmin = false, initialData = null, cpMode = fal
         canvas.height = height;
         canvas.getContext('2d').drawImage(img, 0, 0, width, height);
 
-        let quality = 0.85;
+        let quality = 0.80;
         const tryCompress = () => {
           canvas.toBlob((blob) => {
             if (!blob) { resolve(file); return; }
             if (blob.size <= MAX_SIZE_BYTES || quality <= 0.1) {
               resolve(new File([blob], file.name, { type: 'image/jpeg', lastModified: Date.now() }));
             } else {
-              quality = Math.max(0.1, quality - 0.1);
+              quality = Math.max(0.1, quality - 0.15);
               tryCompress();
             }
           }, 'image/jpeg', quality);
@@ -807,7 +807,7 @@ const PropertyListingForm = ({ isAdmin = false, initialData = null, cpMode = fal
 
               <div id="field-ownershipType" className="space-y-2 pt-2">
                 <Label className="text-sm font-bold text-slate-500">Ownership Type *</Label>
-                <div className={`grid grid-cols-2 sm:grid-cols-4 gap-3 rounded-xl p-1 ${fieldErrors.ownershipType ? 'ring-2 ring-red-400' : ''}`}>
+                <div className={`grid grid-cols-2 sm:grid-cols-3 gap-3 rounded-xl p-1 ${fieldErrors.ownershipType ? 'ring-2 ring-red-400' : ''}`}>
                   {OWNERSHIP_TYPE.map(type => (
                     <Chip key={type} label={type} selected={formData.ownershipType === type} onClick={() => handleSelect('ownershipType', type)} />
                   ))}
@@ -989,7 +989,7 @@ const PropertyListingForm = ({ isAdmin = false, initialData = null, cpMode = fal
                     <>
                       <UploadCloud className="h-8 w-8" />
                       <span className="text-sm font-bold">Upload Images (JPG, PNG, WEBP · Max 20)</span>
-                      <span className="text-xs text-slate-400">Images over 1MB are auto-compressed</span>
+                      <span className="text-xs text-slate-400">Images are auto-compressed for faster upload</span>
                     </>
                   )}
                 </button>
