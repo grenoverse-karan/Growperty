@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useCpAuth } from '@/contexts/CpAuthContext.jsx';
+import apiServerClient from '@/lib/apiServerClient';
 
 const C = {
   bg:      '#0d1117',
@@ -23,9 +24,17 @@ const NAV = [
 ];
 
 export default function CpDashboardLayout() {
-  const { currentCp, cpLogout } = useCpAuth();
+  const { currentCp, token, cpLogout } = useCpAuth();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  // Validate token against API on mount — stale tokens (deleted account) get auto-cleared
+  useEffect(() => {
+    if (!token) return;
+    apiServerClient.fetch('/cp/me', { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => { if (r.status === 401) { cpLogout(false); navigate('/cp/login', { replace: true }); } })
+      .catch(() => {});
+  }, [token]);
 
   const handleLogout = () => {
     cpLogout();
