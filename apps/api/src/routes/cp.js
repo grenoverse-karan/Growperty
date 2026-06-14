@@ -9,7 +9,7 @@ import VisitRequest from '../models/VisitRequest.js';
 import BuyerRequirement from '../models/BuyerRequirement.js';
 import verifyCpToken from '../middleware/verifyCpToken.js';
 import { connectMongoDB } from '../utils/mongodb.js';
-import { sendTextMessage } from '../utils/whatsappTemplates.js';
+import { sendTextMessage, sendTemplateMessage } from '../utils/whatsappTemplates.js';
 import logger from '../utils/logger.js';
 
 const router = express.Router();
@@ -126,6 +126,12 @@ router.post('/register', async (req, res) => {
       ...rest,
     });
     logger.info('[CP] New registration', { id: cp._id, email: cp.email });
+
+    sendTemplateMessage(phone, 'cp_under_review', {
+      cpName: cp.name,
+      city: cp.city,
+      experienceYrs: cp.experienceYrs ?? rest.experienceYrs ?? 0,
+    }).catch(err => logger.warn('[WA] cp_under_review failed', { error: err.message }));
 
     return res.status(201).json({ success: true, message: "Application submitted. We'll contact you soon." });
   } catch (err) {

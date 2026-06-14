@@ -87,6 +87,13 @@ const TEMPLATES = {
     buildComponents: ({ userName }) => body(userName),
   },
 
+  // CP registration submitted.  {{1}} cpName {{2}} cpName {{3}} city {{4}} experienceYrs
+  cp_under_review: {
+    name: 'cp_under_review',
+    language: 'en',
+    buildComponents: ({ cpName, city, experienceYrs }) => body(cpName, cpName, city, String(experienceYrs ?? '')),
+  },
+
   // Listing approved.  {{1}} userName {{2}} propertyUrl
   property_approved: {
     name: 'property_approved',
