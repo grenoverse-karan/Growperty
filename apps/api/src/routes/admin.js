@@ -244,7 +244,7 @@ router.put('/channel-partners/:id/approve', verifyAdminToken, async (req, res) =
 
     // Generate a 48-hour one-time setup token so the CP can set their own password
     const setupToken = jwt.sign({ sub: cp._id.toString(), purpose: 'cp_setup' }, JWT_SECRET, { expiresIn: '48h' });
-    const setupLink  = `${APP_URL}/cp/setup?token=${setupToken}`;
+    const setupLink  = `${APP_URL}/cp/newpassword?token=${setupToken}`;
 
     sendTemplateMessage(cp.phone, 'cp_approved', {
       cpName: cp.name,

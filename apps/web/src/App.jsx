@@ -313,7 +313,7 @@ function App() {
             <Route path="/cp/:shareToken/listings" element={<CpStorePage />} />
             <Route path="/cp/:shareToken/buyers"   element={<CpStorePage />} />
             <Route path="/cp/login" element={<CpLoginPage />} />
-            <Route path="/cp/setup" element={<CpSetupPage />} />
+            <Route path="/cp/newpassword" element={<CpSetupPage />} />
 
             {/* Channel Partner — protected dashboard */}
             <Route path="/cp/dashboard" element={
