@@ -94,12 +94,15 @@ const TEMPLATES = {
     buildComponents: ({ cpName, city, experienceYrs }) => body(cpName, cpName, city, String(experienceYrs ?? '')),
   },
 
-  // CP application approved — includes one-time setup link.
-  // {{1}} cpName  {{2}} cpId (shareToken)  {{3}} setupLink
-  cp_approved: {
-    name: 'cp_approved',
+  // CP application approved — body {{1}} cpName {{2}} cpId, button URL suffix = setupToken
+  // Template "Login" button base URL in Meta: https://growperty.com/cp/newpassword?token=
+  cp_approve: {
+    name: 'cp_approve',
     language: 'en',
-    buildComponents: ({ cpName, cpId, setupLink }) => body(cpName, cpId, setupLink),
+    buildComponents: ({ cpName, cpId, setupToken }) => [
+      ...body(cpName, cpId),
+      { type: 'button', sub_type: 'url', index: '0', parameters: [{ type: 'text', text: txt(setupToken) }] },
+    ],
   },
 
   // Listing approved.  {{1}} userName {{2}} propertyUrl

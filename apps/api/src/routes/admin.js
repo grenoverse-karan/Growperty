@@ -246,11 +246,11 @@ router.put('/channel-partners/:id/approve', verifyAdminToken, async (req, res) =
     const setupToken = jwt.sign({ sub: cp._id.toString(), purpose: 'cp_setup' }, JWT_SECRET, { expiresIn: '48h' });
     const setupLink  = `${APP_URL}/cp/newpassword?token=${setupToken}`;
 
-    sendTemplateMessage(cp.phone, 'cp_approved', {
-      cpName: cp.name,
-      cpId:   cp.shareToken,
-      setupLink,
-    }).catch(err => logger.warn('[WA] cp_approved send failed', { error: err.message }));
+    sendTemplateMessage(cp.phone, 'cp_approve', {
+      cpName:     cp.name,
+      cpId:       cp.shareToken,
+      setupToken,
+    }).catch(err => logger.warn('[WA] cp_approve send failed', { error: err.message }));
 
     logger.info('[Admin] CP approved', { id: req.params.id, shareToken: cp.shareToken });
     return res.status(200).json({ success: true, cp: { ...cp, id: cp._id.toString() }, setupLink });
