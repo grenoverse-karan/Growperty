@@ -37,8 +37,11 @@ function timeAgo(dateStr) {
 const PropertyCard = ({ property }) => {
   const formattedPrice = formatIndianPrice(property.totalPrice || property.price);
   const displayAddress = getFilteredAddress(property);
+  const areaPrefix = !property.bhk && property.totalArea && property.areaUnit
+    ? `${property.totalArea} ${property.areaUnit} `
+    : '';
   const title = property.propertyType
-    ? `${property.bhk ? property.bhk + ' ' : ''}${property.propertyType}`
+    ? `${property.bhk ? property.bhk + ' ' : areaPrefix}${property.propertyType}`
     : property.name || property.title || 'Untitled Property';
   const bedrooms = property.bhk ? parseInt(property.bhk) || 0 : (property.bedrooms || 0);
 
