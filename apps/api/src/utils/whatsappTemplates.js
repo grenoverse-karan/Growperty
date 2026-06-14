@@ -94,6 +94,14 @@ const TEMPLATES = {
     buildComponents: ({ cpName, city, experienceYrs }) => body(cpName, cpName, city, String(experienceYrs ?? '')),
   },
 
+  // CP application approved — includes one-time setup link.
+  // {{1}} cpName  {{2}} cpId (shareToken)  {{3}} setupLink
+  cp_approved: {
+    name: 'cp_approved',
+    language: 'en',
+    buildComponents: ({ cpName, cpId, setupLink }) => body(cpName, cpId, setupLink),
+  },
+
   // Listing approved.  {{1}} userName {{2}} propertyUrl
   property_approved: {
     name: 'property_approved',

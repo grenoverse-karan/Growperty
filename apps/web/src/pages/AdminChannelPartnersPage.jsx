@@ -91,7 +91,6 @@ export default function AdminChannelPartnersPage() {
 
   // Dialog states
   const [approveTarget, setApproveTarget] = useState(null);
-  const [approvePass, setApprovePass]     = useState('');
 
   const [editTarget, setEditTarget]   = useState(null);
   const [editForm, setEditForm]       = useState({});
@@ -148,13 +147,16 @@ export default function AdminChannelPartnersPage() {
 
   /* ── Approve ── */
   const handleApprove = async () => {
-    if (!approvePass || approvePass.length < 6) { toast.error('Password must be at least 6 characters'); return; }
     try {
-      await call(`/admin/channel-partners/${approveTarget.id}/approve`, 'PUT', { password: approvePass });
-      toast.success(`${approveTarget.name} approved`);
+      setActing(true);
+      const data = await call(`/admin/channel-partners/${approveTarget.id}/approve`, 'PUT', {});
+      toast.success(`${approveTarget.name} approved — setup link sent via WhatsApp`);
+      if (data?.setupLink) {
+        console.info('[Admin] CP setup link:', data.setupLink);
+      }
       setApproveTarget(null);
       fetchItems(page, statusFilter);
-    } catch (err) { toast.error(err.message); }
+    } catch (err) { toast.error(err.message); } finally { setActing(false); }
   };
 
   /* ── Reject ── */
@@ -352,13 +354,11 @@ export default function AdminChannelPartnersPage() {
       {/* ── Approve dialog ── */}
       {approveTarget && (
         <Dialog title={`Approve — ${approveTarget.name}`} onClose={() => setApproveTarget(null)}>
-          <p style={{ margin: '0 0 16px', fontSize: 13, color: C.sub }}>Set a login password for this CP. They'll use it to sign in to their dashboard.</p>
-          <div style={{ marginBottom: 20 }}>
-            <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: C.sub, marginBottom: 5, textTransform: 'uppercase', letterSpacing: 0.4 }}>Password (min 6 chars)</label>
-            <input type="text" value={approvePass} onChange={e => setApprovePass(e.target.value)} placeholder="Set password for CP" style={inp()} />
-          </div>
+          <p style={{ margin: '0 0 20px', fontSize: 13, color: C.sub, lineHeight: 1.5 }}>
+            CP will receive a WhatsApp message with a <strong>one-time setup link</strong> to create their own password. They can then login with their mobile number, email, or CP ID.
+          </p>
           <div style={{ display: 'flex', gap: 10 }}>
-            <Btn onClick={handleApprove} disabled={acting}>{acting ? 'Approving...' : 'Approve & Set Password'}</Btn>
+            <Btn onClick={handleApprove} disabled={acting}>{acting ? 'Approving...' : 'Approve & Send Setup Link'}</Btn>
             <Btn onClick={() => setApproveTarget(null)} outline color={C.sub}>Cancel</Btn>
           </div>
         </Dialog>

@@ -141,20 +141,71 @@ router.post('/register', async (req, res) => {
 });
 
 // =====================
-// POST /cp/login — Authenticate CP
+// POST /cp/setup — Set password using one-time setup token (from approval link)
+// =====================
+router.post('/setup', async (req, res) => {
+  try {
+    await connectMongoDB();
+    const { token, password } = req.body || {};
+    if (!token || !password) return res.status(400).json({ error: 'Token and password are required' });
+    if (password.length < 6) return res.status(400).json({ error: 'Password must be at least 6 characters' });
+
+    let payload;
+    try {
+      payload = jwt.verify(token, JWT_SECRET);
+    } catch {
+      return res.status(400).json({ error: 'Setup link has expired or is invalid. Contact Growperty support.' });
+    }
+    if (payload.purpose !== 'cp_setup') {
+      return res.status(400).json({ error: 'Invalid setup token' });
+    }
+
+    const passwordHash = await bcrypt.hash(password, 10);
+    const cp = await ChannelPartner.findByIdAndUpdate(
+      payload.sub,
+      { $set: { passwordHash } },
+      { new: true }
+    ).select('-passwordHash').lean();
+
+    if (!cp) return res.status(404).json({ error: 'CP account not found' });
+
+    // Auto-login after password set
+    const loginToken = jwt.sign({ sub: cp._id.toString(), role: 'cp' }, JWT_SECRET, { expiresIn: '30d' });
+    logger.info('[CP] Password set via setup link', { id: cp._id });
+    return res.status(200).json({
+      success: true,
+      token: loginToken,
+      cp: { id: cp._id.toString(), name: cp.name, email: cp.email, phone: cp.phone, shareToken: cp.shareToken, city: cp.city, status: cp.status },
+    });
+  } catch (err) {
+    logger.error('[CP] Setup error', { error: err.message });
+    return res.status(500).json({ error: 'Failed to set password' });
+  }
+});
+
+// =====================
+// POST /cp/login — Authenticate CP (identifier = email | phone | shareToken)
 // =====================
 router.post('/login', async (req, res) => {
   try {
     await connectMongoDB();
-    const { email, password } = req.body || {};
+    const { identifier, email, password } = req.body || {};
+    const id = (identifier || email || '').trim();
 
-    if (!email || !password) {
-      return res.status(400).json({ error: 'Email and password are required' });
+    if (!id || !password) {
+      return res.status(400).json({ error: 'Identifier and password are required' });
     }
 
-    const cp = await ChannelPartner.findOne({ email: email.toLowerCase().trim() });
+    const normalizedPhone = id.replace(/\D/g, '');
+    const cp = await ChannelPartner.findOne({
+      $or: [
+        { email: id.toLowerCase() },
+        { phone: normalizedPhone },
+        { shareToken: id.toUpperCase() },
+      ],
+    });
     if (!cp) {
-      return res.status(401).json({ error: 'Invalid email or password' });
+      return res.status(401).json({ error: 'Invalid credentials' });
     }
 
     if (cp.status !== 'approved') {
@@ -165,12 +216,12 @@ router.post('/login', async (req, res) => {
     }
 
     if (!cp.passwordHash) {
-      return res.status(403).json({ error: 'Password not set. Please contact Growperty support.' });
+      return res.status(403).json({ error: 'Password not set yet. Please use the setup link sent to your WhatsApp.' });
     }
 
     const valid = await bcrypt.compare(password, cp.passwordHash);
     if (!valid) {
-      return res.status(401).json({ error: 'Invalid email or password' });
+      return res.status(401).json({ error: 'Invalid credentials' });
     }
 
     const token = jwt.sign({ sub: cp._id.toString(), role: 'cp' }, JWT_SECRET, { expiresIn: '30d' });

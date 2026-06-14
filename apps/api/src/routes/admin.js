@@ -25,6 +25,10 @@ import Property from '../models/Property.js';
 import ChannelPartner from '../models/ChannelPartner.js';
 import VisitRequest from '../models/VisitRequest.js';
 import { connectMongoDB } from '../utils/mongodb.js';
+import { sendTemplateMessage } from '../utils/whatsappTemplates.js';
+
+const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret';
+const APP_URL = process.env.APP_URL || 'https://growperty.com';
 
 const router = express.Router();
 
@@ -220,32 +224,36 @@ router.get('/channel-partners/:id', verifyAdminToken, async (req, res) => {
 });
 
 // =====================
-// PUT /admin/channel-partners/:id/approve — Approve CP and set password (protected)
+// PUT /admin/channel-partners/:id/approve — Approve CP (no password — CP sets their own via link)
 // =====================
 router.put('/channel-partners/:id/approve', verifyAdminToken, async (req, res) => {
   try {
     await connectMongoDB();
-    const { password } = req.body || {};
-    if (!password || password.length < 6) {
-      return res.status(400).json({ error: 'Password must be at least 6 characters' });
-    }
 
-    const passwordHash = await bcrypt.hash(password, 10);
-    // Fetch phone first to build readable CP share ID
     const existing = await ChannelPartner.findById(req.params.id).select('phone').lean();
     if (!existing) return res.status(404).json({ error: 'Channel partner not found' });
 
     const shareToken = await generateCpShareId(existing.phone);
     const cp = await ChannelPartner.findByIdAndUpdate(
       req.params.id,
-      { $set: { status: 'approved', passwordHash, shareToken } },
+      { $set: { status: 'approved', shareToken } },
       { new: true, runValidators: true }
     ).select('-passwordHash').lean();
 
     if (!cp) return res.status(404).json({ error: 'Channel partner not found' });
 
-    logger.info('[Admin] CP approved', { id: req.params.id });
-    return res.status(200).json({ success: true, cp: { ...cp, id: cp._id.toString() } });
+    // Generate a 48-hour one-time setup token so the CP can set their own password
+    const setupToken = jwt.sign({ sub: cp._id.toString(), purpose: 'cp_setup' }, JWT_SECRET, { expiresIn: '48h' });
+    const setupLink  = `${APP_URL}/cp/setup?token=${setupToken}`;
+
+    sendTemplateMessage(cp.phone, 'cp_approved', {
+      cpName: cp.name,
+      cpId:   cp.shareToken,
+      setupLink,
+    }).catch(err => logger.warn('[WA] cp_approved send failed', { error: err.message }));
+
+    logger.info('[Admin] CP approved', { id: req.params.id, shareToken: cp.shareToken });
+    return res.status(200).json({ success: true, cp: { ...cp, id: cp._id.toString() }, setupLink });
   } catch (err) {
     logger.error('[Admin] CP approve error', { error: err.message });
     return res.status(500).json({ error: 'Failed to approve channel partner' });

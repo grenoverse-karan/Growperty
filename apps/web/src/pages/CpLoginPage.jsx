@@ -9,7 +9,7 @@ export default function CpLoginPage() {
   const location  = useLocation();
   const from      = location.state?.from?.pathname || '/cp/dashboard';
 
-  const [formData, setFormData] = useState({ email: '', password: '' });
+  const [formData, setFormData] = useState({ identifier: '', password: '' });
   const [error, setError]       = useState('');
   const [loading, setLoading]   = useState(false);
 
@@ -23,13 +23,13 @@ export default function CpLoginPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!formData.email || !formData.password) {
-      setError('Email and password are required');
+    if (!formData.identifier || !formData.password) {
+      setError('Please enter your ID and password');
       return;
     }
     setLoading(true);
     try {
-      await cpLogin(formData.email, formData.password);
+      await cpLogin(formData.identifier, formData.password);
       navigate(from, { replace: true });
     } catch (err) {
       setError(err.message || 'Login failed');
@@ -65,7 +65,7 @@ export default function CpLoginPage() {
 
           <div style={{ background: '#fff', borderRadius: 16, padding: '36px 32px', boxShadow: '0 4px 24px rgba(0,0,0,0.08)' }}>
             <h2 style={{ fontSize: 20, fontWeight: 700, color: '#111', marginBottom: 6 }}>Sign in to your account</h2>
-            <p style={{ color: '#9ca3af', fontSize: 13, marginBottom: 24 }}>Credentials are set by Growperty after approval.</p>
+            <p style={{ color: '#9ca3af', fontSize: 13, marginBottom: 24 }}>Use your mobile number, email, or CP ID (e.g. GP0068140626)</p>
 
             {error && (
               <div style={{ background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: 8, padding: '10px 14px', marginBottom: 20, color: '#dc2626', fontSize: 14 }}>
@@ -76,14 +76,15 @@ export default function CpLoginPage() {
             <form onSubmit={handleSubmit} noValidate>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
                 <div>
-                  <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 4 }}>Email</label>
+                  <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 4 }}>Mobile / Email / CP ID</label>
                   <input
-                    type="email"
-                    value={formData.email}
-                    onChange={handleChange('email')}
-                    placeholder="you@example.com"
+                    type="text"
+                    value={formData.identifier}
+                    onChange={handleChange('identifier')}
+                    placeholder="9999999999 / you@email.com / GP0068140626"
                     style={inputStyle}
                     autoFocus
+                    autoComplete="username"
                   />
                 </div>
 

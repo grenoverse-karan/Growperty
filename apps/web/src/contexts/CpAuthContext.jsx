@@ -40,11 +40,11 @@ export const CpAuthProvider = ({ children }) => {
     checkTokenValidity();
   }, []);
 
-  const cpLogin = async (email, password) => {
+  const cpLogin = async (identifier, password) => {
     const response = await apiServerClient.fetch('/cp/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ identifier, password }),
     });
 
     const data = await response.json();
@@ -73,6 +73,15 @@ export const CpAuthProvider = ({ children }) => {
     if (showToast) toast.success('Logged out successfully');
   };
 
+  // Used by CpSetupPage to auto-login after password creation without a second API call
+  const cpLoginDirect = (loginToken, cp) => {
+    localStorage.setItem('cpToken', loginToken);
+    localStorage.setItem('cpData', JSON.stringify(cp));
+    setToken(loginToken);
+    setCurrentCp(cp);
+    setIsCpAuthenticated(true);
+  };
+
   const value = {
     currentCp,
     token,
@@ -80,6 +89,7 @@ export const CpAuthProvider = ({ children }) => {
     isLoading,
     cpLogin,
     cpLogout,
+    cpLoginDirect,
     checkTokenValidity,
   };
 

@@ -53,6 +53,7 @@ import GoogleCompleteProfilePage from '@/pages/GoogleCompleteProfilePage.jsx';
 import BecomeChannelPartnerPage from '@/pages/BecomeChannelPartnerPage.jsx';
 import CpStorePage from '@/pages/CpStorePage.jsx';
 import CpLoginPage from '@/pages/CpLoginPage.jsx';
+import CpSetupPage from '@/pages/CpSetupPage.jsx';
 import CpDashboardLayout from '@/pages/cp/CpDashboardLayout.jsx';
 import CpMyListingsPage from '@/pages/cp/CpMyListingsPage.jsx';
 import CpAddPropertyPage from '@/pages/cp/CpAddPropertyPage.jsx';
@@ -312,6 +313,7 @@ function App() {
             <Route path="/cp/:shareToken/listings" element={<CpStorePage />} />
             <Route path="/cp/:shareToken/buyers"   element={<CpStorePage />} />
             <Route path="/cp/login" element={<CpLoginPage />} />
+            <Route path="/cp/setup" element={<CpSetupPage />} />
 
             {/* Channel Partner — protected dashboard */}
             <Route path="/cp/dashboard" element={
