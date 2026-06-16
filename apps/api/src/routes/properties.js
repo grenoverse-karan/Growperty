@@ -110,9 +110,8 @@ router.post('/', requireAuth, async (req, res) => {
 // GET / — List properties
 // =====================
 // LIST_PROJECTION: metadata only — NO images.
-// Base64 images average 600KB each; excluding them cuts the list payload
-// from ~3MB to ~8KB, reducing cold-start response time from 8s → <1s.
-// Images are fetched only on the detail page (GET /:id).
+// Cards only need the first image (thumbnail). $slice:1 returns ~400KB instead of
+// potentially 8–12MB for all images on a 20-property page load.
 const LIST_PROJECTION = {
   propertyType: 1, propertySubType: 1, bhk: 1, bathrooms: 1, balconies: 1,
   city: 1, sector: 1, houseNo: 1, landmark: 1, towerBlock: 1,
@@ -122,8 +121,7 @@ const LIST_PROJECTION = {
   possessionStatus: 1, furnishingType: 1, saleType: 1,
   visitTimeType: 1, visitFixedSlots: 1, visitFlexibleSlots: 1,
   createdAt: 1, updatedAt: 1, liveAt: 1,
-  // images intentionally omitted — base64 images (~600KB each) are served
-  // only on the detail page (GET /:id), not the list endpoint.
+  images: { $slice: 1 },
 };
 
 router.get('/', async (req, res) => {
@@ -135,7 +133,7 @@ router.get('/', async (req, res) => {
     if (req.query.status) filter.status = req.query.status;
     if (req.query.city)   filter.city   = req.query.city;
 
-    // Only return base64 images when explicitly requested (?withImages=true)
+    // ?withImages=true returns all images (admin detail views). Default: first image only.
     const projection = req.query.withImages === 'true' ? {} : LIST_PROJECTION;
 
     const docs = await Property.find(filter, projection)

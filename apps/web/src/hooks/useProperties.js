@@ -60,7 +60,7 @@ export const useProperties = () => {
     setIsLoading(true);
     setError(null);
     try {
-      const params = new URLSearchParams({ limit: 50, withImages: 'true' });
+      const params = new URLSearchParams({ limit: 50 });
       if (status && status !== 'all') params.set('status', status);
 
       const response = await apiServerClient.fetch(`/properties?${params.toString()}`);
