@@ -9,15 +9,15 @@ import { Label } from '@/components/ui/label.jsx';
 import { Button } from '@/components/ui/button.jsx';
 import { Textarea } from '@/components/ui/textarea.jsx';
 import { Checkbox } from '@/components/ui/checkbox.jsx';
-import { Loader2, UploadCloud, X, Plus, Minus, Info } from 'lucide-react';
+import { Loader2, UploadCloud, X, Plus, Minus, Info, Sparkles } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext.jsx';
 import { useAdminAuth } from '@/contexts/AdminAuthContext.jsx';
 import { sanitizePropertyFormData, logPropertyPayload } from '@/lib/propertyFormDataMapper.js';
+import { ZONES, ZONE_SECTORS } from '@/lib/sectorZones.js';
+import { Combobox } from '@/components/ui/combobox.jsx';
 
 // --- Constants (Strictly matching PocketBase Schema) ---
 const PROPERTY_TYPES = ['Flat/Apartment', 'Independent House', 'Villa', 'Penthouse', 'Plot/Land', 'Commercial'];
-const OPEN_SIDE_OPTIONS = ['Single Side Open', 'Corner (Two Side Open)', 'Three Side Open', 'Four Side Open'];
-const OPEN_SIDE_TYPES = ['Plot/Land', 'Independent House', 'Villa'];
 const DIRECTION_FACING_OPTIONS = ['North', 'South', 'East', 'West', 'North-East', 'North-West', 'South-East', 'South-West'];
 const FACING_TYPE_OPTIONS = ['Main Road Facing', 'Park Facing', 'Green Belt Facing', 'Corner (Two Side Open)', 'Three Side Open', 'Four Side Open', 'Lake / Water Facing', 'Temple Facing', 'Garden Facing', 'Forest / Nature Facing'];
 const SUB_TYPES = {
@@ -35,9 +35,10 @@ const AREA_UNITS_MAP = {
 };
 const DEFAULT_AREA_UNITS = { units: ['Sq.ft', 'Sq.yd', 'Sq.m'], default: 'Sq.ft' };
 const AREA_TYPES = ['Carpet Area', 'Built-up Area', 'Super Built-up Area'];
-const CITY_OPTIONS = ['Noida', 'Greater Noida', 'YEIDA'];
 const POSSESSION_STATUS = ['Ready to Move', 'Under Construction', 'Possession Soon'];
 const OWNERSHIP_TYPE = ['Individual', 'Joint', 'Company', 'Trust', 'Co-operative Society', 'Power of Attorney (POA)'];
+// Old records used land-tenure terms here (before ownershipType meant entity type) — flag them, don't guess-map them.
+const LEGACY_OWNERSHIP_VALUES = ['Free Hold', 'Freehold', 'Free-hold', 'Lease Hold', 'Leasehold', 'Lease-hold'];
 const FURNISHING_TYPE = ['Unfurnished', 'Semi-Furnished', 'Fully Furnished'];
 const FURNISHING_ITEMS = [
   'Bed', 'Sofa', 'Wardrobe', 'Dining Table',
@@ -110,6 +111,7 @@ const PropertyListingForm = ({ isAdmin = false, initialData = null, cpMode = fal
   const [images, setImages] = useState([]); // [{ id, file, preview }]
   const [isCompressing, setIsCompressing] = useState(false);
   const [fieldErrors, setFieldErrors] = useState({});
+  const [generatingDescription, setGeneratingDescription] = useState(false);
 
   const clearFieldError = (name) => {
     if (fieldErrors[name]) setFieldErrors(prev => { const n = { ...prev }; delete n[name]; return n; });
@@ -127,11 +129,18 @@ const PropertyListingForm = ({ isAdmin = false, initialData = null, cpMode = fal
     if (showFloors && !formData.totalFloors) errors.totalFloors = 'Total floors enter karo';
     if (showFloorNumber && !formData.floorNumber) errors.floorNumber = 'Floor number enter karo';
     if (!formData.possessionStatus) errors.possessionStatus = 'Possession status select karo';
-    if (!formData.ownershipType) errors.ownershipType = 'Ownership type select karo';
+    if (!formData.ownershipType) {
+      errors.ownershipType = 'Ownership type select karo';
+    } else if (!OWNERSHIP_TYPE.includes(formData.ownershipType)) {
+      errors.ownershipType = LEGACY_OWNERSHIP_VALUES.includes(formData.ownershipType)
+        ? `"${formData.ownershipType}" purana/legacy value hai — naya ownership type select karo`
+        : `"${formData.ownershipType}" invalid value hai — ownership type dobara select karo`;
+    }
     if (showFloors && !formData.furnishingType) errors.furnishingType = 'Furnishing type select karo';
+    if (!formData.directionFacing) errors.directionFacing = 'Direction facing select karo';
     if (!formData.visitTimeType) errors.visitTimeType = 'Preferred visit time select karo';
-    if (!isAdmin && !formData.name?.trim()) errors.name = 'Name enter karo';
-    if (!isAdmin && !formData.mobileNumber?.trim()) errors.mobileNumber = 'Mobile number enter karo';
+    if (!isAdmin && !cpMode && !formData.name?.trim()) errors.name = 'Name enter karo';
+    if (!isAdmin && !cpMode && !formData.mobileNumber?.trim()) errors.mobileNumber = 'Mobile number enter karo';
     return errors;
   };
 
@@ -179,6 +188,18 @@ const PropertyListingForm = ({ isAdmin = false, initialData = null, cpMode = fal
         currentAddress:   d.currentAddress   || '',
         termsAccepted:    true,
       });
+
+      // Legacy records may carry an ownershipType value from before the field meant
+      // entity type (e.g. "Free Hold"/"Leasehold" land-tenure terms). Flag it on load
+      // instead of letting it silently pass local validation and fail at submit.
+      if (d.ownershipType && !OWNERSHIP_TYPE.includes(d.ownershipType)) {
+        setFieldErrors(prev => ({
+          ...prev,
+          ownershipType: LEGACY_OWNERSHIP_VALUES.includes(d.ownershipType)
+            ? `"${d.ownershipType}" purana/legacy value hai — naya ownership type select karo`
+            : `"${d.ownershipType}" invalid value hai — ownership type dobara select karo`
+        }));
+      }
     }
   }, [initialData]);
 
@@ -198,7 +219,7 @@ const PropertyListingForm = ({ isAdmin = false, initialData = null, cpMode = fal
     setFormData(prev => {
       const newData = { ...prev, [field]: value };
       if (field === 'propertyType') {
-        newData.propertySubType = '';
+        newData.propertySubType = value === 'Plot/Land' ? 'Residential Plot' : '';
         newData.bhk = '';
         newData.plotType = '';
         newData.areaUnit = (AREA_UNITS_MAP[value] || DEFAULT_AREA_UNITS).default;
@@ -215,6 +236,41 @@ const PropertyListingForm = ({ isAdmin = false, initialData = null, cpMode = fal
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
     clearFieldError(name);
+  };
+
+  const handleZoneChange = (e) => {
+    const { value } = e.target;
+    setFormData(prev => ({ ...prev, city: value, sector: '' }));
+    clearFieldError('city');
+    clearFieldError('sector');
+  };
+
+  const handleSectorChange = (value) => {
+    setFormData(prev => ({ ...prev, sector: value }));
+    clearFieldError('sector');
+  };
+
+  const handleGenerateDescription = async () => {
+    if (!formData.propertyType || !formData.city || !formData.sector) {
+      toast({ title: 'Fill basic details first', description: 'Property type, Zone, and Sector are needed to generate a description.', variant: 'destructive' });
+      return;
+    }
+    setGeneratingDescription(true);
+    try {
+      const res = await apiServerClient.fetch('/ai/generate-description', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) throw new Error(data.message || 'Failed to generate description');
+      setFormData(prev => ({ ...prev, description: data.description }));
+      toast({ title: 'Description generated', description: 'Review and edit it before submitting.' });
+    } catch (err) {
+      toast({ title: 'Generation failed', description: err.message || 'Something went wrong.', variant: 'destructive' });
+    } finally {
+      setGeneratingDescription(false);
+    }
   };
 
   const handleCounterChange = (field, increment) => {
@@ -372,19 +428,18 @@ const PropertyListingForm = ({ isAdmin = false, initialData = null, cpMode = fal
   const showBathBalcony = showBhk;
   const isPlot = formData.propertyType === 'Plot/Land';
   const showFloors = !isPlot;
-  const showOpenSide = OPEN_SIDE_TYPES.includes(formData.propertyType);
   const areaUnitConfig = AREA_UNITS_MAP[formData.propertyType] || DEFAULT_AREA_UNITS;
   const showFloorNumber = showFloors && !['Independent House', 'Villa'].includes(formData.propertyType);
   const showFurnishingDetails = ['Semi-Furnished', 'Fully Furnished'].includes(formData.furnishingType);
   const showPlotType = formData.propertyType === 'Plot/Land' && formData.propertySubType === 'Residential Plot';
-  const showAmenities = showBhk || (isPlot && formData.propertySubType === 'Residential Plot');
+  const showAmenities = showBhk || isPlot;
 
   const progressSections = useMemo(() => [
     { label: 'Property Type',  done: !!formData.propertyType },
     { label: 'Details',        done: !showBhk || !!formData.bhk },
     { label: 'Area & Price',   done: !!formData.totalArea && !!formData.totalPrice },
     { label: 'Location',       done: !!formData.city && !!formData.sector && !!formData.houseNo },
-    { label: 'Status & Type',  done: !!formData.possessionStatus && !!formData.ownershipType },
+    { label: 'Status & Type',  done: !!formData.possessionStatus && OWNERSHIP_TYPE.includes(formData.ownershipType) && !!formData.directionFacing },
     { label: 'Visit Time',     done: !!formData.visitTimeType },
     ...(!isAdmin ? [{ label: 'Contact', done: !!formData.name?.trim() && !!formData.mobileNumber?.trim() }] : []),
   ], [formData, showBhk, isAdmin]);
@@ -823,7 +878,7 @@ const PropertyListingForm = ({ isAdmin = false, initialData = null, cpMode = fal
                   value={formData.totalPrice}
                   onChange={handleInputChange}
                   placeholder="0"
-                  className={`h-14 pl-10 bg-slate-50 dark:bg-slate-900 text-xl font-extrabold text-[#10B981] ${fieldErrors.totalPrice ? 'border-red-400 focus-visible:ring-red-400' : 'border-slate-200 dark:border-slate-800'}`}
+                  className={`h-14 pl-10 bg-slate-50 dark:bg-slate-900 text-xl font-extrabold text-[#10B981] [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${fieldErrors.totalPrice ? 'border-red-400 focus-visible:ring-red-400' : 'border-slate-200 dark:border-slate-800'}`}
                 />
                 {fieldErrors.totalPrice && <p className="text-red-500 text-xs font-bold mt-1">⚠ {fieldErrors.totalPrice}</p>}
               </div>
@@ -847,16 +902,29 @@ const PropertyListingForm = ({ isAdmin = false, initialData = null, cpMode = fal
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               <div id="field-city" className="space-y-2">
-                <Label className="text-sm font-bold text-slate-700 dark:text-slate-300">City *</Label>
-                <select name="city" value={formData.city} onChange={handleInputChange} className={`flex h-12 w-full items-center justify-between rounded-xl border bg-slate-50 dark:bg-slate-900 px-3 py-2 text-sm font-bold ring-offset-background focus:outline-none focus:ring-2 focus:ring-[#10B981] ${fieldErrors.city ? 'border-red-400' : 'border-slate-200 dark:border-slate-800'}`}>
-                  <option value="" disabled>Select City</option>
-                  {CITY_OPTIONS.map(city => <option key={city} value={city}>{city}</option>)}
+                <Label className="text-sm font-bold text-slate-700 dark:text-slate-300">Zone *</Label>
+                <select name="city" value={formData.city} onChange={handleZoneChange} className={`flex h-12 w-full items-center justify-between rounded-xl border bg-slate-50 dark:bg-slate-900 px-3 py-2 text-sm font-bold ring-offset-background focus:outline-none focus:ring-2 focus:ring-[#10B981] ${fieldErrors.city ? 'border-red-400' : 'border-slate-200 dark:border-slate-800'}`}>
+                  <option value="" disabled>Select Zone</option>
+                  {ZONES.map(z => <option key={z.value} value={z.value}>{z.label}</option>)}
                 </select>
                 {fieldErrors.city && <p className="text-red-500 text-xs font-bold">⚠ {fieldErrors.city}</p>}
               </div>
               <div id="field-sector" className="space-y-2">
                 <Label className="text-sm font-bold text-slate-700 dark:text-slate-300">Sector / Area *</Label>
-                <Input name="sector" value={formData.sector} onChange={handleInputChange} placeholder="e.g. Sector 150" className={`h-12 bg-slate-50 dark:bg-slate-900 ${fieldErrors.sector ? 'border-red-400 focus-visible:ring-red-400' : 'border-slate-200 dark:border-slate-800'}`} />
+                <Combobox
+                  options={
+                    formData.sector && !(ZONE_SECTORS[formData.city] || []).includes(formData.sector)
+                      ? [formData.sector, ...(ZONE_SECTORS[formData.city] || [])]
+                      : (ZONE_SECTORS[formData.city] || [])
+                  }
+                  value={formData.sector}
+                  onChange={handleSectorChange}
+                  disabled={!formData.city}
+                  error={!!fieldErrors.sector}
+                  placeholder={formData.city ? 'Select Sector' : 'Select Zone first'}
+                  searchPlaceholder="Type to search sector/area/village..."
+                  emptyText="No matching sector/area/village."
+                />
                 {fieldErrors.sector && <p className="text-red-500 text-xs font-bold">⚠ {fieldErrors.sector}</p>}
               </div>
               <div className="space-y-2">
@@ -903,24 +971,14 @@ const PropertyListingForm = ({ isAdmin = false, initialData = null, cpMode = fal
                 {fieldErrors.ownershipType && <p className="text-red-500 text-xs font-bold mt-1">⚠ {fieldErrors.ownershipType}</p>}
               </div>
 
-              {showOpenSide && (
-                <div className="space-y-2 pt-2">
-                  <Label className="text-sm font-bold text-slate-500">Plot / Property Facing</Label>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                    {OPEN_SIDE_OPTIONS.map(opt => (
-                      <Chip key={opt} label={opt} selected={formData.openSide === opt} onClick={() => handleSelect('openSide', formData.openSide === opt ? '' : opt)} />
-                    ))}
-                  </div>
-                </div>
-              )}
-
               <div className="space-y-2 pt-2">
-                <Label className="text-sm font-bold text-slate-500">Direction Facing</Label>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <Label className="text-sm font-bold text-slate-500">Direction Facing *</Label>
+                <div className={`grid grid-cols-2 sm:grid-cols-4 gap-3 rounded-xl p-1 ${fieldErrors.directionFacing ? 'ring-2 ring-red-400' : ''}`}>
                   {DIRECTION_FACING_OPTIONS.map(opt => (
                     <Chip key={opt} label={opt} selected={formData.directionFacing === opt} onClick={() => handleSelect('directionFacing', formData.directionFacing === opt ? '' : opt)} />
                   ))}
                 </div>
+                {fieldErrors.directionFacing && <p className="text-red-500 text-xs font-bold mt-1">⚠ {fieldErrors.directionFacing}</p>}
               </div>
 
               <div className="space-y-2 pt-2">
@@ -1157,7 +1215,20 @@ const PropertyListingForm = ({ isAdmin = false, initialData = null, cpMode = fal
 
             {/* Description */}
             <div className="space-y-3">
-              <Label className="text-sm font-bold text-slate-700 dark:text-slate-300">Description</Label>
+              <div className="flex items-center justify-between gap-3">
+                <Label className="text-sm font-bold text-slate-700 dark:text-slate-300">Description</Label>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={handleGenerateDescription}
+                  disabled={generatingDescription}
+                  className="h-8 gap-1.5 text-xs font-bold border-[#10B981]/30 text-[#10B981] hover:bg-[#10B981]/10 hover:text-[#10B981]"
+                >
+                  {generatingDescription ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+                  {generatingDescription ? 'Generating...' : 'Make Description with AI'}
+                </Button>
+              </div>
               <Textarea
                 name="description"
                 value={formData.description}
@@ -1262,7 +1333,7 @@ const PropertyListingForm = ({ isAdmin = false, initialData = null, cpMode = fal
           </div>
 
           {/* (16) OWNER DETAILS */}
-          {isAdmin ? (
+          {cpMode ? null : isAdmin ? (
             <div className="bg-white dark:bg-slate-950 rounded-2xl p-6 md:p-8 shadow-sm border border-slate-200 dark:border-slate-800">
               <Label className="text-lg font-bold text-slate-900 dark:text-white block border-b border-slate-100 dark:border-slate-800 pb-3">13. Listed By</Label>
               <div className="flex items-center gap-3 mt-4">

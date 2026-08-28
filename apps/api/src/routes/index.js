@@ -10,6 +10,8 @@ import requirementsRouter from './requirements.js';
 import analyticsRouter from './analytics.js';
 import blogRouter from './blog.js';
 import cpRouter from './cp.js';
+import cpVisitorsRouter from './cpVisitors.js';
+import aiRouter from './ai.js';
 
 export default function routes() {
   const router = express.Router();
@@ -23,12 +25,14 @@ export default function routes() {
   router.use('/properties', propertiesRouter);
   router.use('/admin', adminRouter);
   router.use('/cp', cpRouter);
+  router.use('/cp-visitors', cpVisitorsRouter);
   router.use('/whatsapp', whatsappRouter);
   router.use('/visit-requests', visitRequestsRouter);
   router.use('/campaigns', campaignsRouter);
   router.use('/requirements', requirementsRouter);
   router.use('/analytics', analyticsRouter);
   router.use('/blog', blogRouter);
+  router.use('/ai', aiRouter);
 
   return router;
 }

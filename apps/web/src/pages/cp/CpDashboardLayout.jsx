@@ -4,21 +4,26 @@ import { useCpAuth } from '@/contexts/CpAuthContext.jsx';
 import apiServerClient from '@/lib/apiServerClient';
 
 const C = {
-  bg:      '#0d1117',
-  sidebar: '#0d1b2a',
-  border:  '#1e2d3d',
-  text:    '#e6edf3',
-  muted:   '#4d6175',
-  sub:     '#94aabf',
-  hover:   '#132236',
-  green:   '#1d9e75',
+  bg:      '#f5f6f8',
+  sidebar: '#ffffff',
+  border:  '#e5e7eb',
+  text:    '#111827',
+  muted:   '#9ca3af',
+  sub:     '#6b7280',
+  hover:   '#f0fdf7',
+  activeText: '#059669',
+  green:   '#10b981',
+  greenDark: '#059669',
 };
 
 const NAV = [
   { label: 'My Listings',     icon: '🏘',  to: '/cp/dashboard/listings'  },
   { label: 'Add Property',    icon: '➕',  to: '/cp/dashboard/add'       },
+  { label: 'Wish List',       icon: '❤️',  to: '/cp/dashboard/wishlist'  },
+  { label: 'Requirement',     icon: '📝',  to: '/cp/dashboard/requirements' },
   { label: 'Buyers',          icon: '👥',  to: '/cp/dashboard/leads'     },
   { label: 'Visit Requests',  icon: '📅',  to: '/cp/dashboard/visits'    },
+  { label: 'Visitors',        icon: '🎯',  to: '/cp/dashboard/visitors'  },
   { label: 'Activities',      icon: '📋',  to: '/cp/dashboard/activities'},
   { label: 'Profile',         icon: '👤',  to: '/cp/dashboard/profile'   },
 ];
@@ -28,7 +33,6 @@ export default function CpDashboardLayout() {
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  // Validate token against API on mount — stale tokens (deleted account) get auto-cleared
   useEffect(() => {
     if (!token) return;
     apiServerClient.fetch('/cp/me', { headers: { Authorization: `Bearer ${token}` } })
@@ -41,29 +45,44 @@ export default function CpDashboardLayout() {
     navigate('/cp/login');
   };
 
+  const initials = (name) => {
+    if (!name) return 'CP';
+    return name.trim().split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
+  };
+
   const SidebarContent = () => (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       {/* Branding */}
       <div style={{ padding: '20px 20px 16px', borderBottom: `1px solid ${C.border}` }}>
-        <div style={{ fontSize: 18, fontWeight: 800, color: C.green }}>Growperty</div>
-        <div style={{ fontSize: 11, color: C.sub, marginTop: 2 }}>Channel Partner</div>
+        <div style={{ fontSize: 20, fontWeight: 800, color: C.greenDark, letterSpacing: -0.5 }}>Growperty</div>
+        <div style={{ fontSize: 11, color: C.muted, marginTop: 2, fontWeight: 500 }}>Channel Partner Portal</div>
       </div>
 
       {/* CP Identity */}
-      <div style={{ padding: '14px 20px', borderBottom: `1px solid ${C.border}` }}>
-        <div style={{ fontSize: 13, fontWeight: 600, color: C.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-          {currentCp?.name || 'Partner'}
+      <div style={{ padding: '16px 20px', borderBottom: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div style={{
+          width: 40, height: 40, borderRadius: '50%',
+          background: '#d1fae5', color: C.greenDark,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontSize: 14, fontWeight: 700, flexShrink: 0,
+        }}>
+          {initials(currentCp?.name)}
         </div>
-        {currentCp?.companyName && (
-          <div style={{ fontSize: 11, color: C.sub, marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            {currentCp.companyName}
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: C.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            {currentCp?.name || 'Partner'}
           </div>
-        )}
-        <div style={{ fontSize: 11, color: C.muted, marginTop: 1 }}>{currentCp?.city}</div>
+          {currentCp?.companyName && (
+            <div style={{ fontSize: 11, color: C.sub, marginTop: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              {currentCp.companyName}
+            </div>
+          )}
+          <div style={{ fontSize: 11, color: C.muted, marginTop: 1 }}>{currentCp?.city}</div>
+        </div>
       </div>
 
       {/* Nav */}
-      <nav style={{ flex: 1, padding: '12px 0', overflow: 'auto' }}>
+      <nav style={{ flex: 1, padding: '10px 12px', overflow: 'auto' }}>
         {NAV.map(item => (
           <NavLink
             key={item.to}
@@ -73,21 +92,30 @@ export default function CpDashboardLayout() {
               display: 'flex',
               alignItems: 'center',
               gap: 10,
-              padding: '10px 20px',
+              padding: '9px 12px',
+              borderRadius: 8,
+              marginBottom: 2,
               fontSize: 14,
               fontWeight: isActive ? 600 : 400,
-              color: isActive ? '#fff' : C.sub,
+              color: isActive ? C.activeText : C.sub,
               background: isActive ? C.hover : 'transparent',
               textDecoration: 'none',
-              borderLeft: isActive ? `3px solid ${C.green}` : '3px solid transparent',
-              transition: 'background 0.15s',
+              transition: 'background 0.12s, color 0.12s',
             })}
           >
-            <span>{item.icon}</span>
+            <span style={{ fontSize: 16 }}>{item.icon}</span>
             <span>{item.label}</span>
           </NavLink>
         ))}
       </nav>
+
+      {/* CP ID */}
+      {currentCp?.shareToken && (
+        <div style={{ padding: '12px 20px', borderTop: `1px solid ${C.border}` }}>
+          <div style={{ fontSize: 10, color: C.muted, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 3 }}>CP ID</div>
+          <div style={{ fontSize: 12, fontWeight: 700, color: C.sub, fontFamily: 'monospace' }}>{currentCp.shareToken}</div>
+        </div>
+      )}
 
       {/* Logout */}
       <div style={{ padding: '12px 20px', borderTop: `1px solid ${C.border}` }}>
@@ -98,11 +126,12 @@ export default function CpDashboardLayout() {
             background: 'transparent',
             border: `1px solid ${C.border}`,
             color: C.sub,
-            borderRadius: 6,
+            borderRadius: 7,
             padding: '8px 0',
             fontSize: 13,
             cursor: 'pointer',
             fontWeight: 500,
+            transition: 'background 0.12s',
           }}
         >
           Sign Out
@@ -115,13 +144,14 @@ export default function CpDashboardLayout() {
     <div style={{ display: 'flex', minHeight: '100vh', background: C.bg, color: C.text, fontFamily: "'DM Sans','Segoe UI',sans-serif" }}>
       {/* Desktop sidebar */}
       <aside style={{
-        width: 220,
+        width: 228,
         background: C.sidebar,
         borderRight: `1px solid ${C.border}`,
         position: 'fixed',
         top: 0, left: 0, bottom: 0,
         display: 'flex', flexDirection: 'column',
         zIndex: 40,
+        boxShadow: '0 0 0 1px rgba(0,0,0,0.04), 4px 0 12px rgba(0,0,0,0.04)',
       }}
         className="cp-sidebar-desktop"
       >
@@ -133,12 +163,13 @@ export default function CpDashboardLayout() {
         <>
           <div
             onClick={() => setSidebarOpen(false)}
-            style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 45 }}
+            style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.3)', zIndex: 45, backdropFilter: 'blur(2px)' }}
           />
           <aside style={{
-            position: 'fixed', top: 0, left: 0, bottom: 0, width: 240,
+            position: 'fixed', top: 0, left: 0, bottom: 0, width: 252,
             background: C.sidebar, borderRight: `1px solid ${C.border}`,
             zIndex: 50, display: 'flex', flexDirection: 'column',
+            boxShadow: '4px 0 24px rgba(0,0,0,0.12)',
           }}>
             <SidebarContent />
           </aside>
@@ -146,7 +177,7 @@ export default function CpDashboardLayout() {
       )}
 
       {/* Main content */}
-      <main style={{ flex: 1, marginLeft: 220, minWidth: 0 }} className="cp-main">
+      <main style={{ flex: 1, marginLeft: 228, minWidth: 0 }} className="cp-main">
         {/* Mobile top bar */}
         <div style={{
           display: 'none',
@@ -155,17 +186,19 @@ export default function CpDashboardLayout() {
           padding: '12px 16px',
           borderBottom: `1px solid ${C.border}`,
           background: C.sidebar,
+          boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
         }} className="cp-mobile-topbar">
           <button
             onClick={() => setSidebarOpen(true)}
-            style={{ background: 'none', border: 'none', color: C.text, fontSize: 20, cursor: 'pointer', lineHeight: 1, padding: 0 }}
+            style={{ background: 'none', border: 'none', color: C.text, fontSize: 20, cursor: 'pointer', lineHeight: 1, padding: 4 }}
           >
             ☰
           </button>
-          <span style={{ fontWeight: 700, fontSize: 16, color: C.green }}>Growperty CP</span>
+          <span style={{ fontWeight: 800, fontSize: 16, color: C.greenDark }}>Growperty</span>
+          <span style={{ fontSize: 13, color: C.muted, marginLeft: 'auto' }}>{currentCp?.name}</span>
         </div>
 
-        <div style={{ padding: 24, maxWidth: 1100, margin: '0 auto' }}>
+        <div style={{ padding: '28px 28px', maxWidth: 1140, margin: '0 auto' }}>
           <Outlet />
         </div>
       </main>

@@ -62,7 +62,7 @@ const PrivacyPolicyPage = () => (
                 <p><strong>Grenoverse Multi Ventures LLP</strong></p>
                 <p>Head Office: 01, Mannat Tower, Bindal Enclave, Kasna near Sector Phi-4, Greater Noida, Uttar Pradesh – 201310</p>
                 <p>Branch Office: 01, Kirat Tower, Bindal Enclave, Kasna near Sector Phi-4, Greater Noida, Uttar Pradesh – 201310</p>
-                <p>Email: <a href="mailto:support@growperty.com" className="text-primary underline">support@growperty.com</a> &nbsp;·&nbsp; Phone: <a href="tel:+919891117876" className="text-primary underline">+91 9891117876</a>, <a href="tel:+919971007876" className="text-primary underline">+91 9971007876</a></p>
+                <p>Email: <a href="mailto:support@growperty.com" className="text-primary underline">support@growperty.com</a> &nbsp;·&nbsp; Phone: <a href="tel:+919891117876" className="text-primary underline">+91 9891117876</a>, <a href="tel:+919891487876" className="text-primary underline">+91 9891487876</a></p>
                 <p>For the purposes of this Policy, "personal data" means data about an identifiable individual.</p>
               </Section>
 
@@ -223,7 +223,7 @@ const PrivacyPolicyPage = () => (
                 <p>Head Office: 01, Mannat Tower, Bindal Enclave, Kasna near Sector Phi-4, Greater Noida, Uttar Pradesh – 201310</p>
                 <p>Branch Office: 01, Kirat Tower, Bindal Enclave, Kasna near Sector Phi-4, Greater Noida, Uttar Pradesh – 201310</p>
                 <p>Email: <a href="mailto:support@growperty.com" className="text-primary underline">support@growperty.com</a></p>
-                <p>Phone: <a href="tel:+919891117876" className="text-primary underline">+91 9891117876</a>, <a href="tel:+919971007876" className="text-primary underline">+91 9971007876</a></p>
+                <p>Phone: <a href="tel:+919891117876" className="text-primary underline">+91 9891117876</a>, <a href="tel:+919891487876" className="text-primary underline">+91 9891487876</a></p>
               </Section>
 
               <Section title="19. Policy Updates">

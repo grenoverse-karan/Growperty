@@ -13,6 +13,7 @@ const visitRequestSchema = new mongoose.Schema(
     notes:        { type: String, default: '' },
     cpId:         { type: String, default: '' },
     leadSource:   { type: String, default: '' }, // 'whatsapp' | 'ad' | ''
+    cpVisitorToken: { type: String, default: '' }, // links back to the CPVisitor tracking record, if any
   },
   { timestamps: true }
 );

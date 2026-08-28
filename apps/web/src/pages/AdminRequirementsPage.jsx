@@ -8,7 +8,24 @@ const C = {
   bg: '#0d1117', surface: '#0d1b2a', border: '#1e2d3d',
   text: '#e6edf3', muted: '#4d6175', sub: '#94aabf',
   hover: '#132236', green: '#1d9e75', blue: '#185fa5',
+  red: '#e5484d', orange: '#f5a524', cyan: '#3fb1ce', gold: '#e5b93d',
 };
+
+const TEMP_COLORS = { Hot: C.red, Warm: C.orange, Cold: C.cyan };
+
+const waLink = (phone) => {
+  const digits = (phone || '').replace(/\D/g, '');
+  const withCountryCode = digits.length === 10 ? `91${digits}` : digits;
+  return `https://wa.me/${withCountryCode}`;
+};
+
+const actionBtn = (active, color) => ({
+  padding: '4px 8px', borderRadius: 6, fontSize: 11, fontWeight: 700, cursor: 'pointer',
+  border: `1px solid ${active ? color : C.border}`,
+  background: active ? `${color}22` : 'transparent',
+  color: active ? color : C.sub,
+  whiteSpace: 'nowrap', textDecoration: 'none', display: 'inline-block',
+});
 
 const fmt = (n) => {
   if (!n) return '—';
@@ -47,6 +64,38 @@ export default function AdminRequirementsPage() {
   }, [token]);
 
   useEffect(() => { fetchReqs(1); }, [fetchReqs]);
+
+  const patchReq = useCallback(async (id, patch) => {
+    try {
+      const res = await apiServerClient.fetch(`/requirements/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify(patch),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Update failed');
+      setReqs(prev => prev.map(r => (r._id === id ? { ...r, ...data.item } : r)));
+    } catch (err) {
+      toast.error(err.message);
+    }
+  }, [token]);
+
+  const deleteReq = useCallback(async (id) => {
+    if (!window.confirm('Delete this lead permanently? This cannot be undone.')) return;
+    try {
+      const res = await apiServerClient.fetch(`/requirements/${id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Delete failed');
+      setReqs(prev => prev.filter(r => r._id !== id));
+      setTotal(prev => Math.max(0, prev - 1));
+      toast.success('Lead deleted');
+    } catch (err) {
+      toast.error(err.message);
+    }
+  }, [token]);
 
   const filtered = reqs.filter(r => {
     if (!search.trim()) return true;
@@ -103,7 +152,7 @@ export default function AdminRequirementsPage() {
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
                   <thead>
                     <tr style={{ borderBottom: `1px solid ${C.border}` }}>
-                      {['Buyer', 'Phone', 'Email', 'Property Type', 'BHK', 'City / Area', 'Budget', 'Notes', 'Date'].map(h => (
+                      {['Buyer', 'Phone', 'Email', 'Property Type', 'BHK', 'City / Area', 'Budget', 'Notes', 'Date', 'Actions'].map(h => (
                         <th key={h} style={{ padding: '12px 16px', textAlign: 'left', color: C.sub, fontWeight: 700, fontSize: 12, textTransform: 'uppercase', whiteSpace: 'nowrap' }}>{h}</th>
                       ))}
                     </tr>
@@ -131,6 +180,30 @@ export default function AdminRequirementsPage() {
                         </td>
                         <td style={{ padding: '12px 16px', color: C.sub, fontSize: 12, whiteSpace: 'nowrap' }}>
                           {r.createdAt ? new Date(r.createdAt).toLocaleDateString('en-IN') : '—'}
+                        </td>
+                        <td style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>
+                          <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', maxWidth: 260 }}>
+                            <a href={`tel:${r.buyerPhone}`} title="Call" style={actionBtn(false, C.green)}>📞</a>
+                            <a href={waLink(r.buyerPhone)} target="_blank" rel="noopener noreferrer" title="WhatsApp" style={actionBtn(false, C.green)}>💬</a>
+                            {['Hot', 'Warm', 'Cold'].map(temp => (
+                              <button key={temp} title={`Mark ${temp}`}
+                                onClick={() => patchReq(r._id, { leadTemperature: r.leadTemperature === temp ? null : temp })}
+                                style={actionBtn(r.leadTemperature === temp, TEMP_COLORS[temp])}>
+                                {temp[0]}
+                              </button>
+                            ))}
+                            <button title={r.featured ? 'Remove from featured' : 'Feature / boost this lead'}
+                              onClick={() => patchReq(r._id, { featured: !r.featured })}
+                              style={actionBtn(r.featured, C.gold)}>
+                              {r.featured ? '★' : '☆'}
+                            </button>
+                            <button title={r.status === 'unlisted' ? 'Relist' : 'Unlist'}
+                              onClick={() => patchReq(r._id, { status: r.status === 'unlisted' ? 'active' : 'unlisted' })}
+                              style={actionBtn(r.status === 'unlisted', C.sub)}>
+                              {r.status === 'unlisted' ? 'Relist' : 'Unlist'}
+                            </button>
+                            <button title="Delete" onClick={() => deleteReq(r._id)} style={actionBtn(false, C.red)}>🗑</button>
+                          </div>
                         </td>
                       </tr>
                     ))}

@@ -5,17 +5,22 @@ import apiServerClient from '@/lib/apiServerClient';
 import { toast } from 'sonner';
 
 const C = {
-  surface: '#0d1b2a',
-  border:  '#1e2d3d',
-  sub:     '#94aabf',
-  muted:   '#4d6175',
-  green:   '#1d9e75',
+  surface: '#ffffff',
+  border:  '#e5e7eb',
+  text:    '#111827',
+  muted:   '#9ca3af',
+  sub:     '#6b7280',
+  greenDark: '#059669',
+  dotBorder: '#d1fae5',
+  dotBg:     '#f0fdf4',
 };
 
 const ICON = {
   property_listed: '🏘',
   lead_received:   '📩',
   visit_scheduled: '📅',
+  visit_confirmed: '✅',
+  visit_done:      '🤝',
   default:         '📋',
 };
 
@@ -54,25 +59,38 @@ export default function CpActivitiesPage() {
     <>
       <Helmet><title>Activities — CP Dashboard</title></Helmet>
 
-      <div style={{ marginBottom: 24 }}>
-        <h1 style={{ margin: 0, fontSize: 20, fontWeight: 700 }}>Activities</h1>
-        <p style={{ margin: '4px 0 0', color: C.sub, fontSize: 13 }}>Your recent actions</p>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24, flexWrap: 'wrap', gap: 12 }}>
+        <div>
+          <h1 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: C.text }}>Activities</h1>
+          <p style={{ margin: '3px 0 0', color: C.muted, fontSize: 13 }}>Your recent actions and events</p>
+        </div>
+        <button
+          onClick={fetchActivities}
+          style={{ background: C.surface, border: `1px solid ${C.border}`, color: C.sub, borderRadius: 8, padding: '8px 16px', fontSize: 13, cursor: 'pointer' }}
+        >
+          ↻ Refresh
+        </button>
       </div>
 
       {loading ? (
-        <div style={{ padding: 40, textAlign: 'center', color: C.sub }}>Loading...</div>
+        <div style={{ background: C.surface, borderRadius: 12, border: `1px solid ${C.border}`, padding: 48, textAlign: 'center', color: C.muted, fontSize: 14 }}>
+          Loading...
+        </div>
       ) : activities.length === 0 ? (
-        <div style={{ background: C.surface, borderRadius: 12, border: `1px solid ${C.border}`, padding: 40, textAlign: 'center', color: C.sub }}>
-          No activities yet. Activities will appear here as you use the dashboard.
+        <div style={{ background: C.surface, borderRadius: 12, border: `1px solid ${C.border}`, padding: 48, textAlign: 'center', boxShadow: '0 1px 4px rgba(0,0,0,0.05)' }}>
+          <div style={{ fontSize: 36, marginBottom: 10 }}>📋</div>
+          <div style={{ fontSize: 15, fontWeight: 600, color: C.text, marginBottom: 6 }}>No activities yet</div>
+          <div style={{ fontSize: 13, color: C.muted }}>Activities will appear here as you use the dashboard.</div>
         </div>
       ) : (
-        <div style={{ position: 'relative' }}>
+        <div style={{ position: 'relative', paddingLeft: 4 }}>
           {/* Timeline line */}
           <div style={{
             position: 'absolute',
-            left: 19, top: 0, bottom: 0,
+            left: 19, top: 19, bottom: 19,
             width: 2,
             background: C.border,
+            borderRadius: 2,
           }} />
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
@@ -81,16 +99,16 @@ export default function CpActivitiesPage() {
                 key={i}
                 style={{
                   display: 'flex',
-                  gap: 14,
-                  paddingBottom: i < activities.length - 1 ? 20 : 0,
+                  gap: 16,
+                  paddingBottom: i < activities.length - 1 ? 16 : 0,
                   position: 'relative',
                 }}
               >
                 {/* Dot */}
                 <div style={{
                   width: 38, height: 38, borderRadius: '50%',
-                  background: C.surface,
-                  border: `2px solid ${C.border}`,
+                  background: C.dotBg,
+                  border: `2px solid ${C.dotBorder}`,
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   fontSize: 16, flexShrink: 0, zIndex: 1,
                 }}>
@@ -104,8 +122,9 @@ export default function CpActivitiesPage() {
                   border: `1px solid ${C.border}`,
                   borderRadius: 10,
                   padding: '12px 16px',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
                 }}>
-                  <div style={{ fontSize: 14, fontWeight: 500 }}>{act.message}</div>
+                  <div style={{ fontSize: 14, fontWeight: 500, color: C.text }}>{act.message}</div>
                   <div style={{ fontSize: 12, color: C.muted, marginTop: 4 }}>{fmtTime(act.createdAt)}</div>
                 </div>
               </div>

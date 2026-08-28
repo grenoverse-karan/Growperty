@@ -1,0 +1,322 @@
+[
+  {
+    "page": 2,
+    "name": "Alpha - I",
+    "file": "02-alpha-i.jpg"
+  },
+  {
+    "page": 3,
+    "name": "Alpha - II",
+    "file": "03-alpha-ii.jpg"
+  },
+  {
+    "page": 4,
+    "name": "Beta - I",
+    "file": "04-beta-i.jpg"
+  },
+  {
+    "page": 5,
+    "name": "Beta - II",
+    "file": "05-beta-ii.jpg"
+  },
+  {
+    "page": 6,
+    "name": "Gamma - I",
+    "file": "06-gamma-i.jpg"
+  },
+  {
+    "page": 7,
+    "name": "Gamma - II",
+    "file": "07-gamma-ii.jpg"
+  },
+  {
+    "page": 8,
+    "name": "Delta - I",
+    "file": "08-delta-i.jpg"
+  },
+  {
+    "page": 9,
+    "name": "Delta - II",
+    "file": "09-delta-ii.jpg"
+  },
+  {
+    "page": 10,
+    "name": "Delta - III",
+    "file": "10-delta-iii.jpg"
+  },
+  {
+    "page": 11,
+    "name": "Eta - I",
+    "file": "11-eta-i.jpg"
+  },
+  {
+    "page": 12,
+    "name": "Eta - II & Zeta - II",
+    "file": "12-eta-ii-zeta-ii.jpg"
+  },
+  {
+    "page": 13,
+    "name": "Sector 31 (Swaran Nagari)",
+    "file": "13-sector-31-swaran-nagari.jpg"
+  },
+  {
+    "page": 14,
+    "name": "Sector P1",
+    "file": "14-sector-p1.jpg"
+  },
+  {
+    "page": 15,
+    "name": "Sector 36",
+    "file": "15-sector-36.jpg"
+  },
+  {
+    "page": 16,
+    "name": "Ecotech III (Udyog Kendra)",
+    "file": "16-ecotech-iii-udyog-kendra.jpg"
+  },
+  {
+    "page": 17,
+    "name": "Sigma I, Sector 42",
+    "file": "17-sigma-i-sector-42.jpg"
+  },
+  {
+    "page": 18,
+    "name": "Sigma II",
+    "file": "18-sigma-ii.jpg"
+  },
+  {
+    "page": 19,
+    "name": "Sigma III",
+    "file": "19-sigma-iii.jpg"
+  },
+  {
+    "page": 20,
+    "name": "Sigma IV",
+    "file": "20-sigma-iv.jpg"
+  },
+  {
+    "page": 21,
+    "name": "Pocket P3",
+    "file": "21-pocket-p3.jpg"
+  },
+  {
+    "page": 22,
+    "name": "Pocket P4",
+    "file": "22-pocket-p4.jpg"
+  },
+  {
+    "page": 23,
+    "name": "Chi Phi Extension",
+    "file": "23-chi-phi-extension.jpg"
+  },
+  {
+    "page": 24,
+    "name": "UPSIDC Surajpur Site C (Residential)",
+    "file": "24-upsidc-surajpur-site-c-residential.jpg"
+  },
+  {
+    "page": 25,
+    "name": "Golf Link I",
+    "file": "25-golf-link-i.jpg"
+  },
+  {
+    "page": 26,
+    "name": "Golf Link II",
+    "file": "26-golf-link-ii.jpg"
+  },
+  {
+    "page": 27,
+    "name": "Surajpur Site IV (Industrial)",
+    "file": "27-surajpur-site-iv-industrial.jpg"
+  },
+  {
+    "page": 28,
+    "name": "Surajpur Site V",
+    "file": "28-surajpur-site-v.jpg"
+  },
+  {
+    "page": 29,
+    "name": "Sector Site V (A-2)",
+    "file": "29-sector-site-v-a-2.jpg"
+  },
+  {
+    "page": 30,
+    "name": "Export Zone",
+    "file": "30-export-zone.jpg"
+  },
+  {
+    "page": 31,
+    "name": "Surajpur Site B (Industrial)",
+    "file": "31-surajpur-site-b-industrial.jpg"
+  },
+  {
+    "page": 32,
+    "name": "Surajpur Site C (Industrial)",
+    "file": "32-surajpur-site-c-industrial.jpg"
+  },
+  {
+    "page": 33,
+    "name": "Toy City & MUP II",
+    "file": "33-toy-city-mup-ii.jpg"
+  },
+  {
+    "page": 34,
+    "name": "Institutional Area Phase II",
+    "file": "34-institutional-area-phase-ii.jpg"
+  },
+  {
+    "page": 35,
+    "name": "Phase II (Residential)",
+    "file": "35-phase-ii-residential.jpg"
+  },
+  {
+    "page": 36,
+    "name": "Builders Scheme",
+    "file": "36-builders-scheme.jpg"
+  },
+  {
+    "page": 37,
+    "name": "NRI City",
+    "file": "37-nri-city.jpg"
+  },
+  {
+    "page": 38,
+    "name": "Ecotech I",
+    "file": "38-ecotech-i.jpg"
+  },
+  {
+    "page": 39,
+    "name": "Ecotech II (Udyog Vihar)",
+    "file": "39-ecotech-ii-udyog-vihar.jpg"
+  },
+  {
+    "page": 40,
+    "name": "Sector 37",
+    "file": "40-sector-37.jpg"
+  },
+  {
+    "page": 41,
+    "name": "MUP I (Mahila Udyami Park)",
+    "file": "41-mup-i-mahila-udyami-park.jpg"
+  },
+  {
+    "page": 42,
+    "name": "Surajpur Site V (A-3) Industrial",
+    "file": "42-surajpur-site-v-a-3-industrial.jpg"
+  },
+  {
+    "page": 43,
+    "name": "Sector Ecotech I Extension",
+    "file": "43-sector-ecotech-i-extension.jpg"
+  },
+  {
+    "page": 44,
+    "name": "Sector PI 1 & 2",
+    "file": "44-sector-pi-1-2.jpg"
+  },
+  {
+    "page": 45,
+    "name": "Sector Zeta I",
+    "file": "45-sector-zeta-i.jpg"
+  },
+  {
+    "page": 46,
+    "name": "Institutional Area Ph III (Knowledge Park)",
+    "file": "46-institutional-area-ph-iii-knowledge-park.jpg"
+  },
+  {
+    "page": 47,
+    "name": "Sector Knowledge Park IV",
+    "file": "47-sector-knowledge-park-iv.jpg"
+  },
+  {
+    "page": 48,
+    "name": "Omicron I, Extn. 1",
+    "file": "48-omicron-i-extn-1.jpg"
+  },
+  {
+    "page": 49,
+    "name": "Sector MU",
+    "file": "49-sector-mu.jpg"
+  },
+  {
+    "page": 50,
+    "name": "Omicron 1",
+    "file": "50-omicron-1.jpg"
+  },
+  {
+    "page": 51,
+    "name": "Omicron II",
+    "file": "51-omicron-ii.jpg"
+  },
+  {
+    "page": 52,
+    "name": "Omicron III",
+    "file": "52-omicron-iii.jpg"
+  },
+  {
+    "page": 53,
+    "name": "Tech Zone",
+    "file": "53-tech-zone.jpg"
+  },
+  {
+    "page": 54,
+    "name": "BZP Area",
+    "file": "54-bzp-area.jpg"
+  },
+  {
+    "page": 55,
+    "name": "Sector Nato Ki Mandia",
+    "file": "55-sector-nato-ki-mandia.jpg"
+  },
+  {
+    "page": 56,
+    "name": "Sector MU 1",
+    "file": "56-sector-mu-1.jpg"
+  },
+  {
+    "page": 57,
+    "name": "Ecotech Extn. 1",
+    "file": "57-ecotech-extn-1.jpg"
+  },
+  {
+    "page": 58,
+    "name": "Knowledge Park V (Institutional Area)",
+    "file": "58-knowledge-park-v-institutional-area.jpg"
+  },
+  {
+    "page": 59,
+    "name": "Ecotech XI",
+    "file": "59-ecotech-xi.jpg"
+  },
+  {
+    "page": 60,
+    "name": "Sikandrabad Industrial Area",
+    "file": "60-sikandrabad-industrial-area.jpg"
+  },
+  {
+    "page": 61,
+    "name": "Sikandrabad Residential Area",
+    "file": "61-sikandrabad-residential-area.jpg"
+  },
+  {
+    "page": 62,
+    "name": "MG Road Ghaziabad",
+    "file": "62-mg-road-ghaziabad.jpg"
+  },
+  {
+    "page": 63,
+    "name": "Sector 3, Greater Noida",
+    "file": "63-sector-3-greater-noida.jpg"
+  },
+  {
+    "page": 64,
+    "name": "Sector MU II",
+    "file": "64-sector-mu-ii.jpg"
+  },
+  {
+    "page": 65,
+    "name": "Sector 2, Greater Noida",
+    "file": "65-sector-2-greater-noida.jpg"
+  }
+]

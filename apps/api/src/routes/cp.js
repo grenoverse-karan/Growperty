@@ -9,7 +9,7 @@ import VisitRequest from '../models/VisitRequest.js';
 import BuyerRequirement from '../models/BuyerRequirement.js';
 import verifyCpToken from '../middleware/verifyCpToken.js';
 import { connectMongoDB } from '../utils/mongodb.js';
-import { sendTextMessage, sendTemplateMessage } from '../utils/whatsappTemplates.js';
+import { sendTemplateMessage } from '../utils/whatsappTemplates.js';
 import logger from '../utils/logger.js';
 
 const router = express.Router();
@@ -33,7 +33,7 @@ router.post('/send-otp', async (req, res) => {
     await OtpVerification.findOneAndDelete({ phone: cleaned });
     await OtpVerification.create({ phone: cleaned, otp, verified: false });
 
-    const result = await sendTextMessage(cleaned, `Your Growperty OTP is: *${otp}*\n\nValid for 10 minutes. Do not share this with anyone.\n\n— Team Growperty`);
+    const result = await sendTemplateMessage(cleaned, 'otp_login_growperty', { otp });
 
     if (!result.success) {
       logger.warn('[CP] OTP WhatsApp delivery failed, otp still stored', { phone: cleaned, error: result.error });
@@ -43,6 +43,7 @@ router.post('/send-otp', async (req, res) => {
     const isDev = process.env.NODE_ENV !== 'production';
     return res.status(200).json({
       success: true,
+      delivered: result.success,
       message: result.success
         ? 'OTP sent to your WhatsApp number'
         : 'WhatsApp delivery failed — use the OTP shown below',
@@ -183,6 +184,105 @@ router.post('/setup', async (req, res) => {
   }
 });
 
+// Find an approved CP by mobile number, email, or CP ID (shareToken)
+async function findCpByIdentifier(identifier) {
+  const id = (identifier || '').trim();
+  if (!id) return null;
+  const normalizedPhone = id.replace(/\D/g, '');
+  return ChannelPartner.findOne({
+    $or: [
+      { email: id.toLowerCase() },
+      { phone: normalizedPhone },
+      { shareToken: id.toUpperCase() },
+    ],
+  });
+}
+
+// =====================
+// POST /cp/setup/request-otp — Self-service password setup: step 1
+// CP enters mobile / email / CP ID; we OTP-verify their registered WhatsApp
+// number before letting them (re)set a password. Works for first-time setup
+// (no passwordHash yet) and for resetting a forgotten password.
+// =====================
+router.post('/setup/request-otp', async (req, res) => {
+  try {
+    await connectMongoDB();
+    const { identifier } = req.body || {};
+    if (!identifier) return res.status(400).json({ error: 'Mobile number, email, or CP ID is required' });
+
+    const cp = await findCpByIdentifier(identifier);
+    if (!cp) return res.status(404).json({ error: 'No channel partner account found for this ID' });
+    if (cp.status !== 'approved') {
+      return res.status(403).json({ error: 'Your application is not yet approved' });
+    }
+
+    const otp = String(Math.floor(100000 + Math.random() * 900000));
+    await OtpVerification.findOneAndDelete({ phone: cp.phone });
+    await OtpVerification.create({ phone: cp.phone, otp, verified: false });
+
+    const result = await sendTemplateMessage(cp.phone, 'otp_login_growperty', { otp });
+    if (!result.success) {
+      logger.warn('[CP] setup OTP WhatsApp delivery failed', { phone: cp.phone, error: result.error });
+    }
+
+    logger.info('[CP] Setup OTP sent', { id: cp._id, phone: cp.phone });
+    const isDev = process.env.NODE_ENV !== 'production';
+    return res.status(200).json({
+      success: true,
+      delivered: result.success,
+      // Mask the phone so the UI can confirm "OTP sent to 98******76" without leaking the full number
+      maskedPhone: cp.phone.replace(/^(\d{2})\d+(\d{2})$/, '$1******$2'),
+      message: result.success ? 'OTP sent to your registered WhatsApp number' : 'WhatsApp delivery failed — use the OTP shown below',
+      ...((!result.success || isDev) && { devOtp: otp }),
+    });
+  } catch (err) {
+    logger.error('[CP] setup/request-otp error', { error: err.message });
+    return res.status(500).json({ error: 'Failed to send OTP' });
+  }
+});
+
+// =====================
+// POST /cp/setup/verify-otp — Unified OTP login / setup: step 2
+// Verifies the OTP, then branches:
+//   - CP already has a password  -> log them in directly (passwordless OTP login)
+//   - CP has no password yet     -> issue a short-lived cp_setup token; frontend
+//                                    exchanges it via POST /cp/setup for a new password
+// =====================
+router.post('/setup/verify-otp', async (req, res) => {
+  try {
+    await connectMongoDB();
+    const { identifier, otp } = req.body || {};
+    if (!identifier || !otp) return res.status(400).json({ error: 'Identifier and OTP are required' });
+
+    const cp = await findCpByIdentifier(identifier);
+    if (!cp) return res.status(404).json({ error: 'No channel partner account found for this ID' });
+
+    const record = await OtpVerification.findOne({ phone: cp.phone }).lean();
+    if (!record) return res.status(400).json({ error: 'OTP expired or not found. Please resend.' });
+    if (record.otp !== String(otp).trim()) return res.status(400).json({ error: 'Incorrect OTP. Please try again.' });
+
+    await OtpVerification.findByIdAndDelete(record._id);
+
+    if (cp.passwordHash) {
+      const token = jwt.sign({ sub: cp._id.toString(), role: 'cp' }, JWT_SECRET, { expiresIn: '30d' });
+      logger.info('[CP] OTP login successful', { id: cp._id });
+      return res.status(200).json({
+        success: true,
+        needsSetup: false,
+        token,
+        cp: { id: cp._id.toString(), name: cp.name, email: cp.email, phone: cp.phone, companyName: cp.companyName, city: cp.city, shareToken: cp.shareToken },
+      });
+    }
+
+    const setupToken = jwt.sign({ sub: cp._id.toString(), purpose: 'cp_setup' }, JWT_SECRET, { expiresIn: '30m' });
+    logger.info('[CP] Setup OTP verified', { id: cp._id });
+    return res.status(200).json({ success: true, needsSetup: true, setupToken });
+  } catch (err) {
+    logger.error('[CP] setup/verify-otp error', { error: err.message });
+    return res.status(500).json({ error: 'Failed to verify OTP' });
+  }
+});
+
 // =====================
 // POST /cp/login — Authenticate CP (identifier = email | phone | shareToken)
 // =====================
@@ -216,7 +316,7 @@ router.post('/login', async (req, res) => {
     }
 
     if (!cp.passwordHash) {
-      return res.status(403).json({ error: 'Password not set yet. Please use the setup link sent to your WhatsApp.' });
+      return res.status(403).json({ error: 'Password not set yet. Use "Set up password" on the login page to create one.' });
     }
 
     const valid = await bcrypt.compare(password, cp.passwordHash);
@@ -237,6 +337,7 @@ router.post('/login', async (req, res) => {
         phone: cp.phone,
         companyName: cp.companyName,
         city: cp.city,
+        shareToken: cp.shareToken,
       },
     });
   } catch (err) {
@@ -366,10 +467,47 @@ router.get('/me', verifyCpToken, async (req, res) => {
       cp = { ...cp, shareToken };
     }
 
+    // Backfill the sitewide referral link for CPs approved before this feature shipped
+    if (!cp.cpPublicId || !cp.refToken) {
+      const digits = String(cp.phone || '').replace(/\D/g, '');
+      const now = new Date();
+      const dd = String(now.getDate()).padStart(2, '0');
+      const mm = String(now.getMonth() + 1).padStart(2, '0');
+      const yyyy = String(now.getFullYear());
+      let cpPublicId = `GP${digits}${dd}${mm}${yyyy}`;
+      if (await ChannelPartner.findOne({ cpPublicId, _id: { $ne: req.cp.sub } }).lean()) {
+        cpPublicId += Math.random().toString(36).slice(2, 6).toUpperCase();
+      }
+      const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+      const refToken = Array.from({ length: 12 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+      const refLink = `growperty.com/ref/${cpPublicId}/${refToken}`;
+      await ChannelPartner.findByIdAndUpdate(req.cp.sub, { $set: { cpPublicId, refToken, refLink } });
+      cp = { ...cp, cpPublicId, refToken, refLink };
+    }
+
     return res.status(200).json({ cp: { ...cp, id: cp._id.toString() } });
   } catch (err) {
     logger.error('[CP] /me error', { error: err.message });
     return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// =====================
+// GET /cp/validate-ref/:cpPublicId/:refToken — Public: validate a sitewide
+// referral link. Both cpPublicId and refToken must match the same approved CP.
+// =====================
+router.get('/validate-ref/:cpPublicId/:refToken', async (req, res) => {
+  try {
+    await connectMongoDB();
+    const { cpPublicId, refToken } = req.params;
+    const cp = await ChannelPartner.findOne({ cpPublicId, refToken, status: 'approved' })
+      .select('name phone')
+      .lean();
+    if (!cp) return res.status(404).json({ valid: false });
+    return res.status(200).json({ valid: true, cpName: cp.name, cpPhone: cp.phone });
+  } catch (err) {
+    logger.error('[CP] validate-ref error', { error: err.message });
+    return res.status(500).json({ valid: false });
   }
 });
 
@@ -414,7 +552,7 @@ router.get('/properties', verifyCpToken, async (req, res) => {
     if (req.query.status) filter.status = req.query.status;
 
     const [docs, total] = await Promise.all([
-      Property.find(filter, { images: 0 }).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
+      Property.find(filter, { images: { $slice: 1 } }).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
       Property.countDocuments(filter),
     ]);
 
@@ -434,7 +572,8 @@ router.post('/properties', verifyCpToken, async (req, res) => {
     await connectMongoDB();
     const body = req.body || {};
 
-    const required = ['propertyType', 'city', 'sector', 'houseNo', 'totalPrice', 'totalArea', 'areaUnit', 'areaType', 'mobileNumber', 'name'];
+    // CP listings are displayed as "Listed by Growperty" — no owner name/mobile to verify
+    const required = ['propertyType', 'city', 'sector', 'houseNo', 'totalPrice', 'totalArea', 'areaUnit', 'areaType'];
     for (const field of required) {
       if (!body[field]) {
         return res.status(400).json({ error: `${field} is required` });
@@ -483,7 +622,7 @@ router.get('/growperty-listings', verifyCpToken, async (req, res) => {
     const filter = { status: 'approved', listedBy: { $in: ['owner', 'admin'] } };
 
     const [docs, total] = await Promise.all([
-      Property.find(filter, { images: 0 }).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
+      Property.find(filter, { images: { $slice: 1 }, houseNo: 0 }).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
       Property.countDocuments(filter),
     ]);
 
@@ -595,6 +734,70 @@ router.get('/growperty-buyers', verifyCpToken, async (req, res) => {
   } catch (err) {
     logger.error('[CP] /growperty-buyers error', { error: err.message });
     return res.status(500).json({ error: 'Failed to fetch buyers' });
+  }
+});
+
+// =====================
+// GET /cp/requirements — Buyer requirements this CP has posted (protected)
+// =====================
+router.get('/requirements', verifyCpToken, async (req, res) => {
+  try {
+    await connectMongoDB();
+    const page  = Math.max(1, parseInt(req.query.page)  || 1);
+    const limit = Math.max(1, Math.min(50, parseInt(req.query.limit) || 20));
+    const skip  = (page - 1) * limit;
+
+    const filter = { cpId: req.cp.sub };
+
+    const [docs, total] = await Promise.all([
+      BuyerRequirement.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
+      BuyerRequirement.countDocuments(filter),
+    ]);
+
+    const items = docs.map(r => ({ ...r, id: r._id.toString() }));
+    return res.status(200).json({ items, total, page, totalPages: Math.ceil(total / limit) });
+  } catch (err) {
+    logger.error('[CP] /requirements get error', { error: err.message });
+    return res.status(500).json({ error: 'Failed to fetch requirements' });
+  }
+});
+
+// =====================
+// POST /cp/requirements — Post a buyer requirement on behalf of a buyer (protected)
+// =====================
+router.post('/requirements', verifyCpToken, async (req, res) => {
+  try {
+    await connectMongoDB();
+    const body = req.body || {};
+
+    const required = ['buyerName', 'buyerPhone', 'propertyType', 'city', 'maxBudget'];
+    for (const field of required) {
+      if (!body[field]) {
+        return res.status(400).json({ error: `${field} is required` });
+      }
+    }
+
+    const doc = await BuyerRequirement.create({
+      ...body,
+      cpId: req.cp.sub,
+      status: 'active',
+    });
+
+    await ChannelPartner.findByIdAndUpdate(req.cp.sub, {
+      $push: {
+        activities: {
+          type: 'requirement_posted',
+          message: `Posted requirement for ${body.buyerName}: ${body.propertyType} in ${body.city}`,
+          createdAt: new Date(),
+        },
+      },
+    });
+
+    logger.info('[CP] Requirement created', { cpId: req.cp.sub, requirementId: doc._id });
+    return res.status(201).json({ success: true, id: doc._id.toString() });
+  } catch (err) {
+    logger.error('[CP] /requirements post error', { error: err.message });
+    return res.status(500).json({ error: 'Failed to create requirement' });
   }
 });
 

@@ -1,10 +1,12 @@
 import express from 'express';
 import multer from 'multer';
+import mongoose from 'mongoose';
 import Property from '../models/Property.js';
 import logger from '../utils/logger.js';
 import { verifyToken } from '../utils/jwt.js';
 import { sendTemplateMessage } from '../utils/whatsappTemplates.js';
 import { notifyMatchingBuyers } from '../utils/matchBuyers.js';
+import { generateThumbnail } from '../utils/imageThumbnail.js';
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 2 * 1024 * 1024, files: 20 } });
 
@@ -109,10 +111,9 @@ router.post('/', requireAuth, async (req, res) => {
 // =====================
 // GET / — List properties
 // =====================
-// LIST_PROJECTION: metadata only — NO images.
-// Cards only need the first image (thumbnail). $slice:1 returns ~400KB instead of
-// potentially 8–12MB for all images on a 20-property page load.
-const LIST_PROJECTION = {
+// Fields returned on list endpoint. Images are handled separately via aggregation
+// so MongoDB only returns the first image (thumbnail) — not all 16.
+const LIST_AGG_PROJECT = {
   propertyType: 1, propertySubType: 1, bhk: 1, bathrooms: 1, balconies: 1,
   city: 1, sector: 1, houseNo: 1, landmark: 1, towerBlock: 1,
   totalPrice: 1, totalArea: 1, areaUnit: 1,
@@ -121,7 +122,10 @@ const LIST_PROJECTION = {
   possessionStatus: 1, furnishingType: 1, saleType: 1,
   visitTimeType: 1, visitFixedSlots: 1, visitFlexibleSlots: 1,
   createdAt: 1, updatedAt: 1, liveAt: 1,
-  images: { $slice: 1 },
+  thumbnail: 1,
+  // Fallback for properties uploaded before thumbnails existed — dropped
+  // once every doc has been backfilled (see scripts/backfillThumbnails.js).
+  images: { $slice: ['$images', 1] },
 };
 
 router.get('/', async (req, res) => {
@@ -132,17 +136,51 @@ router.get('/', async (req, res) => {
     const filter = {};
     if (req.query.status) filter.status = req.query.status;
     if (req.query.city)   filter.city   = req.query.city;
+    if (req.query.propertyType) filter.propertyType = req.query.propertyType;
+    if (req.query.bhk)   filter.bhk = req.query.bhk;
+    if (req.query.q) {
+      const regex = new RegExp(req.query.q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+      filter.$or = [{ sector: regex }, { city: regex }, { landmark: regex }, { propertyType: regex }];
+    }
 
-    // ?withImages=true returns all images (admin detail views). Default: first image only.
-    const projection = req.query.withImages === 'true' ? {} : LIST_PROJECTION;
+    let docs;
+    if (req.query.withImages === 'true') {
+      // Admin detail view — return all images. Collect ids via an aggregation
+      // that $projects down to just _id/createdAt BEFORE $sort, so the sort
+      // stage never touches the full image-heavy documents (which otherwise
+      // blow past Mongo's 32MB in-memory sort limit) — then fetch full docs
+      // for just that page of ids, preserving the sorted order.
+      const idDocs = await Property.aggregate([
+        { $match: filter },
+        { $project: { createdAt: 1 } },
+        { $sort: { createdAt: -1 } },
+        { $skip: skip },
+        { $limit: limit },
+      ]);
+      const ids = idDocs.map(d => d._id);
+      const fullDocs = await Property.find({ _id: { $in: ids } }).lean();
+      const orderIndex = new Map(ids.map((id, i) => [id.toString(), i]));
+      docs = fullDocs.sort((a, b) => orderIndex.get(a._id.toString()) - orderIndex.get(b._id.toString()));
+    } else {
+      // Public list — use aggregation so MongoDB only sends the first image (thumbnail)
+      docs = await Property.aggregate([
+        { $match: filter },
+        { $project: LIST_AGG_PROJECT },
+        { $sort: { createdAt: -1 } },
+        { $skip: skip },
+        { $limit: limit },
+      ]);
+    }
 
-    const docs = await Property.find(filter, projection)
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limit)
-      .lean();
-
-    const items = docs.map(p => ({ ...p, id: p._id.toString() }));
+    const useThumbnails = req.query.withImages !== 'true';
+    const items = docs.map(p => {
+      const item = { ...p, id: p._id.toString() };
+      if (useThumbnails) {
+        if (item.thumbnail) item.images = [item.thumbnail];
+        delete item.thumbnail;
+      }
+      return item;
+    });
 
     // Cache public approved listings for 5min at the CDN edge + 10min stale window
     if (!req.query.status || req.query.status === 'approved') {
@@ -160,14 +198,63 @@ router.get('/', async (req, res) => {
 
 // =====================
 // GET /:id — Get single property
+// `?thumbOnly=true` — used by the public details page: returns only the first
+// image + an imageCount, computed in MongoDB (via $size/$slice) so the other
+// images' bytes are never read off disk or sent over the wire. The rest of the
+// gallery is fetched on demand via GET /:id/images/:index below. Properties
+// with 10-16 full-res images were shipping 10MB+ JSON payloads on every detail
+// page load — this was the actual cause of the ~10s "first open" slowness.
+// Every other caller (admin, seller dashboard, edit forms, CP wishlist) omits
+// the param and keeps getting the full images array, unchanged.
 // =====================
 router.get('/:id', async (req, res) => {
   try {
+    if (req.query.thumbOnly === 'true') {
+      const [property] = await Property.aggregate([
+        { $match: { _id: new mongoose.Types.ObjectId(req.params.id) } },
+        { $addFields: {
+            imageCount: { $size: { $ifNull: ['$images', []] } },
+            images: { $slice: ['$images', 1] },
+        } },
+      ]);
+      if (!property) return res.status(404).json({ success: false, message: 'Property not found' });
+      return res.status(200).json({ ...property, id: property._id.toString() });
+    }
+
     const property = await Property.findById(req.params.id).lean();
     if (!property) return res.status(404).json({ success: false, message: 'Property not found' });
     return res.status(200).json({ ...property, id: property._id.toString() });
   } catch (err) {
     logger.error('GET /api/properties/:id error', { message: err.message });
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// =====================
+// GET /:id/images/:index — Single full-res image, served as a real cacheable
+// image resource (not embedded in JSON) so the browser can fetch/cache it
+// independently and in parallel with other images.
+// =====================
+router.get('/:id/images/:index', async (req, res) => {
+  try {
+    const idx = parseInt(req.params.index, 10);
+    if (Number.isNaN(idx) || idx < 0) {
+      return res.status(400).json({ success: false, message: 'Invalid image index' });
+    }
+
+    const property = await Property.findById(req.params.id, { images: { $slice: [idx, 1] } }).lean();
+    const dataUri = property?.images?.[0];
+    if (!dataUri) return res.status(404).json({ success: false, message: 'Image not found' });
+
+    const match = /^data:(image\/[a-zA-Z+.-]+);base64,(.+)$/.exec(dataUri);
+    if (!match) return res.status(500).json({ success: false, message: 'Corrupt image data' });
+
+    const [, mimeType, base64Data] = match;
+    res.set('Content-Type', mimeType);
+    res.set('Cache-Control', 'public, max-age=31536000, immutable');
+    return res.send(Buffer.from(base64Data, 'base64'));
+  } catch (err) {
+    logger.error('GET /api/properties/:id/images/:index error', { message: err.message });
     return res.status(500).json({ success: false, message: err.message });
   }
 });
@@ -238,12 +325,17 @@ router.post('/:id/images', requireAuth, upload.array('images', 20), async (req, 
       return `data:${f.mimetype};base64,${b64}`;
     });
 
-    const updated = await Property.findByIdAndUpdate(
-      req.params.id,
-      { $push: { images: { $each: base64Images } } },
-      { new: true }
-    ).lean();
+    const existing = await Property.findById(req.params.id, { images: 1 }).lean();
+    if (!existing) return res.status(404).json({ success: false, message: 'Property not found' });
+    const isFirstUpload = !existing.images?.length;
 
+    const update = { $push: { images: { $each: base64Images } } };
+    if (isFirstUpload) {
+      const thumbnail = await generateThumbnail(base64Images[0]);
+      if (thumbnail) update.$set = { thumbnail };
+    }
+
+    const updated = await Property.findByIdAndUpdate(req.params.id, update, { new: true }).lean();
     if (!updated) return res.status(404).json({ success: false, message: 'Property not found' });
 
     logger.info('Images uploaded', { id: req.params.id, count: base64Images.length });

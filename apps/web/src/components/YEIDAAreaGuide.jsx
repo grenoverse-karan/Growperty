@@ -504,7 +504,7 @@ const YEIDAAreaGuide = () => {
                   </Link>
                 </Button>
                 <Button asChild className="bg-accent text-primary hover:bg-accent/90 h-14 px-8 text-lg font-bold rounded-xl shadow-lg transition-all active:scale-[0.98]">
-                  <a href="https://wa.me/919953537876?text=Hi,%20I%20want%20to%20invest%20in%20YEIDA%20/%20Yamuna%20Expressway.%20Please%20guide%20me." target="_blank" rel="noopener noreferrer">
+                  <a href="https://wa.me/919891487876?text=Hi,%20I%20want%20to%20invest%20in%20YEIDA%20/%20Yamuna%20Expressway.%20Please%20guide%20me." target="_blank" rel="noopener noreferrer">
                     Talk to Advisor
                   </a>
                 </Button>

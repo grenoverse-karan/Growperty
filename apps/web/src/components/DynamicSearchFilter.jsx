@@ -8,7 +8,7 @@ import { formatPriceInWords } from '@/lib/priceUtils.js';
 
 const DynamicSearchFilter = () => {
   const navigate = useNavigate();
-  
+
   const [filters, setFilters] = useState({
     city: '',
     propertyType: '',
@@ -23,7 +23,8 @@ const DynamicSearchFilter = () => {
   const handleSearch = (e) => {
     e.preventDefault();
     const params = new URLSearchParams();
-    
+
+    params.append('status', 'approved');
     if (filters.city) params.append('city', filters.city);
     if (filters.propertyType) params.append('propertyType', filters.propertyType);
     if (filters.bhk && !isPlot && !isCommercial) params.append('bhk', filters.bhk);
@@ -32,7 +33,7 @@ const DynamicSearchFilter = () => {
     if (filters.areaUnit && (isPlot || isCommercial)) params.append('areaUnit', filters.areaUnit);
     if (filters.minPrice) params.append('minPrice', filters.minPrice);
     if (filters.maxPrice) params.append('maxPrice', filters.maxPrice);
-    
+
     navigate(`/search?${params.toString()}`);
   };
 
@@ -68,6 +69,7 @@ const DynamicSearchFilter = () => {
               <SelectItem value="Noida">Noida</SelectItem>
               <SelectItem value="Greater Noida">Greater Noida</SelectItem>
               <SelectItem value="YEIDA">YEIDA</SelectItem>
+              <SelectItem value="Ecotech">Ecotech</SelectItem>
             </SelectContent>
           </Select>
         </div>

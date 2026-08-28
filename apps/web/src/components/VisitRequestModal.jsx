@@ -6,6 +6,8 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { CalendarDays, Clock, CheckCircle2 } from 'lucide-react';
 import apiServerClient from '@/lib/apiServerClient.js';
+import { getCpRefAttribution } from '@/lib/cpRef.js';
+import { getVisitorToken } from '@/lib/cpVisitorTracking.js';
 
 // Default slots for "anytime" (no seller preference set)
 const ANYTIME_SLOTS = [
@@ -86,10 +88,20 @@ export default function VisitRequestModal({
 
     setLoading(true);
     try {
+      // A per-property share link (cpToken) takes priority; otherwise fall back
+      // to the sitewide referral cookie for CP lead attribution.
+      const sitewideRef = cpToken ? null : getCpRefAttribution();
+      const visitorToken = getVisitorToken();
       const res = await apiServerClient.fetch('/visit-requests', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ propertyId, ...form, ...(cpToken && { cpToken }), ...(leadSource && { leadSource }) }),
+        body: JSON.stringify({
+          propertyId, ...form,
+          ...(cpToken && { cpToken }),
+          ...(sitewideRef && sitewideRef),
+          ...(leadSource && { leadSource }),
+          ...(visitorToken && { visitorToken }),
+        }),
       });
       const data = await res.json();
       if (!res.ok || !data.success) throw new Error(data.message || 'Submission failed.');

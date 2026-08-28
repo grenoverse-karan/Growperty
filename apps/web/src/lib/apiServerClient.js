@@ -10,4 +10,4 @@ const apiServerClient = {
 
 export default apiServerClient;
 
-export { apiServerClient };
+export { apiServerClient, API_SERVER_URL };

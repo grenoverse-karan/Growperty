@@ -81,22 +81,22 @@ const Sidebar = ({ open, onToggle, onLogout, adminEmail }) => (
   }}>
     {/* Logo */}
     <div style={{
-      padding: '20px 16px',
+      padding: '22px 16px',
       borderBottom: `1px solid ${C.border}`,
       display: 'flex',
       alignItems: 'center',
-      gap: 10,
+      gap: 12,
     }}>
       <div style={{
-        width: 32, height: 32,
+        width: 36, height: 36,
         background: 'linear-gradient(135deg, #1d9e75, #185fa5)',
-        borderRadius: 8,
+        borderRadius: 9,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         flexShrink: 0,
-        fontSize: 14, fontWeight: 700, color: '#fff',
+        fontSize: 16, fontWeight: 700, color: '#fff',
       }}>G</div>
       {open && (
-        <span style={{ fontWeight: 700, fontSize: 16, color: C.text, letterSpacing: '-0.3px', whiteSpace: 'nowrap' }}>
+        <span style={{ fontWeight: 700, fontSize: 18, color: C.text, letterSpacing: '-0.3px', whiteSpace: 'nowrap' }}>
           Growperty
         </span>
       )}
@@ -109,8 +109,8 @@ const Sidebar = ({ open, onToggle, onLogout, adminEmail }) => (
           return open
             ? (
               <div key={i} style={{
-                fontSize: 10, fontWeight: 600, color: C.muted,
-                letterSpacing: '1px', padding: '16px 10px 6px',
+                fontSize: 11, fontWeight: 600, color: C.muted,
+                letterSpacing: '1px', padding: '18px 10px 6px',
                 textTransform: 'uppercase', whiteSpace: 'nowrap',
               }}>{item.divider}</div>
             )
@@ -124,18 +124,18 @@ const Sidebar = ({ open, onToggle, onLogout, adminEmail }) => (
             end={item.href === '/admin'}
             style={({ isActive }) => ({
               display: 'flex', alignItems: 'center', gap: 10,
-              padding: '8px 10px', borderRadius: 6, marginBottom: 2,
+              padding: '9px 10px', borderRadius: 6, marginBottom: 2,
               background:   isActive ? '#132236' : 'transparent',
               color:        isActive ? C.green   : C.subtext,
               border:       `1px solid ${isActive ? C.border : 'transparent'}`,
-              fontSize: 13, fontWeight: isActive ? 600 : 400,
+              fontSize: 14, fontWeight: isActive ? 600 : 400,
               textDecoration: 'none',
               transition: 'all 0.15s',
               whiteSpace: 'nowrap',
               overflow: 'hidden',
             })}
           >
-            <span style={{ fontSize: 14, width: 20, textAlign: 'center', flexShrink: 0 }}>{item.icon}</span>
+            <span style={{ fontSize: 16, width: 22, textAlign: 'center', flexShrink: 0 }}>{item.icon}</span>
             {open && <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.label}</span>}
           </NavLink>
         );
@@ -144,17 +144,17 @@ const Sidebar = ({ open, onToggle, onLogout, adminEmail }) => (
 
     {/* Footer: email + logout */}
     {open && (
-      <div style={{ padding: '12px 16px', borderTop: `1px solid ${C.border}` }}>
-        <p style={{ fontSize: 11, color: C.muted, marginBottom: 8, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+      <div style={{ padding: '14px 16px', borderTop: `1px solid ${C.border}` }}>
+        <p style={{ fontSize: 12, color: C.muted, marginBottom: 10, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {adminEmail || 'admin@growperty.com'}
         </p>
         <button
           onClick={onLogout}
           style={{
-            width: '100%', padding: '7px 0', borderRadius: 6,
+            width: '100%', padding: '9px 0', borderRadius: 7,
             background: 'rgba(163,45,45,0.12)',
             border: '1px solid rgba(163,45,45,0.3)',
-            color: '#e06c6c', fontSize: 12, fontWeight: 600, cursor: 'pointer',
+            color: '#e06c6c', fontSize: 13, fontWeight: 600, cursor: 'pointer',
           }}
         >
           Sign Out
@@ -242,13 +242,13 @@ const AdminDashboard = () => {
           <header style={{
             background: C.sidebar,
             borderBottom: `1px solid ${C.border}`,
-            padding: '14px 28px',
+            padding: '16px 28px',
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
             flexShrink: 0,
           }}>
             <div>
-              <h1 style={{ fontSize: 18, fontWeight: 700, color: C.text, margin: 0 }}>Admin Dashboard</h1>
-              <p style={{ fontSize: 12, color: C.muted, margin: '2px 0 0' }}>Grenoverse Multi Ventures LLP</p>
+              <h1 style={{ fontSize: 22, fontWeight: 700, color: C.text, margin: 0 }}>Admin Dashboard</h1>
+              <p style={{ fontSize: 13, color: C.muted, margin: '3px 0 0' }}>Grenoverse Multi Ventures LLP</p>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
               <span style={{ fontSize: 12, color: C.muted }}>🟢 Live</span>
@@ -309,27 +309,27 @@ const AdminDashboard = () => {
             </div>
 
             {/* Stats grid */}
-            <div style={{ marginBottom: 28 }}>
+            <div style={{ marginBottom: 32 }}>
               <h3 style={{
-                fontSize: 13, fontWeight: 600, color: C.muted,
-                textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 14,
+                fontSize: 14, fontWeight: 600, color: C.muted,
+                textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 16,
               }}>
                 Quick Overview
               </h3>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16 }}>
                 {STATS_DEF.map(({ key, label, icon, color, prefix = '' }) => {
                   const raw = stats?.[key] ?? 0;
                   const display = statsLoading ? '…' : `${prefix}${raw}`;
                   return (
                     <div key={key} style={{
                       background: C.sidebar, border: `1px solid ${C.border}`,
-                      borderLeft: `3px solid ${color}`,
-                      borderRadius: 10, padding: '16px 18px',
+                      borderLeft: `4px solid ${color}`,
+                      borderRadius: 12, padding: '22px 24px',
                     }}>
-                      <div style={{ fontSize: 11, color: C.muted, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
-                        <span style={{ fontSize: 13 }}>{icon}</span> {label}
+                      <div style={{ fontSize: 12, color: C.muted, marginBottom: 10, display: 'flex', alignItems: 'center', gap: 7 }}>
+                        <span style={{ fontSize: 16 }}>{icon}</span> {label}
                       </div>
-                      <div style={{ fontSize: 24, fontWeight: 700, color: C.text }}>{display}</div>
+                      <div style={{ fontSize: 40, fontWeight: 700, color: C.text, lineHeight: 1 }}>{display}</div>
                     </div>
                   );
                 })}
@@ -339,8 +339,8 @@ const AdminDashboard = () => {
             {/* Quick actions */}
             <div>
               <h3 style={{
-                fontSize: 13, fontWeight: 600, color: C.muted,
-                textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 14,
+                fontSize: 14, fontWeight: 600, color: C.muted,
+                textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 16,
               }}>
                 Quick Actions
               </h3>
@@ -351,8 +351,8 @@ const AdminDashboard = () => {
                       style={{
                         background: C.sidebar,
                         border: `1px solid ${color}40`,
-                        borderRadius: 8, padding: '9px 18px',
-                        fontSize: 13, color, cursor: 'pointer',
+                        borderRadius: 9, padding: '11px 22px',
+                        fontSize: 14, color, cursor: 'pointer',
                         fontWeight: 500, transition: 'background 0.15s',
                       }}
                       onMouseEnter={e => e.currentTarget.style.background = `${color}18`}

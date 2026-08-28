@@ -265,7 +265,7 @@ const FastTrackPage = () => {
                   className="h-14 px-8 text-lg font-bold bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl shadow-lg shadow-emerald-500/25 transition-all active:scale-[0.98]"
                 >
                   <a 
-                    href="https://wa.me/919953537876?text=Hi,%20I%20want%20to%20know%20about%20Fast%20Track%20plan%20on%20Growperty.com" 
+                    href="https://wa.me/919891487876?text=Hi,%20I%20want%20to%20know%20about%20Fast%20Track%20plan%20on%20Growperty.com" 
                     target="_blank" 
                     rel="noopener noreferrer"
                   >

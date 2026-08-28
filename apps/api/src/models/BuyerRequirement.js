@@ -23,9 +23,12 @@ const schema = new mongoose.Schema({
   nationality:        { type: String, default: '' },
   countryOfResidence: { type: String, default: '' },
   whatsappAlerts:     { type: Boolean, default: true },
-  status:             { type: String, default: 'active' },
+  status:             { type: String, default: 'active', enum: ['active', 'unlisted'] },
   matched:            { type: Boolean, default: false },
+  leadTemperature:    { type: String, enum: ['Hot', 'Warm', 'Cold', null], default: null },
+  featured:           { type: Boolean, default: false },
   cpId:               { type: String, default: '' },
+  cpVisitorToken:     { type: String, default: '' }, // links back to the CPVisitor tracking record, if any
 }, { timestamps: true });
 
 export default mongoose.models.BuyerRequirement || mongoose.model('BuyerRequirement', schema);

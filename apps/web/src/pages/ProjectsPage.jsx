@@ -350,7 +350,7 @@ const ProjectsPage = () => {
                 size="lg" 
                 className="h-14 px-8 text-lg font-bold bg-white text-emerald-600 hover:bg-slate-50 rounded-xl shadow-xl shadow-black/10 transition-all active:scale-[0.98]"
               >
-                <a href="https://wa.me/919953537876" target="_blank" rel="noopener noreferrer">
+                <a href="https://wa.me/919891487876" target="_blank" rel="noopener noreferrer">
                   Enquire Now via WhatsApp
                 </a>
               </Button>

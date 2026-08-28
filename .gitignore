@@ -16,3 +16,7 @@ build/
 # OS
 .DS_Store
 .vercel
+
+# Raw source PDFs (already converted into apps/web/public/sector-maps & master-plans)
+/Greater Noida Map.pdf
+/Master Plans/

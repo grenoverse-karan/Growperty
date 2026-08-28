@@ -94,15 +94,27 @@ const TEMPLATES = {
     buildComponents: ({ cpName, city, experienceYrs }) => body(cpName, cpName, city, String(experienceYrs ?? '')),
   },
 
-  // CP application approved — body {{1}} cpName {{2}} cpId, button URL suffix = setupToken
-  // Template "Login" button base URL in Meta: https://growperty.com/cp/newpassword?token=
+  // Authentication OTP — same approved template used by the WhatsApp login flow.
+  // Body {{1}} = otp, copy-code button {{1}} = otp. Works for any recipient,
+  // bypassing the 24h customer-service-window restriction that free-text messages hit.
+  otp_login_growperty: {
+    name: 'otp_login_growperty',
+    language: 'en',
+    buildComponents: ({ otp }) => [
+      ...body(otp),
+      { type: 'button', sub_type: 'url', index: '0', parameters: [{ type: 'text', text: txt(otp) }] },
+    ],
+  },
+
+  // CP application approved — body {{1}} cpName only. The approved template's button
+  // is a static URL (no dynamic suffix) — confirmed via Meta API errors #132000
+  // ("expected number of params (1)" for body) and #132018 ("button does not require
+  // parameters"). The personalized setup link is delivered separately (see setupLink
+  // in the API response), not via this WhatsApp message.
   cp_approve: {
     name: 'cp_approve',
     language: 'en',
-    buildComponents: ({ cpName, cpId, setupToken }) => [
-      ...body(cpName, cpId),
-      { type: 'button', sub_type: 'url', index: '0', parameters: [{ type: 'text', text: txt(setupToken) }] },
-    ],
+    buildComponents: ({ cpName }) => body(cpName),
   },
 
   // Listing approved.  {{1}} userName {{2}} propertyUrl

@@ -60,6 +60,12 @@ const Footer = () => {
               <li>
                 <Link to="/become-channel-partner" className="text-base font-medium text-muted-foreground hover:text-primary transition-colors duration-200">Become Channel Partner</Link>
               </li>
+              <li>
+                <Link to="/download-sector-maps" className="text-base font-medium text-muted-foreground hover:text-primary transition-colors duration-200">Download Sector Maps</Link>
+              </li>
+              <li>
+                <Link to="/master-plans" className="text-base font-medium text-muted-foreground hover:text-primary transition-colors duration-200">Master Plans</Link>
+              </li>
             </ul>
           </div>
 
@@ -87,21 +93,24 @@ const Footer = () => {
               <li className="flex items-start space-x-3 text-base font-medium text-muted-foreground">
                 <MapPin className="h-5 w-5 mt-0.5 flex-shrink-0 text-primary" />
                 <span className="leading-snug">
-                  01, Mannat Tower, Bindal Enclave,<br />
+                  01, Kirat Tower, Bindal Enclave,<br />
                   Sec. Phi-4, near Honda Chowk,<br />
-                  Greater Noida, UP
+                  Greater Noida, G.B. Nagar, Uttar Pradesh - 201310.
                 </span>
               </li>
               <li className="flex items-start space-x-3 text-base font-medium text-muted-foreground">
                 <Phone className="h-5 w-5 mt-0.5 flex-shrink-0 text-primary" />
                 <div className="flex flex-col space-y-1">
-                  <a href="tel:+919953537876" className="hover:text-primary transition-colors duration-200">+91 9891117876</a>
-                  <a href="tel:+919971007876" className="hover:text-primary transition-colors duration-200">+91 9971007876</a>
+                  <a href="tel:+919891487876" className="hover:text-primary transition-colors duration-200">+91 9891487876</a>
+                  <a href="tel:+919891117876" className="hover:text-primary transition-colors duration-200">+91 9891117876</a>
                 </div>
               </li>
-              <li className="flex items-center space-x-3 text-base font-medium text-muted-foreground">
-                <Mail className="h-5 w-5 flex-shrink-0 text-primary" />
-                <a href="mailto:info@growperty.com" className="hover:text-primary transition-colors duration-200">info@growperty.com</a>
+              <li className="flex items-start space-x-3 text-base font-medium text-muted-foreground">
+                <Mail className="h-5 w-5 mt-0.5 flex-shrink-0 text-primary" />
+                <div className="flex flex-col space-y-1">
+                  <a href="mailto:info@growperty.com" className="hover:text-primary transition-colors duration-200">info@growperty.com</a>
+                  <a href="mailto:support@growperty.com" className="hover:text-primary transition-colors duration-200">support@growperty.com</a>
+                </div>
               </li>
             </ul>
           </div>

@@ -27,6 +27,9 @@ const propertySchema = new mongoose.Schema(
     liveAt:          { type: Date },
 
     images:          { type: [String], default: [] },
+    // Small pre-compressed copy of images[0], generated on first upload —
+    // keeps GET /api/properties light regardless of the original's size.
+    thumbnail:       { type: String },
 
     // Optional fields
     landmark:        { type: String },

@@ -10,6 +10,7 @@ import { Sheet, SheetContent, SheetTrigger, SheetTitle } from '@/components/ui/s
 import { MapPin, Phone, MessageCircle, SlidersHorizontal, Users, Search } from 'lucide-react';
 import apiServerClient from '@/lib/apiServerClient.js';
 import { PLATFORM_PHONE, PLATFORM_WHATSAPP } from '@/constants/contactInfo.js';
+import { getActiveCpContact } from '@/lib/cpRef.js';
 
 const fmt = (n) => {
   if (!n) return null;
@@ -153,11 +154,19 @@ function BuyerCard({ req, index }) {
           </p>
           <div className="grid grid-cols-2 gap-2 mb-2">
             <Button variant="outline" className="h-10 text-sm font-bold rounded-xl border-primary/20 text-primary hover:bg-primary/10"
-              onClick={() => window.location.href = `tel:${PLATFORM_PHONE}`}>
+              onClick={() => {
+                const cp = getActiveCpContact();
+                const phone = cp ? cp.cpPhone.replace(/\D/g, '') : PLATFORM_PHONE;
+                window.location.href = `tel:${phone}`;
+              }}>
               <Phone className="h-4 w-4 mr-1.5" /> Call Us
             </Button>
             <Button variant="outline" className="h-10 text-sm font-bold rounded-xl border-[#25D366]/20 text-[#25D366] hover:bg-[#25D366]/10"
-              onClick={() => window.open(`https://wa.me/${PLATFORM_WHATSAPP}?text=${waText}`, '_blank')}>
+              onClick={() => {
+                const cp = getActiveCpContact();
+                const whatsapp = cp ? `91${cp.cpPhone.replace(/\D/g, '').slice(-10)}` : PLATFORM_WHATSAPP;
+                window.open(`https://wa.me/${whatsapp}?text=${waText}`, '_blank');
+              }}>
               <MessageCircle className="h-4 w-4 mr-1.5" /> WhatsApp
             </Button>
           </div>

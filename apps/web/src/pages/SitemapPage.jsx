@@ -83,8 +83,8 @@ const sitemapData = [
     links: [
       { label: 'Contact Us', path: '/contact' },
       { label: 'Property Alert', path: '/post-requirement' },
-      { label: 'WhatsApp', path: 'https://wa.me/919953537876', external: true },
-      { label: 'Call (+919953537876)', path: 'tel:+919953537876', external: true },
+      { label: 'WhatsApp', path: 'https://wa.me/919891487876', external: true },
+      { label: 'Call (+919891487876)', path: 'tel:+919891487876', external: true },
     ]
   },
   {
@@ -183,7 +183,7 @@ const SitemapPage = () => {
                 Need Help Finding Something?
               </h2>
               <p className="text-lg text-slate-300 font-medium mb-8">
-                Our team is here to help you. Reach out to us directly at <span className="text-white font-bold">+91 9953537876</span> or <a href="mailto:info@growperty.com" className="text-[#10B981] hover:underline">info@growperty.com</a>
+                Our team is here to help you. Reach out to us directly at <span className="text-white font-bold">+91 9891487876</span> or <a href="mailto:info@growperty.com" className="text-[#10B981] hover:underline">info@growperty.com</a>
               </p>
               
               <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
@@ -192,7 +192,7 @@ const SitemapPage = () => {
                   size="lg" 
                   className="w-full sm:w-auto bg-[#10B981] hover:bg-emerald-600 text-white font-bold rounded-xl h-14 px-8 shadow-lg shadow-emerald-900/20"
                 >
-                  <a href="https://wa.me/919953537876" target="_blank" rel="noopener noreferrer">
+                  <a href="https://wa.me/919891487876" target="_blank" rel="noopener noreferrer">
                     <MessageCircle className="w-5 h-5 mr-2" />
                     WhatsApp Us
                   </a>
@@ -203,7 +203,7 @@ const SitemapPage = () => {
                   size="lg" 
                   className="w-full sm:w-auto border-slate-600 text-white hover:bg-slate-800 hover:text-white font-bold rounded-xl h-14 px-8 bg-transparent"
                 >
-                  <a href="tel:+919953537876">
+                  <a href="tel:+919891487876">
                     <PhoneCall className="w-5 h-5 mr-2" />
                     Call Us
                   </a>

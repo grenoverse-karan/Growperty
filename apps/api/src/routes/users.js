@@ -1,9 +1,14 @@
 import express from 'express';
+import bcrypt from 'bcryptjs';
 import User from '../models/User.js';
+import Wishlist from '../models/Wishlist.js';
+import Property from '../models/Property.js';
 import { verifyToken } from '../utils/jwt.js';
 import { connectMongoDB } from '../utils/mongodb.js';
 import { sendTemplateAsync, sendTemplateMessage } from '../utils/whatsappTemplates.js';
 import logger from '../utils/logger.js';
+
+const ROLES_OPTIONS = ['Seller', 'Buyer', 'Investor', 'Builder'];
 
 const router = express.Router();
 
@@ -49,6 +54,14 @@ router.get('/', authenticate, requireAdmin, async (req, res) => {
   res.json({ users, total, page, totalPages: Math.ceil(total / limit) });
 });
 
+// Self-delete — registered BEFORE the admin /:id route below so "me" is never
+// matched as an :id param (Express matches route patterns in registration order).
+router.delete('/me', authenticate, async (req, res) => {
+  await connectMongoDB();
+  await User.findByIdAndDelete(req.userId);
+  res.json({ success: true });
+});
+
 // ── Admin: DELETE /users/:id — delete one user ───────────────────────────────
 router.delete('/:id', authenticate, requireAdmin, async (req, res) => {
   await connectMongoDB();
@@ -78,9 +91,9 @@ router.get('/me', authenticate, async (req, res) => {
 
 router.patch('/me', authenticate, async (req, res) => {
   await connectMongoDB();
-  const { name, city, role, source } = req.body;
+  const { name, city, role, roles, source, email } = req.body;
 
-  logger.info('[PATCH /users/me] Request received', { userId: req.userId, body: { name, city, role, source } });
+  logger.info('[PATCH /users/me] Request received', { userId: req.userId, body: { name, city, role, roles, source, email } });
 
   const existing = await User.findById(req.userId).select('name phone provider whatsappOptIn');
   if (!existing) {
@@ -95,6 +108,21 @@ router.patch('/me', authenticate, async (req, res) => {
   if (name !== undefined) update.name = name.trim();
   if (city !== undefined) update.city = city.trim();
   if (role && ['buyer', 'seller'].includes(role)) update.role = role;
+  if (Array.isArray(roles)) update.roles = roles.filter(r => ROLES_OPTIONS.includes(r));
+
+  if (email !== undefined) {
+    const trimmedEmail = email.trim().toLowerCase();
+    if (trimmedEmail) {
+      if (!/\S+@\S+\.\S+/.test(trimmedEmail)) {
+        return res.status(400).json({ error: 'Enter a valid email address' });
+      }
+      const conflict = await User.findOne({ email: trimmedEmail, _id: { $ne: req.userId } }).lean();
+      if (conflict) {
+        return res.status(409).json({ error: 'This email is already linked to another account.' });
+      }
+      update.email = trimmedEmail;
+    }
+  }
 
   const user = await User.findByIdAndUpdate(req.userId, update, { new: true }).select('-passwordHash');
   logger.info('[PATCH /users/me] User updated in DB', { userId: req.userId, updatedFields: Object.keys(update) });
@@ -110,10 +138,59 @@ router.patch('/me', authenticate, async (req, res) => {
   res.json(user);
 });
 
-router.delete('/me', authenticate, async (req, res) => {
+// ── Change / set password ────────────────────────────────────────────────────
+router.post('/me/change-password', authenticate, async (req, res) => {
   await connectMongoDB();
-  await User.findByIdAndDelete(req.userId);
+  const { currentPassword, newPassword } = req.body || {};
+
+  if (!newPassword || newPassword.length < 6) {
+    return res.status(400).json({ error: 'New password must be at least 6 characters' });
+  }
+
+  const user = await User.findById(req.userId).select('passwordHash');
+  if (!user) return res.status(404).json({ error: 'User not found' });
+
+  // Users who signed up via WhatsApp/Google never set a password — let them set one
+  // without verifying a "current" password they never had.
+  if (user.passwordHash) {
+    if (!currentPassword) return res.status(400).json({ error: 'Current password is required' });
+    const valid = await bcrypt.compare(currentPassword, user.passwordHash);
+    if (!valid) return res.status(401).json({ error: 'Current password is incorrect' });
+  }
+
+  user.passwordHash = await bcrypt.hash(newPassword, 10);
+  await user.save();
+
+  logger.info('[POST /users/me/change-password] Password updated', { userId: req.userId });
   res.json({ success: true });
+});
+
+// ── Wishlist ──────────────────────────────────────────────────────────────
+router.get('/me/wishlist', authenticate, async (req, res) => {
+  await connectMongoDB();
+  const wishlist = await Wishlist.findOne({ userId: req.userId }).lean();
+  const ids = wishlist?.propertyIds || [];
+  if (!ids.length) return res.json({ items: [] });
+
+  const docs = await Property.find({ _id: { $in: ids } }, { images: { $slice: 1 } }).lean();
+  const items = docs.map(p => ({ ...p, id: p._id.toString() }));
+  res.json({ items });
+});
+
+router.post('/me/wishlist/:propertyId/toggle', authenticate, async (req, res) => {
+  await connectMongoDB();
+  const { propertyId } = req.params;
+
+  let wishlist = await Wishlist.findOne({ userId: req.userId });
+  if (!wishlist) wishlist = new Wishlist({ userId: req.userId, propertyIds: [] });
+
+  const has = wishlist.propertyIds.includes(propertyId);
+  wishlist.propertyIds = has
+    ? wishlist.propertyIds.filter(id => id !== propertyId)
+    : [...wishlist.propertyIds, propertyId];
+  await wishlist.save();
+
+  res.json({ success: true, wishlisted: !has });
 });
 
 export default router;

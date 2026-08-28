@@ -17,8 +17,6 @@ import { sanitizePropertyFormData, logPropertyPayload, logPocketBaseError, extra
 // --- Constants (Strictly matching PocketBase Schema) ---
 const OWNER_TYPES = ['Individual', 'Builder/Developer', 'NRI', 'Partnership firm'];
 const PROPERTY_TYPES = ['Flat/Apartment', 'Independent House', 'Villa', 'Penthouse', 'Plot/Land', 'Commercial'];
-const OPEN_SIDE_OPTIONS = ['Single Side Open', 'Corner (Two Side Open)', 'Three Side Open', 'Four Side Open'];
-const OPEN_SIDE_TYPES = ['Plot/Land', 'Independent House', 'Villa'];
 const DIRECTION_FACING_OPTIONS = ['North', 'South', 'East', 'West', 'North-East', 'North-West', 'South-East', 'South-West'];
 const FACING_TYPE_OPTIONS = ['Main Road Facing', 'Park Facing', 'Green Belt Facing', 'Corner (Two Side Open)', 'Three Side Open', 'Four Side Open', 'Lake / Water Facing', 'Temple Facing', 'Garden Facing', 'Forest / Nature Facing'];
 const BHK_OPTIONS = ['1 BHK', '2 BHK', '3 BHK', '4 BHK', '5+ BHK'];
@@ -185,7 +183,6 @@ const ListPropertyForm = () => {
 
   const isPlot          = formData.propertyType === 'Plot/Land';
   const showFloors      = !isPlot;
-  const showOpenSide    = OPEN_SIDE_TYPES.includes(formData.propertyType);
   const areaUnitConfig  = AREA_UNITS_MAP[formData.propertyType] || DEFAULT_AREA_UNITS;
   const showFloorNumber = showFloors && !['Independent House', 'Villa'].includes(formData.propertyType);
   const showPlotType    = formData.propertyType === 'Plot/Land' && formData.propertySubType === 'Residential Plot';
@@ -896,19 +893,6 @@ const ListPropertyForm = () => {
             </div>
           </div>
         </div>
-
-        {showOpenSide && (
-          <div className="space-y-3 animate-in fade-in slide-in-from-top-2">
-            <Label className="text-base font-bold">Plot / Property Facing</Label>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              {OPEN_SIDE_OPTIONS.map(opt => (
-                <div key={opt} onClick={() => handleChipSelect('openSide', formData.openSide === opt ? '' : opt)} className={`chip-base ${formData.openSide === opt ? 'chip-active' : 'chip-inactive'}`}>
-                  <span>{opt}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
 
         <div className="space-y-3 animate-in fade-in slide-in-from-top-2">
           <Label className="text-base font-bold">Direction Facing</Label>

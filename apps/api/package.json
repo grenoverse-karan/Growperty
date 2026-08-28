@@ -26,7 +26,8 @@
     "morgan": "^1.10.1",
     "multer": "^2.1.1",
     "next-auth": "^4.24.14",
-    "pocketbase": "^0.26.8"
+    "pocketbase": "^0.26.8",
+    "sharp": "^0.33.5"
   },
   "devDependencies": {
     "@eslint/js": "^8.57.0",

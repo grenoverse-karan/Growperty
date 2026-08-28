@@ -55,6 +55,9 @@ export const CpAuthProvider = ({ children }) => {
 
     localStorage.setItem('cpToken', data.token);
     localStorage.setItem('cpData', JSON.stringify(data.cp));
+    localStorage.setItem('cpRef', data.cp.shareToken || '');
+    localStorage.setItem('cpName', data.cp.name || '');
+    localStorage.setItem('cpPhone', data.cp.phone || '');
 
     setToken(data.token);
     setCurrentCp(data.cp);
@@ -67,6 +70,9 @@ export const CpAuthProvider = ({ children }) => {
   const cpLogout = (showToast = true) => {
     localStorage.removeItem('cpToken');
     localStorage.removeItem('cpData');
+    localStorage.removeItem('cpRef');
+    localStorage.removeItem('cpName');
+    localStorage.removeItem('cpPhone');
     setToken(null);
     setCurrentCp(null);
     setIsCpAuthenticated(false);
@@ -77,6 +83,9 @@ export const CpAuthProvider = ({ children }) => {
   const cpLoginDirect = (loginToken, cp) => {
     localStorage.setItem('cpToken', loginToken);
     localStorage.setItem('cpData', JSON.stringify(cp));
+    localStorage.setItem('cpRef', cp.shareToken || '');
+    localStorage.setItem('cpName', cp.name || '');
+    localStorage.setItem('cpPhone', cp.phone || '');
     setToken(loginToken);
     setCurrentCp(cp);
     setIsCpAuthenticated(true);

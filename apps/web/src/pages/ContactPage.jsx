@@ -57,17 +57,17 @@ const ContactPage = () => {
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4 relative z-10">
-                    <a 
-                      href="tel:+919953537876" 
+                    <a
+                      href="tel:+919891487876"
                       className="btn-call flex items-center justify-center gap-3 w-full h-14 rounded-xl font-bold transition-all active:scale-[0.98] text-lg shadow-md"
                     >
                       <Phone className="h-5 w-5" />
-                      +91 9953537876
+                      +91 9891487876
                     </a>
-                    <a 
-                      href="https://wa.me/919953537876" 
-                      target="_blank" 
-                      rel="noopener noreferrer" 
+                    <a
+                      href="https://wa.me/919891487876"
+                      target="_blank"
+                      rel="noopener noreferrer"
                       className="btn-whatsapp flex items-center justify-center gap-3 w-full h-14 rounded-xl font-bold transition-all active:scale-[0.98] text-lg shadow-md"
                     >
                       <WhatsAppIcon className="h-5 w-5" />
@@ -89,12 +89,12 @@ const ContactPage = () => {
                       <div>
                         <p className="text-base font-bold text-foreground mb-1">Headquarters</p>
                         <p className="text-sm text-muted-foreground leading-relaxed font-medium">
-                          01, Mannat Tower, Bindal Enclave,<br/>
+                          01, Kirat Tower, Bindal Enclave,<br/>
                           Sec. Phi-4, near Honda Chowk,<br/>
-                          Greater Noida
+                          Greater Noida, G.B. Nagar, Uttar Pradesh - 201310.
                         </p>
                         <a 
-                          href="https://maps.google.com/?q=Mannat+Tower,+Bindal+Enclave,+Sec.+Phi-4,+Greater+Noida" 
+                          href="https://maps.google.com/?q=28.4412634,77.5307429"
                           target="_blank" 
                           rel="noopener noreferrer"
                           className="inline-flex items-center mt-2 text-sm font-bold text-primary hover:underline"
@@ -111,8 +111,8 @@ const ContactPage = () => {
                       <div>
                         <p className="text-base font-bold text-foreground mb-1">Phone Numbers</p>
                         <div className="flex flex-col space-y-1">
-                          <a href="tel:+919953537876" className="text-sm text-muted-foreground font-medium hover:text-primary transition-colors">+91 9953537876</a>
-                          <a href="tel:+919971007876" className="text-sm text-muted-foreground font-medium hover:text-primary transition-colors">+91 9971007876</a>
+                          <a href="tel:+919891487876" className="text-sm text-muted-foreground font-medium hover:text-primary transition-colors">+91 9891487876 (Call or WhatsApp)</a>
+                          <a href="tel:+919891117876" className="text-sm text-muted-foreground font-medium hover:text-primary transition-colors">+91 9891117876 (Helpline)</a>
                         </div>
                       </div>
                     </div>
@@ -123,9 +123,14 @@ const ContactPage = () => {
                       </div>
                       <div>
                         <p className="text-base font-bold text-foreground mb-1">Email Address</p>
-                        <a href="mailto:info@growperty.com" className="text-sm text-muted-foreground font-medium hover:text-primary transition-colors">
-                          info@growperty.com
-                        </a>
+                        <div className="flex flex-col space-y-1">
+                          <a href="mailto:info@growperty.com" className="text-sm text-muted-foreground font-medium hover:text-primary transition-colors">
+                            info@growperty.com
+                          </a>
+                          <a href="mailto:support@growperty.com" className="text-sm text-muted-foreground font-medium hover:text-primary transition-colors">
+                            support@growperty.com
+                          </a>
+                        </div>
                       </div>
                     </div>
 
@@ -136,8 +141,7 @@ const ContactPage = () => {
                       <div>
                         <p className="text-base font-bold text-foreground mb-1">Business Hours</p>
                         <p className="text-sm text-muted-foreground font-medium">
-                          Monday - Saturday: 9:00 AM - 7:00 PM<br/>
-                          Sunday: Closed
+                          Monday - Sunday: 10:00 AM - 6:00 PM
                         </p>
                       </div>
                     </div>
@@ -145,9 +149,9 @@ const ContactPage = () => {
                   
                   {/* Map Embed */}
                   <div className="w-full h-48 bg-slate-200 dark:bg-slate-800 relative">
-                    <iframe 
-                      src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3507.959208162311!2d77.5156!3d28.4506!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2zMjjCsDI3JzAyLjIiTiA3N8KwMzAnNTYuMiJF!5e0!3m2!1sen!2sin!4v1620000000000!5m2!1sen!2sin" 
-                      width="100%" 
+                    <iframe
+                      src="https://www.google.com/maps?q=28.4412634,77.5307429&output=embed"
+                      width="100%"
                       height="100%" 
                       style={{ border: 0 }} 
                       allowFullScreen="" 

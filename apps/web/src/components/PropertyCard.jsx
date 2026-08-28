@@ -1,12 +1,15 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Bed, MapPin, ShieldCheck, Bath, Phone, MessageCircle, BadgeCheck, Building2, TreePine, Store, Home } from 'lucide-react';
+import { Bed, MapPin, Bath, Phone, MessageCircle, Heart, Share2, Building2, TreePine, Store, Home } from 'lucide-react';
+import { toast } from 'sonner';
 import { formatIndianPrice } from '@/hooks/useProperties.js';
 import { getFilteredAddress } from '@/lib/contentFilteringUtils.js';
 import { PLATFORM_PHONE, PLATFORM_WHATSAPP } from '@/constants/contactInfo.js';
+import { isWishlisted as checkWishlisted, toggleWishlist as toggleWishlistStorage } from '@/lib/wishlist.js';
+import { getActiveCpContact } from '@/lib/cpRef.js';
 
 const TYPE_PLACEHOLDER = {
   'Flat/Apartment':     { gradient: 'from-blue-600 to-teal-500',   Icon: Building2 },
@@ -51,6 +54,32 @@ const PropertyCard = ({ property }) => {
 
   const ph = TYPE_PLACEHOLDER[property.propertyType] || DEFAULT_PLACEHOLDER;
 
+  const [isWishlisted, setIsWishlisted] = useState(false);
+
+  useEffect(() => {
+    setIsWishlisted(checkWishlisted(property.id));
+  }, [property.id]);
+
+  const toggleWishlist = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const nowWishlisted = toggleWishlistStorage(property.id);
+    setIsWishlisted(nowWishlisted);
+    toast.success(nowWishlisted ? 'Added to wishlist' : 'Removed from wishlist');
+  };
+
+  const handleShare = async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const url = `${window.location.origin}/property/${property.id}`;
+    if (navigator.share) {
+      try { await navigator.share({ title, url }); } catch { /* user cancelled */ }
+    } else {
+      await navigator.clipboard.writeText(url);
+      toast.success('Link copied to clipboard');
+    }
+  };
+
   return (
     <Link to={`/property/${property.id}`} className="block h-full">
     <Card className="group overflow-hidden bg-card border-border/50 shadow-lg hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 rounded-2xl flex flex-col h-full cursor-pointer">
@@ -78,12 +107,23 @@ const PropertyCard = ({ property }) => {
           )}
         </div>
 
-        <div className="absolute top-4 right-4 flex flex-col items-end gap-2">
-          {property.status === 'approved' && (
-            <Badge className="bg-accent text-accent-foreground shadow-md font-bold px-3 py-1 flex items-center gap-1 border-none">
-              <ShieldCheck className="h-3.5 w-3.5" /> Verified
-            </Badge>
-          )}
+        <div className="absolute top-4 right-4 flex items-center gap-2">
+          <button
+            type="button"
+            onClick={toggleWishlist}
+            aria-label="Add to wishlist"
+            className="h-9 w-9 rounded-full bg-white/90 backdrop-blur-sm shadow-md flex items-center justify-center hover:bg-white transition-colors"
+          >
+            <Heart className={`h-4 w-4 ${isWishlisted ? 'fill-red-500 text-red-500' : 'text-slate-700'}`} />
+          </button>
+          <button
+            type="button"
+            onClick={handleShare}
+            aria-label="Share property"
+            className="h-9 w-9 rounded-full bg-white/90 backdrop-blur-sm shadow-md flex items-center justify-center hover:bg-white transition-colors"
+          >
+            <Share2 className="h-4 w-4 text-slate-700" />
+          </button>
         </div>
       </div>
       
@@ -138,7 +178,9 @@ const PropertyCard = ({ property }) => {
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
-              window.location.href = `tel:${PLATFORM_PHONE}`;
+              const cp = getActiveCpContact();
+              const phone = cp ? cp.cpPhone.replace(/\D/g, '') : PLATFORM_PHONE;
+              window.location.href = `tel:${phone}`;
             }}
           >
             <Phone className="h-4 w-4 mr-1.5" /> Call
@@ -149,7 +191,9 @@ const PropertyCard = ({ property }) => {
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
-              window.open(`https://wa.me/${PLATFORM_WHATSAPP}`, '_blank');
+              const cp = getActiveCpContact();
+              const whatsapp = cp ? `91${cp.cpPhone.replace(/\D/g, '').slice(-10)}` : PLATFORM_WHATSAPP;
+              window.open(`https://wa.me/${whatsapp}`, '_blank');
             }}
           >
             <MessageCircle className="h-4 w-4 mr-1.5" /> WhatsApp

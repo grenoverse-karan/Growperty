@@ -49,8 +49,8 @@ const Btn = ({ onClick, disabled, color = C.green, outline, children, style = {}
       background: outline ? 'transparent' : color,
       border: `1px solid ${color}`,
       color: outline ? color : '#fff',
-      borderRadius: 6, padding: '5px 12px',
-      fontSize: 12, fontWeight: 600, cursor: disabled ? 'not-allowed' : 'pointer',
+      borderRadius: 8, padding: '8px 18px',
+      fontSize: 14, fontWeight: 600, cursor: disabled ? 'not-allowed' : 'pointer',
       opacity: disabled ? 0.6 : 1,
       ...style,
     }}
@@ -150,9 +150,20 @@ export default function AdminChannelPartnersPage() {
     try {
       setActing(true);
       const data = await call(`/admin/channel-partners/${approveTarget.id}/approve`, 'PUT', {});
-      toast.success(`${approveTarget.name} approved — setup link sent via WhatsApp`);
       if (data?.setupLink) {
-        console.info('[Admin] CP setup link:', data.setupLink);
+        toast.success(`${approveTarget.name} approved`, {
+          description: 'WhatsApp confirmation sent. Share the setup link below so they can set their password.',
+          duration: 15000,
+          action: {
+            label: 'Copy setup link',
+            onClick: () => {
+              navigator.clipboard.writeText(data.setupLink);
+              toast.success('Setup link copied to clipboard');
+            },
+          },
+        });
+      } else {
+        toast.success(`${approveTarget.name} approved — setup link sent via WhatsApp`);
       }
       setApproveTarget(null);
       fetchItems(page, statusFilter);
@@ -253,21 +264,21 @@ export default function AdminChannelPartnersPage() {
   return (
     <>
       <Helmet><title>Channel Partners — Admin — Growperty</title></Helmet>
-      <div style={{ minHeight: '100vh', background: C.bg, color: C.text, fontFamily: "'DM Sans','Segoe UI',sans-serif", padding: 24 }}>
+      <div style={{ minHeight: '100vh', background: C.bg, color: C.text, fontFamily: "'DM Sans','Segoe UI',sans-serif", padding: '40px 48px' }}>
 
         {/* Header */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 28, flexWrap: 'wrap', gap: 12 }}>
           <div>
-            <h1 style={{ margin: 0, fontSize: 22, fontWeight: 700 }}>Channel Partners</h1>
-            <p style={{ margin: '4px 0 0', color: C.sub, fontSize: 13 }}>{total} total</p>
+            <h1 style={{ margin: 0, fontSize: 30, fontWeight: 700 }}>Channel Partners</h1>
+            <p style={{ margin: '6px 0 0', color: C.sub, fontSize: 15 }}>{total} total</p>
           </div>
-          <button onClick={() => fetchItems(page, statusFilter)} style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8, color: C.sub, padding: '8px 14px', fontSize: 13, cursor: 'pointer' }}>
+          <button onClick={() => fetchItems(page, statusFilter)} style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 9, color: C.sub, padding: '12px 22px', fontSize: 15, cursor: 'pointer' }}>
             ↻ Refresh
           </button>
         </div>
 
         {/* Status tabs */}
-        <div style={{ display: 'flex', gap: 6, marginBottom: 18, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: 10, marginBottom: 26, flexWrap: 'wrap' }}>
           {TABS.map(tab => {
             const active = tab.value === statusFilter;
             return (
@@ -275,7 +286,7 @@ export default function AdminChannelPartnersPage() {
                 background: active ? C.green : C.surface,
                 color: active ? '#fff' : C.sub,
                 border: `1px solid ${active ? C.green : C.border}`,
-                borderRadius: 20, padding: '5px 14px', fontSize: 12,
+                borderRadius: 20, padding: '9px 22px', fontSize: 14,
                 fontWeight: active ? 600 : 400, cursor: 'pointer',
               }}>
                 {tab.label}
@@ -285,9 +296,9 @@ export default function AdminChannelPartnersPage() {
         </div>
 
         {/* Table */}
-        <div style={{ background: C.surface, borderRadius: 12, border: `1px solid ${C.border}`, overflow: 'auto' }}>
+        <div style={{ background: C.surface, borderRadius: 14, border: `1px solid ${C.border}`, overflow: 'auto' }}>
           {/* Header */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1.6fr 1.2fr 110px 100px 95px 220px', padding: '11px 16px', borderBottom: `1px solid ${C.border}`, color: C.sub, fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5, minWidth: 800 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1.6fr 1.4fr 140px 120px 120px 280px', padding: '15px 24px', borderBottom: `1px solid ${C.border}`, color: C.sub, fontSize: 13, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5, minWidth: 960 }}>
             <div>Name / Company</div>
             <div>Email</div>
             <div>Phone</div>
@@ -297,31 +308,31 @@ export default function AdminChannelPartnersPage() {
           </div>
 
           {loading ? (
-            <div style={{ padding: 40, textAlign: 'center', color: C.sub }}>Loading...</div>
+            <div style={{ padding: 56, textAlign: 'center', color: C.sub, fontSize: 16 }}>Loading...</div>
           ) : items.length === 0 ? (
-            <div style={{ padding: 40, textAlign: 'center', color: C.sub }}>No applications found</div>
+            <div style={{ padding: 56, textAlign: 'center', color: C.sub, fontSize: 16 }}>No applications found</div>
           ) : (
             items.map((cp, i) => (
-              <div key={cp.id} style={{ display: 'grid', gridTemplateColumns: '1.6fr 1.2fr 110px 100px 95px 220px', padding: '13px 16px', alignItems: 'center', borderBottom: i < items.length - 1 ? `1px solid ${C.border}` : 'none', minWidth: 800 }}>
+              <div key={cp.id} style={{ display: 'grid', gridTemplateColumns: '1.6fr 1.4fr 140px 120px 120px 280px', padding: '18px 24px', alignItems: 'center', borderBottom: i < items.length - 1 ? `1px solid ${C.border}` : 'none', minWidth: 960 }}>
                 <div>
-                  <div style={{ fontWeight: 600, fontSize: 14 }}>{cp.name}</div>
-                  {cp.companyName && <div style={{ fontSize: 12, color: C.sub, marginTop: 1 }}>{cp.companyName}</div>}
-                  <span style={{ display: 'inline-block', marginTop: 3, background: '#00000030', color: STATUS_COLOR[cp.status], fontSize: 10, fontWeight: 600, padding: '2px 8px', borderRadius: 20, textTransform: 'capitalize' }}>
+                  <div style={{ fontWeight: 600, fontSize: 16 }}>{cp.name}</div>
+                  {cp.companyName && <div style={{ fontSize: 14, color: C.sub, marginTop: 3 }}>{cp.companyName}</div>}
+                  <span style={{ display: 'inline-block', marginTop: 5, background: '#00000030', color: STATUS_COLOR[cp.status], fontSize: 12, fontWeight: 600, padding: '3px 10px', borderRadius: 20, textTransform: 'capitalize' }}>
                     {cp.status}{cp.bannedUntil ? ` until ${fmt(cp.bannedUntil)}` : ''}
                   </span>
                 </div>
-                <div style={{ fontSize: 13, color: C.sub }}>{cp.email}</div>
-                <div style={{ fontSize: 13, color: C.sub }}>{cp.phone}</div>
-                <div style={{ fontSize: 13, color: C.sub }}>{cp.city}</div>
-                <div style={{ fontSize: 12, color: C.sub }}>{fmt(cp.createdAt)}</div>
+                <div style={{ fontSize: 15, color: C.sub }}>{cp.email}</div>
+                <div style={{ fontSize: 15, color: C.sub }}>{cp.phone}</div>
+                <div style={{ fontSize: 15, color: C.sub }}>{cp.city}</div>
+                <div style={{ fontSize: 14, color: C.sub }}>{fmt(cp.createdAt)}</div>
 
                 {/* Actions */}
-                <div style={{ display: 'flex', gap: 5, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', gap: 7, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
                   <Btn onClick={() => openDetail(cp)} outline color={C.sub}>View</Btn>
                   <Btn onClick={() => openEdit(cp)} outline color={C.blue}>Edit</Btn>
 
                   {cp.status === 'pending' && (
-                    <Btn onClick={() => { setApproveTarget(cp); setApprovePass(''); }}>Approve</Btn>
+                    <Btn onClick={() => setApproveTarget(cp)}>Approve</Btn>
                   )}
                   {cp.status !== 'approved' && cp.status !== 'banned' && (
                     <Btn onClick={() => handleReject(cp)} outline color={C.red}>Reject</Btn>
@@ -343,10 +354,10 @@ export default function AdminChannelPartnersPage() {
         </div>
 
         {totalPages > 1 && (
-          <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginTop: 20 }}>
-            <button onClick={() => fetchItems(page - 1, statusFilter)} disabled={page <= 1} style={{ background: C.surface, border: `1px solid ${C.border}`, color: C.sub, borderRadius: 6, padding: '6px 14px', cursor: 'pointer' }}>← Prev</button>
-            <span style={{ color: C.sub, padding: '6px 12px', fontSize: 13 }}>Page {page} / {totalPages}</span>
-            <button onClick={() => fetchItems(page + 1, statusFilter)} disabled={page >= totalPages} style={{ background: C.surface, border: `1px solid ${C.border}`, color: C.sub, borderRadius: 6, padding: '6px 14px', cursor: 'pointer' }}>Next →</button>
+          <div style={{ display: 'flex', justifyContent: 'center', gap: 10, marginTop: 28 }}>
+            <button onClick={() => fetchItems(page - 1, statusFilter)} disabled={page <= 1} style={{ background: C.surface, border: `1px solid ${C.border}`, color: C.sub, borderRadius: 8, padding: '10px 22px', fontSize: 15, cursor: 'pointer' }}>← Prev</button>
+            <span style={{ color: C.sub, padding: '10px 16px', fontSize: 15 }}>Page {page} / {totalPages}</span>
+            <button onClick={() => fetchItems(page + 1, statusFilter)} disabled={page >= totalPages} style={{ background: C.surface, border: `1px solid ${C.border}`, color: C.sub, borderRadius: 8, padding: '10px 22px', fontSize: 15, cursor: 'pointer' }}>Next →</button>
           </div>
         )}
       </div>

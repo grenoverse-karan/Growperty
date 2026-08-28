@@ -126,11 +126,17 @@ const LoginPage = () => {
               </form>
 
             </CardContent>
-            <CardFooter className="flex justify-center pb-8">
+            <CardFooter className="flex flex-col items-center gap-3 pb-8">
               <p className="text-sm text-muted-foreground font-medium">
                 Don't have an account?{' '}
                 <Link to="/signup" className="font-bold text-primary hover:underline">
                   Sign up
+                </Link>
+              </p>
+              <p className="text-sm text-muted-foreground font-medium">
+                Are you a Channel Partner?{' '}
+                <Link to="/cp/login" className="font-bold text-primary hover:underline">
+                  CP Login
                 </Link>
               </p>
             </CardFooter>

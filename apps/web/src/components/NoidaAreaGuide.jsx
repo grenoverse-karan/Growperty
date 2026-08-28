@@ -431,7 +431,7 @@ const NoidaAreaGuide = () => {
                   </Link>
                 </Button>
                 <Button asChild variant="outline" className="bg-transparent border-2 border-white text-white hover:bg-white hover:text-secondary h-14 px-8 text-lg font-bold rounded-xl transition-all active:scale-[0.98]">
-                  <a href="https://wa.me/919953537876?text=Hi,%20I%20want%20to%20know%20about%20Noida%20properties%20on%20Growperty.com" target="_blank" rel="noopener noreferrer">
+                  <a href="https://wa.me/919891487876?text=Hi,%20I%20want%20to%20know%20about%20Noida%20properties%20on%20Growperty.com" target="_blank" rel="noopener noreferrer">
                     Talk to Expert
                   </a>
                 </Button>

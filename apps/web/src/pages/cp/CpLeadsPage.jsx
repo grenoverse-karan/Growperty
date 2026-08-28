@@ -5,20 +5,21 @@ import apiServerClient from '@/lib/apiServerClient';
 import { toast } from 'sonner';
 
 const C = {
-  bg:      '#0d1117',
-  surface: '#0d1b2a',
-  border:  '#1e2d3d',
-  text:    '#e6edf3',
-  muted:   '#4d6175',
-  sub:     '#94aabf',
-  green:   '#1d9e75',
+  bg:      '#f5f6f8',
+  surface: '#ffffff',
+  border:  '#e5e7eb',
+  text:    '#111827',
+  muted:   '#9ca3af',
+  sub:     '#6b7280',
+  green:   '#10b981',
+  greenDark: '#059669',
 };
 
 const VISIT_STATUS = {
-  pending:    '#fbbf24',
-  confirmed:  '#34d399',
-  visit_done: '#60a5fa',
-  cancelled:  '#f87171',
+  pending:    { bg: '#fef3c7', color: '#d97706' },
+  confirmed:  { bg: '#d1fae5', color: '#059669' },
+  visit_done: { bg: '#dbeafe', color: '#2563eb' },
+  cancelled:  { bg: '#fee2e2', color: '#dc2626' },
 };
 
 const fmt = (n) => {
@@ -78,11 +79,17 @@ export default function CpLeadsPage() {
       <Helmet><title>Buyers — CP Dashboard</title></Helmet>
 
       {/* ── Header ── */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
-        <h1 style={{ margin: 0, fontSize: 20, fontWeight: 700 }}>Buyers</h1>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24, flexWrap: 'wrap', gap: 12 }}>
+        <div>
+          <h1 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: C.text }}>Buyers</h1>
+          <p style={{ margin: '3px 0 0', fontSize: 13, color: C.muted }}>People interested in your listings</p>
+        </div>
         <button
           onClick={() => tab === 'mine' ? fetchMine(current.page) : fetchGrowperty(current.page)}
-          style={{ background: C.surface, border: `1px solid ${C.border}`, color: C.sub, borderRadius: 8, padding: '7px 14px', fontSize: 13, cursor: 'pointer' }}
+          style={{
+            background: C.surface, border: `1px solid ${C.border}`,
+            color: C.sub, borderRadius: 8, padding: '8px 16px', fontSize: 13, cursor: 'pointer',
+          }}
         >
           ↻ Refresh
         </button>
@@ -91,8 +98,8 @@ export default function CpLeadsPage() {
       {/* ── Tabs ── */}
       <div style={{ display: 'flex', gap: 0, marginBottom: 20, borderBottom: `1px solid ${C.border}` }}>
         {[
-          { key: 'mine',      label: 'My Buyers',        count: mine.total },
-          { key: 'growperty', label: 'Growperty Buyers',  count: growperty.total },
+          { key: 'mine',      label: 'My Buyers',       count: mine.total },
+          { key: 'growperty', label: 'Growperty Buyers', count: growperty.total },
         ].map(t => (
           <button
             key={t.key}
@@ -100,16 +107,16 @@ export default function CpLeadsPage() {
             style={{
               background: 'none', border: 'none', cursor: 'pointer',
               padding: '10px 20px', fontSize: 13, fontWeight: 600,
-              color: tab === t.key ? C.green : C.sub,
-              borderBottom: tab === t.key ? `2px solid ${C.green}` : '2px solid transparent',
+              color: tab === t.key ? C.greenDark : C.sub,
+              borderBottom: tab === t.key ? `2px solid ${C.greenDark}` : '2px solid transparent',
               marginBottom: -1,
             }}
           >
             {t.label}
             <span style={{
-              marginLeft: 8, fontSize: 11, fontWeight: 700,
-              background: tab === t.key ? '#1d9e7522' : '#1e2d3d',
-              color: tab === t.key ? C.green : C.muted,
+              marginLeft: 7, fontSize: 11, fontWeight: 700,
+              background: tab === t.key ? '#d1fae5' : '#f3f4f6',
+              color: tab === t.key ? C.greenDark : C.muted,
               padding: '1px 7px', borderRadius: 20,
             }}>
               {t.count}
@@ -118,7 +125,7 @@ export default function CpLeadsPage() {
         ))}
       </div>
 
-      {/* ── Table ── */}
+      {/* ── Tables ── */}
       {tab === 'mine' ? (
         <MineBuyersTable buyers={mine.buyers} loading={loading} />
       ) : (
@@ -131,15 +138,15 @@ export default function CpLeadsPage() {
           <button
             onClick={() => fetchPage(current.page - 1)}
             disabled={current.page <= 1}
-            style={{ background: C.surface, border: `1px solid ${C.border}`, color: C.sub, borderRadius: 6, padding: '6px 14px', cursor: 'pointer' }}
+            style={{ background: C.surface, border: `1px solid ${C.border}`, color: C.sub, borderRadius: 7, padding: '7px 16px', cursor: 'pointer', fontSize: 13 }}
           >← Prev</button>
-          <span style={{ color: C.sub, padding: '6px 12px', fontSize: 13 }}>
+          <span style={{ color: C.sub, padding: '7px 14px', fontSize: 13 }}>
             {current.page} / {current.totalPages}
           </span>
           <button
             onClick={() => fetchPage(current.page + 1)}
             disabled={current.page >= current.totalPages}
-            style={{ background: C.surface, border: `1px solid ${C.border}`, color: C.sub, borderRadius: 6, padding: '6px 14px', cursor: 'pointer' }}
+            style={{ background: C.surface, border: `1px solid ${C.border}`, color: C.sub, borderRadius: 7, padding: '7px 16px', cursor: 'pointer', fontSize: 13 }}
           >Next →</button>
         </div>
       )}
@@ -147,96 +154,113 @@ export default function CpLeadsPage() {
   );
 }
 
-// ── My Buyers (CP-referred visit requests) ────────────────────────────────
 function MineBuyersTable({ buyers, loading }) {
   if (loading) return <Empty>Loading...</Empty>;
-  if (!buyers.length) return <Empty>No buyers yet. Share property links to attract buyers.</Empty>;
+  if (!buyers.length) return (
+    <Empty>
+      <div style={{ fontSize: 32, marginBottom: 10 }}>👥</div>
+      <div style={{ fontWeight: 600, color: C.text, marginBottom: 6 }}>No buyers yet</div>
+      <div style={{ fontSize: 13, color: C.muted }}>Share your property links to attract buyers.</div>
+    </Empty>
+  );
 
   return (
-    <div style={{ background: C.surface, borderRadius: 12, border: `1px solid ${C.border}`, overflow: 'hidden' }}>
-      <div style={{
-        display: 'grid', gridTemplateColumns: '1.5fr 1fr 1fr 90px 90px 100px',
-        padding: '11px 16px', borderBottom: `1px solid ${C.border}`,
-        color: C.sub, fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5,
-      }}>
-        <div>Buyer</div><div>Visit Date</div><div>Visit Time</div><div>Status</div><div>Source</div><div>Received</div>
-      </div>
-      {buyers.map((b, i) => (
-        <div key={b.id} style={{
-          display: 'grid', gridTemplateColumns: '1.5fr 1fr 1fr 90px 90px 100px',
-          padding: '12px 16px', alignItems: 'center',
-          borderBottom: i < buyers.length - 1 ? `1px solid ${C.border}` : 'none',
+    <div style={{ background: C.surface, borderRadius: 12, border: `1px solid ${C.border}`, overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.05)' }}>
+      <div style={{ overflowX: 'auto' }}>
+        <div style={{
+          display: 'grid', gridTemplateColumns: '1.5fr 1fr 1fr 90px 90px 100px', minWidth: 700,
+          padding: '11px 20px', borderBottom: `1px solid ${C.border}`, background: '#f9fafb',
+          color: C.muted, fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5,
         }}>
-          <div>
-            <div style={{ fontWeight: 600, fontSize: 14 }}>{b.name}</div>
-            {b.city && <div style={{ fontSize: 12, color: C.sub, marginTop: 2 }}>📍 {b.city}</div>}
-            {b.message && <div style={{ fontSize: 11, color: C.muted, marginTop: 2, fontStyle: 'italic' }}>{b.message.slice(0, 60)}{b.message.length > 60 ? '…' : ''}</div>}
-          </div>
-          <div style={{ fontSize: 13, color: C.sub }}>{b.visitDate || '—'}</div>
-          <div style={{ fontSize: 13, color: C.sub }}>{b.visitTime || '—'}</div>
-          <div>
-            <span style={{ color: VISIT_STATUS[b.status] || C.sub, fontSize: 12, fontWeight: 600 }}>
-              {b.status || 'pending'}
-            </span>
-          </div>
-          <div>
-            <SourceBadge src={b.leadSource} />
-          </div>
-          <div style={{ fontSize: 12, color: C.sub }}>{fmtDate(b.createdAt)}</div>
+          <div>Buyer</div><div>Visit Date</div><div>Visit Time</div><div>Status</div><div>Source</div><div>Received</div>
         </div>
-      ))}
+        {buyers.map((b, i) => {
+          const st = VISIT_STATUS[b.status] || VISIT_STATUS.pending;
+          return (
+            <div key={b.id} style={{
+              display: 'grid', gridTemplateColumns: '1.5fr 1fr 1fr 90px 90px 100px', minWidth: 700,
+              padding: '13px 20px', alignItems: 'center',
+              borderBottom: i < buyers.length - 1 ? `1px solid ${C.border}` : 'none',
+            }}>
+              <div>
+                <div style={{ fontWeight: 600, fontSize: 14, color: C.text }}>{b.name}</div>
+                {b.city && <div style={{ fontSize: 12, color: C.muted, marginTop: 2 }}>📍 {b.city}</div>}
+                {b.message && <div style={{ fontSize: 11, color: C.muted, marginTop: 2, fontStyle: 'italic' }}>{b.message.slice(0, 60)}{b.message.length > 60 ? '…' : ''}</div>}
+              </div>
+              <div style={{ fontSize: 13, color: C.sub }}>{b.visitDate || '—'}</div>
+              <div style={{ fontSize: 13, color: C.sub }}>{b.visitTime || '—'}</div>
+              <div>
+                <span style={{ background: st.bg, color: st.color, fontSize: 11, fontWeight: 700, padding: '3px 8px', borderRadius: 20 }}>
+                  {b.status || 'pending'}
+                </span>
+              </div>
+              <div>
+                <SourceBadge src={b.leadSource} />
+              </div>
+              <div style={{ fontSize: 12, color: C.muted }}>{fmtDate(b.createdAt)}</div>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
 
-// ── Growperty Buyers (buyer requirements) ────────────────────────────────
 function GrowpertyBuyersTable({ buyers, loading }) {
   if (loading) return <Empty>Loading...</Empty>;
-  if (!buyers.length) return <Empty>No buyer requirements found.</Empty>;
+  if (!buyers.length) return (
+    <Empty>
+      <div style={{ fontSize: 32, marginBottom: 10 }}>🔍</div>
+      <div style={{ fontWeight: 600, color: C.text, marginBottom: 6 }}>No buyer requirements found</div>
+      <div style={{ fontSize: 13, color: C.muted }}>Active buyer requirements will appear here.</div>
+    </Empty>
+  );
 
   return (
-    <div style={{ background: C.surface, borderRadius: 12, border: `1px solid ${C.border}`, overflow: 'hidden' }}>
-      <div style={{
-        display: 'grid', gridTemplateColumns: '1.8fr 1fr 1fr 1fr 100px',
-        padding: '11px 16px', borderBottom: `1px solid ${C.border}`,
-        color: C.sub, fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5,
-      }}>
-        <div>Buyer</div><div>Looking For</div><div>Budget</div><div>Location</div><div>Since</div>
-      </div>
-      {buyers.map((b, i) => {
-        const typeLabel = [b.preferredBhk, b.propertyType].filter(Boolean).join(' ') || '—';
-        const areas = Array.isArray(b.areas) && b.areas.length ? b.areas.slice(0, 2).join(', ') : (b.city || '—');
-        const budget = b.maxBudget ? fmt(b.maxBudget) : '—';
-        return (
-          <div key={b.id} style={{
-            display: 'grid', gridTemplateColumns: '1.8fr 1fr 1fr 1fr 100px',
-            padding: '13px 16px', alignItems: 'center',
-            borderBottom: i < buyers.length - 1 ? `1px solid ${C.border}` : 'none',
-          }}>
-            <div>
-              <div style={{ fontWeight: 600, fontSize: 14 }}>{b.buyerName}</div>
-              {b.buyerCity && <div style={{ fontSize: 12, color: C.sub, marginTop: 2 }}>📍 {b.buyerCity}</div>}
-              {b.buyingTimeline && <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>Timeline: {b.buyingTimeline}</div>}
+    <div style={{ background: C.surface, borderRadius: 12, border: `1px solid ${C.border}`, overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.05)' }}>
+      <div style={{ overflowX: 'auto' }}>
+        <div style={{
+          display: 'grid', gridTemplateColumns: '1.8fr 1fr 1fr 1fr 100px', minWidth: 640,
+          padding: '11px 20px', borderBottom: `1px solid ${C.border}`, background: '#f9fafb',
+          color: C.muted, fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5,
+        }}>
+          <div>Buyer</div><div>Looking For</div><div>Budget</div><div>Location</div><div>Since</div>
+        </div>
+        {buyers.map((b, i) => {
+          const typeLabel = [b.preferredBhk, b.propertyType].filter(Boolean).join(' ') || '—';
+          const areas = Array.isArray(b.areas) && b.areas.length ? b.areas.slice(0, 2).join(', ') : (b.city || '—');
+          const budget = b.maxBudget ? fmt(b.maxBudget) : '—';
+          return (
+            <div key={b.id} style={{
+              display: 'grid', gridTemplateColumns: '1.8fr 1fr 1fr 1fr 100px', minWidth: 640,
+              padding: '13px 20px', alignItems: 'center',
+              borderBottom: i < buyers.length - 1 ? `1px solid ${C.border}` : 'none',
+            }}>
+              <div>
+                <div style={{ fontWeight: 600, fontSize: 14, color: C.text }}>{b.buyerName}</div>
+                {b.buyerCity && <div style={{ fontSize: 12, color: C.muted, marginTop: 2 }}>📍 {b.buyerCity}</div>}
+                {b.buyingTimeline && <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>Timeline: {b.buyingTimeline}</div>}
+              </div>
+              <div style={{ fontSize: 13, color: C.sub }}>{typeLabel}</div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: C.text }}>{budget}</div>
+              <div style={{ fontSize: 12, color: C.sub }}>{areas}</div>
+              <div style={{ fontSize: 12, color: C.muted }}>{fmtDate(b.createdAt)}</div>
             </div>
-            <div style={{ fontSize: 13, color: C.sub }}>{typeLabel}</div>
-            <div style={{ fontSize: 13, color: C.sub }}>{budget}</div>
-            <div style={{ fontSize: 12, color: C.sub }}>{areas}</div>
-            <div style={{ fontSize: 12, color: C.sub }}>{fmtDate(b.createdAt)}</div>
-          </div>
-        );
-      })}
+          );
+        })}
+      </div>
     </div>
   );
 }
 
 function SourceBadge({ src }) {
   if (src === 'whatsapp') return (
-    <span style={{ background: '#25D36622', color: '#25D366', border: '1px solid #25D36640', fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 20 }}>
+    <span style={{ background: '#dcfce7', color: '#16a34a', border: '1px solid #86efac', fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 20 }}>
       WhatsApp
     </span>
   );
   if (src === 'ad') return (
-    <span style={{ background: '#1e3a5f33', color: '#60a5fa', border: '1px solid #60a5fa40', fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 20 }}>
+    <span style={{ background: '#dbeafe', color: '#2563eb', border: '1px solid #93c5fd', fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 20 }}>
       Ad
     </span>
   );
@@ -245,7 +269,11 @@ function SourceBadge({ src }) {
 
 function Empty({ children }) {
   return (
-    <div style={{ background: C.surface, borderRadius: 12, border: `1px solid ${C.border}`, padding: '40px 24px', textAlign: 'center', color: C.sub }}>
+    <div style={{
+      background: C.surface, borderRadius: 12, border: `1px solid ${C.border}`,
+      padding: '48px 24px', textAlign: 'center', color: C.sub,
+      boxShadow: '0 1px 4px rgba(0,0,0,0.05)',
+    }}>
       {children}
     </div>
   );

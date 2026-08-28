@@ -1,6 +1,7 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Helmet } from 'react-helmet';
 import { Link } from 'react-router-dom';
+import { MessageCircle } from 'lucide-react';
 import apiServerClient from '@/lib/apiServerClient';
 
 const LANGUAGES = ['Hindi', 'English'];
@@ -25,8 +26,22 @@ export default function BecomeChannelPartnerPage() {
   const [otpError, setOtpError]       = useState('');
   const [resendTimer, setResendTimer] = useState(0);
   const [devOtp, setDevOtp] = useState('');
+  const [otpDelivered, setOtpDelivered] = useState(true);
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
+  const [agreedToWhatsapp, setAgreedToWhatsapp] = useState(false);
   const timerRef = useRef(null);
   const otpRefs  = useRef([]);
+
+  // The CP Terms & Conditions link opens in a new tab; that tab posts a message
+  // back here once the user ticks "I agree" there, so they don't have to tick twice.
+  useEffect(() => {
+    const onMessage = (e) => {
+      if (e.origin !== window.location.origin) return;
+      if (e.data?.type === 'cp-terms-agreed') setAgreedToTerms(true);
+    };
+    window.addEventListener('message', onMessage);
+    return () => window.removeEventListener('message', onMessage);
+  }, []);
 
   const validate = () => {
     const e = {};
@@ -41,6 +56,8 @@ export default function BecomeChannelPartnerPage() {
     if (formData.experienceYrs === '') e.experienceYrs = 'Experience is required';
     if (formData.hasOwnOffice === '')  e.hasOwnOffice  = 'Please select an option';
     if (!formData.workType)            e.workType     = 'Work type is required';
+    if (!agreedToTerms)                e.terms        = 'You must accept the Channel Partner Terms & Conditions';
+    if (!agreedToWhatsapp)             e.whatsapp     = 'You must agree to receive WhatsApp alerts';
     return e;
   };
 
@@ -90,16 +107,12 @@ export default function BecomeChannelPartnerPage() {
       if (!res.ok) { setOtpError(data.error || 'Failed to send OTP'); return; }
       setOtpSent(true);
       startResendTimer();
-      if (data.devOtp) {
-        // WhatsApp delivery failed or dev mode — auto-fill OTP boxes
-        setDevOtp(data.devOtp);
-        setOtpCode(data.devOtp.split(''));
-        setTimeout(() => verifyOtp(data.devOtp), 200);
-      } else {
-        setDevOtp('');
-        setOtpCode(['', '', '', '', '', '']);
-        setTimeout(() => otpRefs.current[0]?.focus(), 100);
-      }
+      setOtpDelivered(data.delivered !== false);
+      // Show dev OTP as a hint (non-prod / WhatsApp delivery failed) but always
+      // require the user to type it in — never auto-fill or auto-verify.
+      setDevOtp(data.devOtp || '');
+      setOtpCode(['', '', '', '', '', '']);
+      setTimeout(() => otpRefs.current[0]?.focus(), 100);
     } catch { setOtpError('Network error. Please try again.'); }
     finally { setSendingOtp(false); }
   };
@@ -239,7 +252,6 @@ export default function BecomeChannelPartnerPage() {
                       onChange={handleChange('phone')}
                       placeholder="10-digit mobile number"
                       style={{ ...inp('phone'), flex: 1 }}
-                      disabled={otpVerified}
                     />
                     {!otpVerified && formData.phone.replace(/\D/g, '').length === 10 && (
                       <button
@@ -268,11 +280,11 @@ export default function BecomeChannelPartnerPage() {
 
                   {/* OTP input boxes */}
                   {otpSent && !otpVerified && (
-                    <div style={{ marginTop: 14, padding: '16px', background: devOtp ? '#fffbeb' : '#f0fdf4', borderRadius: 10, border: `1px solid ${devOtp ? '#fcd34d' : '#bbf7d0'}` }}>
-                      <p style={{ fontSize: 13, color: devOtp ? '#92400e' : '#15803d', fontWeight: 600, marginBottom: 12 }}>
-                        {devOtp
-                          ? `WhatsApp message could not be delivered. Your OTP is: ${devOtp} (verifying automatically…)`
-                          : 'Enter the 6-digit OTP sent to your WhatsApp'}
+                    <div style={{ marginTop: 14, padding: '16px', background: otpDelivered ? '#f0fdf4' : '#fffbeb', borderRadius: 10, border: `1px solid ${otpDelivered ? '#bbf7d0' : '#fcd34d'}` }}>
+                      <p style={{ fontSize: 13, color: otpDelivered ? '#15803d' : '#92400e', fontWeight: 600, marginBottom: 12 }}>
+                        {otpDelivered
+                          ? 'OTP has been sent to your WhatsApp number. Please enter it below.'
+                          : `WhatsApp delivery failed. Your OTP is: ${devOtp}`}
                       </p>
                       <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginBottom: otpError ? 10 : 0 }}>
                         {otpCode.map((digit, idx) => (
@@ -397,19 +409,60 @@ export default function BecomeChannelPartnerPage() {
                   </div>
                 </div>
 
+                {/* Terms & Conditions */}
+                <div>
+                  <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={agreedToTerms}
+                      onChange={(e) => { setAgreedToTerms(e.target.checked); if (errors.terms) setErrors(p => ({ ...p, terms: undefined })); }}
+                      style={{ accentColor: '#10b981', width: 17, height: 17, marginTop: 2, flexShrink: 0 }}
+                    />
+                    <span style={{ fontSize: 13, color: '#374151', lineHeight: 1.6 }}>
+                      I confirm that I am applying as an independent Channel Partner, I agree to Growperty's{' '}
+                      <Link to="/terms?type=cp" target="_blank" style={{ color: '#10b981', fontWeight: 700, textDecoration: 'underline' }}>
+                        Channel Partner Terms &amp; Conditions
+                      </Link>{' '}
+                      and{' '}
+                      <Link to="/privacy" target="_blank" style={{ color: '#10b981', fontWeight: 700, textDecoration: 'underline' }}>
+                        Privacy Policy
+                      </Link>
+                      , and I will not bypass the Platform, misuse shared links, or engage in off-platform deals for Growperty-generated opportunities.
+                    </span>
+                  </label>
+                  {err('terms')}
+                </div>
+
+                {/* WhatsApp Alerts Consent */}
+                <div>
+                  <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={agreedToWhatsapp}
+                      onChange={(e) => { setAgreedToWhatsapp(e.target.checked); if (errors.whatsapp) setErrors(p => ({ ...p, whatsapp: undefined })); }}
+                      style={{ accentColor: '#10b981', width: 17, height: 17, marginTop: 2, flexShrink: 0 }}
+                    />
+                    <span style={{ fontSize: 13, color: '#374151', lineHeight: 1.6 }}>
+                      I agree to receive <MessageCircle style={{ display: 'inline', width: 14, height: 14, color: '#10b981', verticalAlign: -2 }} />{' '}
+                      <strong style={{ color: '#10b981', fontWeight: 700 }}>WhatsApp</strong> Leads inquery & visits alerts &amp; updates.
+                    </span>
+                  </label>
+                  {err('whatsapp')}
+                </div>
+
                 <button
                   type="submit"
-                  disabled={submitting || !otpVerified}
+                  disabled={submitting || !otpVerified || !agreedToTerms || !agreedToWhatsapp}
                   style={{
                     width: '100%',
-                    background: !otpVerified ? '#9ca3af' : submitting ? '#9ca3af' : '#10b981',
+                    background: (!otpVerified || !agreedToTerms || !agreedToWhatsapp) ? '#9ca3af' : submitting ? '#9ca3af' : '#10b981',
                     color: '#fff', border: 'none', borderRadius: 8,
                     padding: '12px 0', fontSize: 15, fontWeight: 700,
-                    cursor: submitting || !otpVerified ? 'not-allowed' : 'pointer',
+                    cursor: submitting || !otpVerified || !agreedToTerms || !agreedToWhatsapp ? 'not-allowed' : 'pointer',
                     marginTop: 4,
                   }}
                 >
-                  {submitting ? 'Submitting…' : !otpVerified ? 'Verify phone to submit' : 'Submit Application'}
+                  {submitting ? 'Submitting…' : !otpVerified ? 'Verify phone to submit' : (!agreedToTerms || !agreedToWhatsapp) ? 'Accept Terms to submit' : 'Submit Application'}
                 </button>
 
               </div>

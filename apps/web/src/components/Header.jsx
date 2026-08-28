@@ -34,10 +34,12 @@ const Header = () => {
 
   const navLinks = [
     { name: 'Home', path: '/' },
+    { name: 'About Us', path: '/about' },
     { name: 'Properties', path: '/properties' },
+    { name: 'Projects', path: '/projects' },
     { name: 'Buyers', path: '/buyers' },
-    { 
-      name: 'Area Guides', 
+    {
+      name: 'Area Guides',
       type: 'dropdown',
       items: [
         { name: 'Greater Noida', path: '/area-guide/greater-noida' },
@@ -46,14 +48,12 @@ const Header = () => {
       ]
     },
     { name: 'Invest', path: '/invest' },
-    { name: 'Projects', path: '/projects' },
     { name: 'Fast Track', path: '/fast-track' },
     { name: 'How It Works', path: '/how-it-works' },
     { name: 'FAQ', path: '/faq' },
     { name: 'Blog', path: '/blog' },
-    { name: 'About', path: '/about' },
     { name: 'Contact', path: '/contact' },
-    { name: 'Channel Partner', path: '/become-channel-partner' }
+    { name: 'Channel Partner', path: '/cp/login' }
   ];
 
   return (

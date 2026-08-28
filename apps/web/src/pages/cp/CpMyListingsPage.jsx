@@ -1,28 +1,29 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Helmet } from 'react-helmet';
 import { useNavigate } from 'react-router-dom';
+import { Heart } from 'lucide-react';
 import { useCpAuth } from '@/contexts/CpAuthContext.jsx';
 import apiServerClient from '@/lib/apiServerClient';
 import { toast } from 'sonner';
+import { isWishlisted, toggleWishlist } from '@/lib/wishlist.js';
 
 const C = {
-  bg:      '#0d1117',
-  surface: '#0d1b2a',
-  border:  '#1e2d3d',
-  text:    '#e6edf3',
-  muted:   '#4d6175',
-  sub:     '#94aabf',
-  green:   '#1d9e75',
-  amber:   '#d97706',
-  red:     '#c0392b',
+  bg:      '#f5f6f8',
+  surface: '#ffffff',
+  border:  '#e5e7eb',
+  text:    '#111827',
+  muted:   '#9ca3af',
+  sub:     '#6b7280',
+  green:   '#10b981',
+  greenDark: '#059669',
 };
 
-const STATUS_COLOR = {
-  pending:  { bg: '#78350f22', color: '#fbbf24', label: 'Pending' },
-  approved: { bg: '#06422922', color: '#34d399', label: 'Live' },
-  rejected: { bg: '#7f1d1d22', color: '#f87171', label: 'Rejected' },
-  sold:     { bg: '#1e3a5f22', color: '#60a5fa', label: 'Sold' },
-  unlisted: { bg: '#27272a22', color: '#9ca3af', label: 'Unlisted' },
+const STATUS_META = {
+  pending:  { bg: '#fef3c7', color: '#d97706', label: 'Pending'  },
+  approved: { bg: '#d1fae5', color: '#059669', label: 'Live'     },
+  rejected: { bg: '#fee2e2', color: '#dc2626', label: 'Rejected' },
+  sold:     { bg: '#dbeafe', color: '#2563eb', label: 'Sold'     },
+  unlisted: { bg: '#f3f4f6', color: '#6b7280', label: 'Unlisted' },
 };
 
 const fmt = (price) => {
@@ -33,22 +34,47 @@ const fmt = (price) => {
   return `₹${n.toLocaleString('en-IN')}`;
 };
 
+function WishlistButton({ propertyId }) {
+  const [wishlisted, setWishlisted] = useState(false);
+
+  useEffect(() => {
+    setWishlisted(isWishlisted(propertyId));
+  }, [propertyId]);
+
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        const now = toggleWishlist(propertyId);
+        setWishlisted(now);
+        toast.success(now ? 'Added to wishlist' : 'Removed from wishlist');
+      }}
+      aria-label="Toggle wishlist"
+      style={{
+        background: 'transparent', border: `1px solid ${C.border}`,
+        borderRadius: 6, padding: '5px 8px', cursor: 'pointer',
+        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+      }}
+    >
+      <Heart size={14} className={wishlisted ? 'fill-red-500 text-red-500' : 'text-slate-500'} />
+    </button>
+  );
+}
+
 export default function CpMyListingsPage() {
   const { token } = useCpAuth();
   const navigate  = useNavigate();
 
-  const [tab, setTab] = useState('mine'); // 'mine' | 'growperty'
+  const [tab, setTab] = useState('mine');
 
-  // Per-tab state
   const [mine,      setMine]      = useState({ items: [], total: 0, page: 1, totalPages: 1 });
   const [growperty, setGrowperty] = useState({ items: [], total: 0, page: 1, totalPages: 1 });
   const [loading,   setLoading]   = useState(true);
 
-  const [shareToken, setShareToken] = useState('');
-  const [shareModal, setShareModal] = useState(null); // null | { propertyId, title }
-  const [copied,     setCopied]     = useState(''); // '' | 'whatsapp' | 'ad'
+  const [shareModal, setShareModal] = useState(null);
+  const [copied,     setCopied]     = useState('');
+  const shareToken = localStorage.getItem('cpRef') || '';
 
-  // Fetch CP's own listings
   const fetchMine = useCallback(async (pg = 1) => {
     setLoading(true);
     try {
@@ -62,7 +88,6 @@ export default function CpMyListingsPage() {
     finally { setLoading(false); }
   }, [token]);
 
-  // Fetch Growperty's approved listings
   const fetchGrowperty = useCallback(async (pg = 1) => {
     setLoading(true);
     try {
@@ -76,20 +101,10 @@ export default function CpMyListingsPage() {
     finally { setLoading(false); }
   }, [token]);
 
-  // Fetch share token from /cp/me
-  useEffect(() => {
-    if (!token) return;
-    apiServerClient.fetch('/cp/me', { headers: { Authorization: `Bearer ${token}` } })
-      .then(r => r.ok ? r.json() : null)
-      .then(data => { if (data?.cp?.shareToken) setShareToken(data.cp.shareToken); })
-      .catch(() => {});
-  }, [token]);
-
-  // Load both tabs on mount
   useEffect(() => { fetchMine(1); },      [fetchMine]);
   useEffect(() => { fetchGrowperty(1); }, [fetchGrowperty]);
 
-  const current = tab === 'mine' ? mine : growperty;
+  const current   = tab === 'mine' ? mine : growperty;
   const fetchPage = tab === 'mine' ? fetchMine : fetchGrowperty;
 
   const getShareLink = (propertyId, src) => {
@@ -109,12 +124,19 @@ export default function CpMyListingsPage() {
       <Helmet><title>Listings — CP Dashboard</title></Helmet>
 
       {/* ── Header ── */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
-        <h1 style={{ margin: 0, fontSize: 20, fontWeight: 700 }}>Listings</h1>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24, flexWrap: 'wrap', gap: 12 }}>
+        <div>
+          <h1 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: C.text }}>Listings</h1>
+          <p style={{ margin: '3px 0 0', fontSize: 13, color: C.muted }}>Manage and share your property listings</p>
+        </div>
         {tab === 'mine' && (
           <button
             onClick={() => navigate('/cp/dashboard/add')}
-            style={{ background: C.green, color: '#fff', border: 'none', borderRadius: 8, padding: '9px 18px', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}
+            style={{
+              background: C.greenDark, color: '#fff', border: 'none',
+              borderRadius: 8, padding: '10px 20px', fontWeight: 600, fontSize: 13, cursor: 'pointer',
+              display: 'flex', alignItems: 'center', gap: 6,
+            }}
           >
             + Add Property
           </button>
@@ -124,8 +146,8 @@ export default function CpMyListingsPage() {
       {/* ── Tabs ── */}
       <div style={{ display: 'flex', gap: 0, marginBottom: 20, borderBottom: `1px solid ${C.border}` }}>
         {[
-          { key: 'mine',      label: 'My Listings',        count: mine.total },
-          { key: 'growperty', label: 'Growperty Listings',  count: growperty.total },
+          { key: 'mine',      label: 'My Listings',       count: mine.total },
+          { key: 'growperty', label: 'Growperty Listings', count: growperty.total },
         ].map(t => (
           <button
             key={t.key}
@@ -133,16 +155,16 @@ export default function CpMyListingsPage() {
             style={{
               background: 'none', border: 'none', cursor: 'pointer',
               padding: '10px 20px', fontSize: 13, fontWeight: 600,
-              color: tab === t.key ? C.green : C.sub,
-              borderBottom: tab === t.key ? `2px solid ${C.green}` : '2px solid transparent',
+              color: tab === t.key ? C.greenDark : C.sub,
+              borderBottom: tab === t.key ? `2px solid ${C.greenDark}` : '2px solid transparent',
               marginBottom: -1,
             }}
           >
             {t.label}
             <span style={{
-              marginLeft: 8, fontSize: 11, fontWeight: 700,
-              background: tab === t.key ? '#1d9e7522' : '#1e2d3d',
-              color: tab === t.key ? C.green : C.muted,
+              marginLeft: 7, fontSize: 11, fontWeight: 700,
+              background: tab === t.key ? '#d1fae5' : '#f3f4f6',
+              color: tab === t.key ? C.greenDark : C.muted,
               padding: '1px 7px', borderRadius: 20,
             }}>
               {t.count}
@@ -152,72 +174,150 @@ export default function CpMyListingsPage() {
       </div>
 
       {/* ── Table ── */}
-      <div style={{ background: C.surface, borderRadius: 12, border: `1px solid ${C.border}`, overflow: 'hidden' }}>
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: '2fr 120px 110px 100px',
-          padding: '11px 16px',
+      <style>{`
+        .cpml-row {
+          display: grid;
+          grid-template-columns: 56px 2fr 110px 110px 215px;
+          align-items: center;
+        }
+        .cpml-row-top, .cpml-pricestatus { display: contents; }
+        @media (max-width: 700px) {
+          .cpml-header { display: none; }
+          .cpml-row {
+            display: flex;
+            flex-direction: column;
+            align-items: stretch;
+            gap: 10px;
+          }
+          .cpml-row-top {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            width: 100%;
+          }
+          .cpml-title { flex: 1; min-width: 0; }
+          .cpml-pricestatus {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 6px;
+            flex-shrink: 0;
+          }
+          .cpml-actions { width: 100%; }
+        }
+      `}</style>
+      <div style={{ background: C.surface, borderRadius: 12, border: `1px solid ${C.border}`, overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.05)' }}>
+        <div className="cpml-row cpml-header" style={{
+          padding: '11px 20px',
           borderBottom: `1px solid ${C.border}`,
-          color: C.sub, fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5,
+          background: '#f9fafb',
+          color: C.muted, fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5,
         }}>
+          <div></div>
           <div>Property</div>
-          <div>Type</div>
+          <div>Price</div>
           <div>Status</div>
-          <div>Share</div>
+          <div>Actions</div>
         </div>
 
         {loading ? (
-          <div style={{ padding: 40, textAlign: 'center', color: C.sub }}>Loading...</div>
+          <div style={{ padding: 48, textAlign: 'center', color: C.muted, fontSize: 14 }}>Loading...</div>
         ) : current.items.length === 0 ? (
-          <div style={{ padding: 40, textAlign: 'center', color: C.sub }}>
-            {tab === 'mine' ? (
-              <>No listings yet.{' '}
-                <span onClick={() => navigate('/cp/dashboard/add')} style={{ color: C.green, cursor: 'pointer', fontWeight: 600 }}>
-                  Add your first property →
-                </span>
-              </>
-            ) : 'No approved Growperty listings available.'}
+          <div style={{ padding: 48, textAlign: 'center' }}>
+            <div style={{ fontSize: 36, marginBottom: 10 }}>🏘</div>
+            <div style={{ fontSize: 15, fontWeight: 600, color: C.text, marginBottom: 6 }}>
+              {tab === 'mine' ? 'No listings yet' : 'No Growperty listings available'}
+            </div>
+            {tab === 'mine' && (
+              <span
+                onClick={() => navigate('/cp/dashboard/add')}
+                style={{ color: C.greenDark, cursor: 'pointer', fontWeight: 600, fontSize: 14 }}
+              >
+                Add your first property →
+              </span>
+            )}
           </div>
         ) : (
           current.items.map((p, i) => {
-            const st = STATUS_COLOR[p.status] || STATUS_COLOR.approved;
+            const st = STATUS_META[p.status] || STATUS_META.approved;
             const propId = p._id || p.id;
-            const propTitle = `${p.bhk ? p.bhk + ' ' : ''}${p.propertyType}`;
+            const areaPrefix = !p.bhk && p.totalArea && p.areaUnit ? `${p.totalArea} ${p.areaUnit} ` : '';
+            const propTitle = p.bhk ? `${p.bhk} ${p.propertyType}` : `${areaPrefix}${p.propertyType}`;
+            const thumb = Array.isArray(p.images) ? p.images[0] : null;
             return (
               <div
                 key={propId}
+                className="cpml-row"
                 style={{
-                  display: 'grid',
-                  gridTemplateColumns: '2fr 120px 110px 100px',
-                  padding: '13px 16px',
-                  alignItems: 'center',
+                  padding: '14px 20px',
                   borderBottom: i < current.items.length - 1 ? `1px solid ${C.border}` : 'none',
+                  transition: 'background 0.1s',
                 }}
+                onMouseEnter={e => e.currentTarget.style.background = '#f9fafb'}
+                onMouseLeave={e => e.currentTarget.style.background = ''}
               >
-                <div>
-                  <div style={{ fontWeight: 600, fontSize: 14 }}>{propTitle}</div>
-                  <div style={{ fontSize: 12, color: C.sub, marginTop: 2 }}>
-                    {p.sector}, {p.city} · {fmt(p.totalPrice)}
+                <div className="cpml-row-top">
+                  <div>
+                    {thumb ? (
+                      <img
+                        src={thumb}
+                        alt={propTitle}
+                        style={{ width: 44, height: 44, borderRadius: 8, objectFit: 'cover', border: `1px solid ${C.border}`, flexShrink: 0 }}
+                      />
+                    ) : (
+                      <div style={{
+                        width: 44, height: 44, borderRadius: 8, background: '#f3f4f6',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, flexShrink: 0,
+                      }}>🏠</div>
+                    )}
+                  </div>
+                  <div className="cpml-title">
+                    <div style={{ fontWeight: 600, fontSize: 14, color: C.text }}>{propTitle}</div>
+                    <div style={{ fontSize: 12, color: C.muted, marginTop: 3 }}>
+                      {[p.sector, p.city].filter(Boolean).join(', ')}
+                    </div>
+                  </div>
+                  <div className="cpml-pricestatus">
+                    <div style={{ fontSize: 13, fontWeight: 600, color: C.text }}>{fmt(p.totalPrice)}</div>
+                    <div>
+                      <span style={{
+                        background: st.bg, color: st.color,
+                        fontSize: 11, fontWeight: 700, padding: '3px 9px', borderRadius: 20,
+                      }}>
+                        {st.label}
+                      </span>
+                    </div>
                   </div>
                 </div>
-                <div style={{ fontSize: 13, color: C.sub }}>{p.ownershipType || '—'}</div>
-                <div>
-                  <span style={{
-                    background: st.bg, color: st.color,
-                    fontSize: 11, fontWeight: 600, padding: '3px 8px', borderRadius: 20,
-                  }}>
-                    {st.label}
-                  </span>
-                </div>
-                <div>
+                <div className="cpml-actions" style={{ display: 'flex', gap: 8 }}>
+                  <WishlistButton propertyId={propId} />
+                  <a
+                    href={`/property/${propId}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      background: 'transparent', border: `1px solid ${C.border}`,
+                      color: C.sub, borderRadius: 6, padding: '5px 12px',
+                      fontSize: 12, cursor: 'pointer', fontWeight: 500,
+                      textDecoration: 'none', display: 'inline-block',
+                      transition: 'border-color 0.1s, color 0.1s',
+                    }}
+                    onMouseEnter={e => { e.currentTarget.style.borderColor = '#2563eb'; e.currentTarget.style.color = '#2563eb'; }}
+                    onMouseLeave={e => { e.currentTarget.style.borderColor = C.border; e.currentTarget.style.color = C.sub; }}
+                  >
+                    View
+                  </a>
                   {shareToken && (
                     <button
                       onClick={() => setShareModal({ propertyId: propId, title: propTitle })}
                       style={{
                         background: 'transparent', border: `1px solid ${C.border}`,
-                        color: C.sub, borderRadius: 6, padding: '4px 10px',
-                        fontSize: 12, cursor: 'pointer',
+                        color: C.sub, borderRadius: 6, padding: '5px 12px',
+                        fontSize: 12, cursor: 'pointer', fontWeight: 500,
+                        transition: 'border-color 0.1s, color 0.1s',
                       }}
+                      onMouseEnter={e => { e.currentTarget.style.borderColor = C.greenDark; e.currentTarget.style.color = C.greenDark; }}
+                      onMouseLeave={e => { e.currentTarget.style.borderColor = C.border; e.currentTarget.style.color = C.sub; }}
                     >
                       Share
                     </button>
@@ -235,17 +335,17 @@ export default function CpMyListingsPage() {
           <button
             onClick={() => fetchPage(current.page - 1)}
             disabled={current.page <= 1}
-            style={{ background: C.surface, border: `1px solid ${C.border}`, color: C.sub, borderRadius: 6, padding: '6px 14px', cursor: 'pointer' }}
+            style={{ background: C.surface, border: `1px solid ${C.border}`, color: C.sub, borderRadius: 7, padding: '7px 16px', cursor: 'pointer', fontSize: 13 }}
           >
             ← Prev
           </button>
-          <span style={{ color: C.sub, padding: '6px 12px', fontSize: 13 }}>
+          <span style={{ color: C.sub, padding: '7px 14px', fontSize: 13 }}>
             {current.page} / {current.totalPages}
           </span>
           <button
             onClick={() => fetchPage(current.page + 1)}
             disabled={current.page >= current.totalPages}
-            style={{ background: C.surface, border: `1px solid ${C.border}`, color: C.sub, borderRadius: 6, padding: '6px 14px', cursor: 'pointer' }}
+            style={{ background: C.surface, border: `1px solid ${C.border}`, color: C.sub, borderRadius: 7, padding: '7px 16px', cursor: 'pointer', fontSize: 13 }}
           >
             Next →
           </button>
@@ -257,33 +357,35 @@ export default function CpMyListingsPage() {
         <div
           onClick={() => setShareModal(null)}
           style={{
-            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)',
+            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)',
             display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000,
+            backdropFilter: 'blur(3px)',
           }}
         >
           <div
             onClick={e => e.stopPropagation()}
             style={{
-              background: C.surface, border: `1px solid ${C.border}`, borderRadius: 14,
+              background: C.surface, border: `1px solid ${C.border}`, borderRadius: 16,
               padding: 28, width: '100%', maxWidth: 460, color: C.text,
+              boxShadow: '0 20px 60px rgba(0,0,0,0.15)',
             }}
           >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
-              <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>Share Listing</h3>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+              <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: C.text }}>Share Listing</h3>
               <button
                 onClick={() => setShareModal(null)}
-                style={{ background: 'none', border: 'none', color: C.sub, fontSize: 20, cursor: 'pointer', lineHeight: 1 }}
+                style={{ background: 'none', border: 'none', color: C.muted, fontSize: 22, cursor: 'pointer', lineHeight: 1, padding: 2 }}
               >×</button>
             </div>
-            <p style={{ fontSize: 13, color: C.sub, marginBottom: 18 }}>{shareModal.title}</p>
+            <p style={{ fontSize: 13, color: C.muted, marginBottom: 20 }}>{shareModal.title}</p>
 
             {/* WhatsApp link */}
-            <div style={{ marginBottom: 16 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                <span style={{ fontSize: 11, fontWeight: 700, color: '#25D366', textTransform: 'uppercase', letterSpacing: 0.5 }}>WhatsApp Link</span>
+            <div style={{ marginBottom: 18 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: '#16a34a', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 7 }}>
+                WhatsApp Link
               </div>
               <div style={{
-                background: C.bg, border: `1px solid ${C.border}`, borderRadius: 8,
+                background: '#f9fafb', border: `1px solid ${C.border}`, borderRadius: 8,
                 padding: '8px 12px', fontSize: 11, wordBreak: 'break-all', color: C.sub, marginBottom: 8,
               }}>
                 {getShareLink(shareModal.propertyId, 'whatsapp')}
@@ -292,10 +394,11 @@ export default function CpMyListingsPage() {
                 <button
                   onClick={() => handleCopy(shareModal.propertyId, 'whatsapp')}
                   style={{
-                    flex: 1, background: copied === 'whatsapp' ? '#1d9e7522' : C.bg,
-                    border: `1px solid ${copied === 'whatsapp' ? C.green : C.border}`,
-                    color: copied === 'whatsapp' ? C.green : C.sub, borderRadius: 6,
-                    padding: '7px 0', fontWeight: 600, fontSize: 12, cursor: 'pointer',
+                    flex: 1,
+                    background: copied === 'whatsapp' ? '#d1fae5' : C.surface,
+                    border: `1px solid ${copied === 'whatsapp' ? '#10b981' : C.border}`,
+                    color: copied === 'whatsapp' ? '#059669' : C.sub,
+                    borderRadius: 7, padding: '8px 0', fontWeight: 600, fontSize: 12, cursor: 'pointer',
                   }}
                 >
                   {copied === 'whatsapp' ? '✓ Copied!' : 'Copy'}
@@ -303,12 +406,12 @@ export default function CpMyListingsPage() {
                 <button
                   onClick={() => {
                     const link = getShareLink(shareModal.propertyId, 'whatsapp');
-                    window.open(`https://wa.me/?text=${encodeURIComponent(`Hi! Check out this property: ${link}`)}`, '_blank');
+                    window.open(`https://wa.me/?text=${encodeURIComponent(`Check out this property: ${link}`)}`, '_blank');
                   }}
                   style={{
-                    flex: 2, background: '#25D36622', border: '1px solid #25D36640',
-                    color: '#25D366', borderRadius: 6,
-                    padding: '7px 0', fontWeight: 600, fontSize: 12, cursor: 'pointer',
+                    flex: 2, background: '#dcfce7', border: '1px solid #86efac',
+                    color: '#16a34a', borderRadius: 7,
+                    padding: '8px 0', fontWeight: 600, fontSize: 12, cursor: 'pointer',
                   }}
                 >
                   Share on WhatsApp ↗
@@ -318,12 +421,12 @@ export default function CpMyListingsPage() {
 
             {/* Ad link */}
             <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                <span style={{ fontSize: 11, fontWeight: 700, color: '#60a5fa', textTransform: 'uppercase', letterSpacing: 0.5 }}>Ad Link</span>
-                <span style={{ fontSize: 10, color: C.muted }}>(Facebook / Instagram / Google)</span>
+              <div style={{ fontSize: 11, fontWeight: 700, color: '#2563eb', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 7 }}>
+                Ad Link
+                <span style={{ fontSize: 10, color: C.muted, fontWeight: 400, textTransform: 'none', marginLeft: 6 }}>Facebook / Instagram / Google</span>
               </div>
               <div style={{
-                background: C.bg, border: `1px solid ${C.border}`, borderRadius: 8,
+                background: '#f9fafb', border: `1px solid ${C.border}`, borderRadius: 8,
                 padding: '8px 12px', fontSize: 11, wordBreak: 'break-all', color: C.sub, marginBottom: 8,
               }}>
                 {getShareLink(shareModal.propertyId, 'ad')}
@@ -331,10 +434,11 @@ export default function CpMyListingsPage() {
               <button
                 onClick={() => handleCopy(shareModal.propertyId, 'ad')}
                 style={{
-                  width: '100%', background: copied === 'ad' ? '#1e3a5f33' : C.bg,
-                  border: `1px solid ${copied === 'ad' ? '#60a5fa' : C.border}`,
-                  color: copied === 'ad' ? '#60a5fa' : C.sub, borderRadius: 6,
-                  padding: '7px 0', fontWeight: 600, fontSize: 12, cursor: 'pointer',
+                  width: '100%',
+                  background: copied === 'ad' ? '#dbeafe' : C.surface,
+                  border: `1px solid ${copied === 'ad' ? '#3b82f6' : C.border}`,
+                  color: copied === 'ad' ? '#2563eb' : C.sub,
+                  borderRadius: 7, padding: '8px 0', fontWeight: 600, fontSize: 12, cursor: 'pointer',
                 }}
               >
                 {copied === 'ad' ? '✓ Copied!' : 'Copy Ad Link'}

@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Helmet } from 'react-helmet';
-import { Link } from 'react-router-dom';
-import { ArrowLeft, FileText, User, Home } from 'lucide-react';
+import { Link, useSearchParams } from 'react-router-dom';
+import { ArrowLeft, FileText, User, Home, Handshake, CheckCircle2 } from 'lucide-react';
 import Header from '@/components/Header.jsx';
 import Footer from '@/components/Footer.jsx';
 import { Button } from '@/components/ui/button';
@@ -183,7 +183,7 @@ const BuyerTerms = () => (
       <p>Head Office: 01, Mannat Tower, Bindal Enclave, Kasna near Sector Phi-4, Greater Noida, Uttar Pradesh – 201310</p>
       <p>Branch Office: 01, Kirat Tower, Bindal Enclave, Kasna near Sector Phi-4, Greater Noida, Uttar Pradesh – 201310</p>
       <p>Email: <a href="mailto:support@growperty.com" className="text-primary underline">support@growperty.com</a></p>
-      <p>Phone: <a href="tel:+919891117876" className="text-primary underline">+91 9891117876</a>, <a href="tel:+919971007876" className="text-primary underline">+91 9971007876</a></p>
+      <p>Phone: <a href="tel:+919891117876" className="text-primary underline">+91 9891117876</a>, <a href="tel:+919891487876" className="text-primary underline">+91 9891487876</a></p>
     </Section>
 
     <div className="rounded-xl border border-primary/30 bg-primary/5 p-4 text-sm">
@@ -341,7 +341,7 @@ const SellerTerms = () => (
       <p>Head Office: 01, Mannat Tower, Bindal Enclave, Kasna near Sector Phi-4, Greater Noida, Uttar Pradesh – 201310</p>
       <p>Branch Office: 01, Kirat Tower, Bindal Enclave, Kasna near Sector Phi-4, Greater Noida, Uttar Pradesh – 201310</p>
       <p>Email: <a href="mailto:support@growperty.com" className="text-primary underline">support@growperty.com</a></p>
-      <p>Phone: <a href="tel:+919891117876" className="text-primary underline">+91 9891117876</a>, <a href="tel:+919971007876" className="text-primary underline">+91 9971007876</a></p>
+      <p>Phone: <a href="tel:+919891117876" className="text-primary underline">+91 9891117876</a>, <a href="tel:+919891487876" className="text-primary underline">+91 9891487876</a></p>
     </Section>
 
     <div className="rounded-xl border border-primary/30 bg-primary/5 p-4 text-sm space-y-3">
@@ -357,8 +357,125 @@ const SellerTerms = () => (
   </div>
 );
 
+const ChannelPartnerTerms = () => (
+  <div className="space-y-8 text-slate-700 dark:text-slate-300">
+    <p className="text-sm leading-relaxed">
+      These Terms & Conditions ("Terms") govern the onboarding and participation of any Channel Partner ("CP", "you", "your") on <strong>Growperty.com</strong>, operated by <strong>Grenoverse Multi Ventures LLP</strong> ("Growperty", "Company", "we", "us", "our"). By applying, registering, logging in, listing inventory, sharing links, or using the CP dashboard, you agree to be bound by these Terms. Electronic acceptance may be relied upon as valid acceptance, provided the terms are clearly presented and affirmatively accepted.
+    </p>
+
+    <Section title="1. Independent Status">
+      <p>The CP acts as an independent channel partner / independent contractor and not as an employee, agent of record, partner, franchisee, or legal representative of Growperty unless expressly agreed in writing. Nothing in these Terms creates employment benefits, salary rights, exclusivity, or authority to bind Growperty in any manner.</p>
+    </Section>
+
+    <Section title="2. Platform-Only Model">
+      <p>The CP may market, upload, manage, and share eligible property inventory only through Growperty's approved systems, dashboard, tools, and link-sharing mechanisms. The CP shall not use Growperty data, leads, or inventory for off-platform dealing, parallel brokering, or independent closure outside the Growperty-managed flow.</p>
+    </Section>
+
+    <Section title="3. Approval and Access">
+      <p>CP registration is subject to Growperty's sole review and approval. Growperty may approve, reject, suspend, limit, or terminate any CP account, listing, access request, or feature at its discretion for quality, compliance, fraud-risk, business, safety, or operational reasons.</p>
+    </Section>
+
+    <Section title="4. Login and Account Security">
+      <p>CP login credentials, OTPs, and dashboard access are personal and non-transferable. The CP shall not share, sell, lend, or allow any other person to use the account, and shall remain responsible for all activity conducted through the account unless promptly reported as unauthorized use.</p>
+    </Section>
+
+    <Section title="5. Listing Rules">
+      <p>The CP may add and manage listings permitted by Growperty, including updates to price, images, and property details. The CP is solely responsible for ensuring that all uploaded information, media, and claims are lawful, accurate, current, and properly authorized, and shall immediately correct any inaccurate or outdated listing content.</p>
+    </Section>
+
+    <Section title="6. Contact and Data Restrictions">
+      <p>The CP shall not access, extract, disclose, share, sell, misuse, or attempt to discover buyer or seller personal contact information except as expressly permitted by Growperty for a specific managed interaction. The CP shall not contact users outside approved Growperty processes using hidden, inferred, scraped, or externally sourced contact details.</p>
+      <p>CPs must not upload another broker's or owner's data without lawful authority.</p>
+    </Section>
+
+    <Section title="7. Shared Link Rules">
+      <p>Growperty may permit CP-specific shareable links for the CP's own client outreach. Such links are limited, revocable tools for legitimate client servicing only, and any misuse, mass circulation, scraping, impersonation, misleading forwarding, or use for bypassing Growperty may result in immediate suspension or termination.</p>
+    </Section>
+
+    <Section title="8. Display and Branding">
+      <p>Listings on the Platform may display as "Listed by Growperty" or in any other presentation format determined by Growperty. The CP shall have no right to demand platform-facing branding, public attribution, white-labelling, or independent branding placement on Growperty listing pages unless separately approved in writing.</p>
+      <p>Fast Track or promotional benefits, where applicable, do not create ownership over Growperty leads or platform branding.</p>
+    </Section>
+
+    <Section title="9. Managed Contact Logic">
+      <p>Where Growperty enables CP-shared links, Growperty may determine which contact information is shown to end users based on visitor source, routing logic, business rules, or platform design. The CP shall not alter, manipulate, or reverse engineer this logic.</p>
+    </Section>
+
+    <Section title="10. No Bypass / No Off-Platform Deal">
+      <p>The CP shall not bypass Growperty by directly closing, diverting, routing, or facilitating any deal outside Growperty where the property, lead, client, visit, enquiry, or transaction opportunity originated from or was materially facilitated by Growperty. Any side deal, shadow negotiation, or indirect closure through nominees, affiliates, staff, or third parties shall be treated as a breach of these Terms.</p>
+    </Section>
+
+    <Section title="11. Commission and Commercial Terms">
+      <p>All commissions, fees, incentives, or CP payouts shall be determined, controlled, processed, and settled only by Growperty in accordance with separately communicated commercial terms, if any. The CP shall have no right to independently set, alter, collect, promise, or represent Growperty commission terms unless expressly authorized in writing.</p>
+      <p>CP payout/commission structure will be separately communicated by Growperty and may be revised from time to time.</p>
+    </Section>
+
+    <Section title="12. No Access to Other CP Data">
+      <p>The CP shall not access, copy, monitor, or interfere with the listings, leads, dashboards, routing logic, contacts, analytics, or data of any other CP, seller, buyer, or user except as expressly allowed through the Platform.</p>
+    </Section>
+
+    <Section title="13. Compliance and Legal Responsibility">
+      <p>The CP shall comply with applicable law, platform policies, privacy obligations, anti-spam requirements, and any real estate regulatory requirements that may apply to the CP's own activities. Under the RERA framework, facilitation of sale or purchase of covered real estate projects may trigger registration obligations for real estate agents, and Growperty does not waive or assume the CP's independent legal obligations in this regard.</p>
+    </Section>
+
+    <Section title="14. No Authority to Bind Growperty">
+      <p>The CP shall not make guarantees, legal assurances, title assurances, approval claims, price promises, investment promises, or other commitments on behalf of Growperty. Any unauthorized representation made by the CP shall be solely at the CP's risk and responsibility.</p>
+    </Section>
+
+    <Section title="15. Limitation of Liability">
+      <p>Growperty shall not be liable for losses arising from inaccurate CP listings, unauthorized promises made by a CP, direct or side deals done outside the Platform, client misconduct, regulatory non-compliance by the CP, or misuse of dashboard tools by the CP. Nothing in these Terms excludes liability that cannot be excluded under applicable law.</p>
+    </Section>
+
+    <Section title="16. Suspension and Termination">
+      <p>Growperty may suspend or terminate the CP account, remove listings, block links, withhold access, or stop payouts where it suspects breach, misuse, circumvention, fraud, legal risk, spam, misrepresentation, or any conduct harmful to the Platform or its users. Accrued rights, audit rights, evidence rights, payment set-offs, indemnities, and remedies shall survive termination.</p>
+    </Section>
+
+    <Section title="17. Indemnity">
+      <p>The CP agrees to indemnify and hold harmless Growperty, Grenoverse Multi Ventures LLP, and their partners, employees, and affiliates against claims, losses, liabilities, penalties, damages, and reasonable legal costs arising from the CP's breach of these Terms, false listings, unauthorized data use, regulatory violations, side deals, or misrepresentations.</p>
+    </Section>
+
+    <Section title="18. Governing Law and Jurisdiction">
+      <p>These Terms shall be governed by the laws of India. Courts having competent jurisdiction in Gautam Buddh Nagar, Uttar Pradesh shall have exclusive jurisdiction over disputes arising from or relating to these Terms, subject to applicable law.</p>
+    </Section>
+
+    <div className="rounded-xl border border-primary/30 bg-primary/5 p-4 text-sm space-y-3">
+      <div>
+        <p className="font-bold text-foreground mb-1">Mandatory Checkbox Text (CP Registration)</p>
+        <p className="italic">"I confirm that I am applying as an independent Channel Partner, I agree to Growperty's Channel Partner Terms & Conditions, and I will not bypass the Platform, misuse shared links, or engage in off-platform deals for Growperty-generated opportunities."</p>
+      </div>
+    </div>
+  </div>
+);
+
+const TAB_FROM_TYPE = { buyer: 'buyer', seller: 'seller', cp: 'cp' };
+
 const TermsAndConditionsPage = () => {
-  const [tab, setTab] = useState('buyer');
+  const [searchParams] = useSearchParams();
+  const [tab, setTab] = useState(TAB_FROM_TYPE[searchParams.get('type')] || 'buyer');
+  const [agreed, setAgreed] = useState(false);
+
+  const isCpFlow = searchParams.get('type') === 'cp';
+
+  // Any form (CP registration, property listing, project listing) opens these
+  // Terms in a new tab — if that's how we got here, offer to go back to it
+  // instead of sending the user to the homepage.
+  const [hasOpener, setHasOpener] = useState(false);
+  useEffect(() => {
+    setHasOpener(!!(window.opener && !window.opener.closed));
+  }, []);
+
+  // Opened from a form in a new tab — let that tab know the user agreed (CP
+  // registration listens for this), then return them to it.
+  const handleBackToForm = () => {
+    if (agreed && window.opener && !window.opener.closed) {
+      window.opener.postMessage({ type: 'cp-terms-agreed' }, window.location.origin);
+    }
+    if (window.opener && !window.opener.closed) {
+      window.close();
+    } else {
+      window.location.href = isCpFlow ? '/become-channel-partner' : '/';
+    }
+  };
 
   return (
     <>
@@ -372,9 +489,15 @@ const TermsAndConditionsPage = () => {
 
         <main className="flex-1 py-12 md:py-20">
           <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-            <Button variant="ghost" asChild className="mb-8 -ml-4 text-muted-foreground hover:text-foreground">
-              <Link to="/"><ArrowLeft className="h-4 w-4 mr-2" /> Back to Home</Link>
-            </Button>
+            {hasOpener ? (
+              <Button variant="ghost" onClick={handleBackToForm} className="mb-8 -ml-4 text-muted-foreground hover:text-foreground">
+                <ArrowLeft className="h-4 w-4 mr-2" /> Back to Form
+              </Button>
+            ) : (
+              <Button variant="ghost" asChild className="mb-8 -ml-4 text-muted-foreground hover:text-foreground">
+                <Link to="/"><ArrowLeft className="h-4 w-4 mr-2" /> Back to Home</Link>
+              </Button>
+            )}
 
             <div className="bg-card rounded-3xl p-8 md:p-12 shadow-sm border border-border">
               {/* Header */}
@@ -402,9 +525,34 @@ const TermsAndConditionsPage = () => {
                 >
                   <Home className="h-4 w-4" /> Property Owner / Seller
                 </button>
+                <button
+                  onClick={() => setTab('cp')}
+                  className={`flex items-center gap-2 px-5 py-3 text-sm font-bold transition-colors border-b-2 -mb-px ${tab === 'cp' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'}`}
+                >
+                  <Handshake className="h-4 w-4" /> Channel Partner
+                </button>
               </div>
 
-              {tab === 'buyer' ? <BuyerTerms /> : <SellerTerms />}
+              {tab === 'buyer' ? <BuyerTerms /> : tab === 'seller' ? <SellerTerms /> : <ChannelPartnerTerms />}
+
+              {isCpFlow && (
+                <div className="mt-10 pt-6 border-t border-border space-y-4">
+                  <label className="flex items-start gap-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={agreed}
+                      onChange={(e) => setAgreed(e.target.checked)}
+                      className="mt-1 h-[17px] w-[17px] shrink-0 accent-primary"
+                    />
+                    <span className="text-sm text-foreground leading-relaxed">
+                      I have read and agree to Growperty's Channel Partner Terms &amp; Conditions.
+                    </span>
+                  </label>
+                  <Button onClick={handleBackToForm} disabled={!agreed} className="rounded-xl font-bold">
+                    <CheckCircle2 className="h-4 w-4 mr-2" /> Accept &amp; Back to Form
+                  </Button>
+                </div>
+              )}
             </div>
           </div>
         </main>

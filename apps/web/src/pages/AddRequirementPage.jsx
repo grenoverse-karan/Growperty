@@ -14,6 +14,8 @@ import { Checkbox } from '@/components/ui/checkbox.jsx';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group.jsx';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select.jsx';
 import apiServerClient from '@/lib/apiServerClient.js';
+import { getCpRefAttribution } from '@/lib/cpRef.js';
+import { getVisitorToken } from '@/lib/cpVisitorTracking.js';
 import { toast } from 'sonner';
 
 const PROPERTY_TYPES = [
@@ -118,7 +120,9 @@ const AddRequirementPage = () => {
         buyerPhone: cleanMobile,
         specialRequirements: `Timeline: ${formData.timeline || 'Not specified'} | Negotiable: ${formData.negotiable} | WhatsApp: ${cleanWhatsapp} | Notes: ${formData.notes}`,
         status: 'active',
-        matched: false
+        matched: false,
+        ...(getCpRefAttribution() || {}),
+        ...(getVisitorToken() && { visitorToken: getVisitorToken() }),
       };
 
       const res = await apiServerClient.fetch('/requirements', {
@@ -200,7 +204,7 @@ const AddRequirementPage = () => {
                         size="lg" 
                         className="w-full sm:w-auto h-14 px-8 text-lg font-bold bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl shadow-lg shadow-emerald-500/20"
                       >
-                        <a href="https://wa.me/919953537876" target="_blank" rel="noopener noreferrer">
+                        <a href="https://wa.me/919891487876" target="_blank" rel="noopener noreferrer">
                           <MessageCircle className="mr-2 h-5 w-5" />
                           Chat with us now
                         </a>

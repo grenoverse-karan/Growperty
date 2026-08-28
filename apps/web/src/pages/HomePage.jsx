@@ -7,22 +7,31 @@ import Footer from '@/components/Footer.jsx';
 import PropertyCard from '@/components/PropertyCard.jsx';
 import DynamicSearchFilter from '@/components/DynamicSearchFilter.jsx';
 import WhyChooseGrowperty from '@/components/WhyChooseGrowperty.jsx';
+import EMICalculator from '@/components/EMICalculator.jsx';
 import { useProperties } from '@/hooks/useProperties.js';
 import { Button } from '@/components/ui/button.jsx';
 import { Skeleton } from '@/components/ui/skeleton.jsx';
-import { ArrowRight, AlertCircle, Home, RefreshCw, MapPin, Building2, Zap, BookOpen, HelpCircle, FileText, ArrowUpRight } from 'lucide-react';
+import { ArrowRight, AlertCircle, Home, RefreshCw, MapPin, Building2, Zap, BookOpen, HelpCircle, FileText, ArrowUpRight, Search } from 'lucide-react';
 const HomePage = () => {
   const navigate = useNavigate();
+  const [searchQuery, setSearchQuery] = useState('');
   const {
     fetchProperties,
     properties,
     isLoading,
     error
   } = useProperties();
+
+  const handleHeroSearch = (e) => {
+    e.preventDefault();
+    const q = searchQuery.trim();
+    if (!q) return;
+    navigate(`/search?status=approved&q=${encodeURIComponent(q)}`);
+  };
   useEffect(() => {
     fetchProperties('approved');
   }, [fetchProperties]);
-  const featuredProperties = properties.slice(0, 3);
+  const featuredProperties = properties.slice(0, 10);
   return <>
       <Helmet>
         <title>Growperty.com - Buy & Sell Properties in Greater Noida, Noida & YEIDA</title>
@@ -62,39 +71,61 @@ const HomePage = () => {
                 </p>
               </motion.div>
 
-              {/* Search Filter */}
-              <motion.div initial={{
-              opacity: 0,
-              y: 20
-            }} animate={{
-              opacity: 1,
-              y: 0
-            }} transition={{
-              duration: 0.6,
-              delay: 0.2,
-              ease: "easeOut"
-            }} className="w-full max-w-[1200px] mx-auto mt-10 md:mt-12">
-                <DynamicSearchFilter />
+              {/* Hero Search Bar */}
+              <motion.form
+                onSubmit={handleHeroSearch}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.2, ease: 'easeOut' }}
+                className="w-full max-w-[780px] mx-auto mt-10 md:mt-12 flex items-center gap-0"
+              >
+                <div className="relative flex-1">
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="2BHK Apartment, Plot, City, Sector, Area..."
+                    className="w-full h-[56px] pl-4 pr-4 rounded-l-2xl border-0 bg-white text-slate-800 placeholder:text-slate-400 text-[16px] font-medium focus:outline-none shadow-lg"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  aria-label="Search"
+                  className="h-[56px] w-[56px] flex-shrink-0 bg-[#10B981] hover:bg-[#059669] text-white rounded-r-2xl shadow-lg transition-colors flex items-center justify-center"
+                >
+                  <Search className="h-5 w-5" />
+                </button>
+              </motion.form>
+
+              {/* CTA Buttons — below search bar, above filter */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.3, ease: 'easeOut' }}
+                className="flex flex-row gap-3 w-full max-w-[780px] mx-auto mt-4"
+              >
+                <button
+                  onClick={() => navigate('/list-property')}
+                  className="flex-1 h-[48px] bg-white/10 hover:bg-white/20 border border-white/25 text-white text-[15px] font-semibold rounded-xl transition-all flex items-center justify-center gap-2 backdrop-blur-sm"
+                >
+                  Sell Property
+                </button>
+                <button
+                  onClick={() => navigate('/post-requirement')}
+                  className="flex-1 h-[48px] bg-white/10 hover:bg-white/20 border border-white/25 text-white text-[15px] font-semibold rounded-xl transition-all flex items-center justify-center gap-2 backdrop-blur-sm"
+                >
+                  Add Requirement
+                </button>
               </motion.div>
 
-              {/* Strategic Buttons */}
-              <motion.div initial={{
-              opacity: 0,
-              y: 20
-            }} animate={{
-              opacity: 1,
-              y: 0
-            }} transition={{
-              duration: 0.6,
-              delay: 0.4,
-              ease: "easeOut"
-            }} className="flex flex-col md:flex-row w-full max-w-[1200px] mx-auto mt-0 mb-[24px] md:mb-[32px]">
-                <button onClick={() => navigate('/list-property')} className="bg-[#f3f4f6] hover:bg-[#e5e7eb] text-[#1f2937] p-[14px] text-[16px] font-[600] border border-[#e5e7eb] w-full md:w-1/2 transition-all flex items-center justify-center rounded-t-xl md:rounded-tr-none md:rounded-l-xl">
-                  Sell your property
-                </button>
-                <button onClick={() => navigate('/post-requirement')} className="bg-[#f3f4f6] hover:bg-[#e5e7eb] text-[#1f2937] p-[14px] text-[16px] font-[600] border border-[#e5e7eb] border-t-0 md:border-t md:border-l-0 w-full md:w-1/2 transition-all flex items-center justify-center rounded-b-xl md:rounded-bl-none md:rounded-r-xl">
-                  Add your requirement
-                </button>
+              {/* Advanced Filter */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.4, ease: 'easeOut' }}
+                className="w-full max-w-[1200px] mx-auto mt-8 mb-6"
+              >
+                <DynamicSearchFilter />
               </motion.div>
             </div>
           </section>
@@ -142,7 +173,7 @@ const HomePage = () => {
               </div>
 
               {isLoading ? <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
-                  {[1, 2, 3].map(i => <div key={i} className="space-y-4">
+                  {[1, 2, 3, 4, 5, 6].map(i => <div key={i} className="space-y-4">
                       <Skeleton className="h-64 w-full rounded-2xl" />
                       <Skeleton className="h-6 w-3/4" />
                       <Skeleton className="h-4 w-1/2" />
@@ -155,22 +186,32 @@ const HomePage = () => {
                     <RefreshCw className="mr-2 h-5 w-5" />
                     Retry Fetching
                   </Button>
-                </div> : featuredProperties.length > 0 ? <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
-                  {featuredProperties.map((property, index) => <motion.div key={property.id} initial={{
-                opacity: 0,
-                y: 30
-              }} whileInView={{
-                opacity: 1,
-                y: 0
-              }} viewport={{
-                once: true
-              }} transition={{
-                duration: 0.5,
-                delay: index * 0.1
-              }}>
-                      <PropertyCard property={property} />
-                    </motion.div>)}
-                </div> : <div className="flex flex-col items-center justify-center py-20 px-4 bg-white dark:bg-slate-900/50 rounded-2xl border border-border/50 text-center shadow-sm">
+                </div> : featuredProperties.length > 0 ? <>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
+                    {featuredProperties.map((property, index) => <motion.div key={property.id} initial={{
+                  opacity: 0,
+                  y: 30
+                }} whileInView={{
+                  opacity: 1,
+                  y: 0
+                }} viewport={{
+                  once: true
+                }} transition={{
+                  duration: 0.5,
+                  delay: Math.min(index, 5) * 0.1
+                }}>
+                        <PropertyCard property={property} />
+                      </motion.div>)}
+                  </div>
+                  <div className="mt-12 flex justify-center">
+                    <Button asChild size="lg" className="rounded-xl font-bold h-13 px-10 text-base shadow-md">
+                      <Link to="/properties">
+                        View More Listings
+                        <ArrowRight className="ml-2 h-5 w-5" />
+                      </Link>
+                    </Button>
+                  </div>
+                </> : <div className="flex flex-col items-center justify-center py-20 px-4 bg-white dark:bg-slate-900/50 rounded-2xl border border-border/50 text-center shadow-sm">
                   <div className="p-4 bg-slate-100 dark:bg-slate-800 rounded-full mb-4">
                     <Home className="h-10 w-10 text-muted-foreground" />
                   </div>
@@ -297,7 +338,9 @@ const HomePage = () => {
               </div>
             </div>
           </section>
-          
+
+          <EMICalculator />
+
         </main>
 
         <Footer />

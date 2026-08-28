@@ -417,7 +417,7 @@ const InvestorPage = () => {
                   <Link to="/properties">Explore Properties</Link>
                 </Button>
                 <Button asChild variant="outline" className="bg-transparent border-2 border-white text-white hover:bg-white hover:text-[#10B981] h-14 px-8 text-lg font-bold rounded-xl transition-all active:scale-[0.98]">
-                  <a href="https://wa.me/919953537876" target="_blank" rel="noopener noreferrer">Contact Our Team</a>
+                  <a href="https://wa.me/919891487876" target="_blank" rel="noopener noreferrer">Contact Our Team</a>
                 </Button>
               </div>
             </div>

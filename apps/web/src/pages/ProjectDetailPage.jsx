@@ -217,11 +217,11 @@ const ProjectDetailPage = () => {
                   <div className="flex flex-col sm:flex-row gap-3 pt-6 border-t border-border/50">
                     <Button className="flex-1 h-12 text-base font-bold bg-brand-blue hover:bg-brand-blue/90 text-white rounded-xl shadow-lg shadow-brand-blue/20">
                       <Phone className="w-5 h-5 mr-2" />
-                      <a href="tel:+919953537876">Call Now</a>
+                      <a href="tel:+919891487876">Call Now</a>
                     </Button>
                     <Button className="flex-1 h-12 text-base font-bold bg-[#25D366] hover:bg-[#20bd5a] text-white rounded-xl shadow-lg shadow-[#25D366]/20">
                       <MessageCircle className="w-5 h-5 mr-2" />
-                      <a href={`https://wa.me/919953537876?text=${encodeURIComponent(`Hi, I'm interested in ${formattedProjectName} project on Growperty.com`)}`} target="_blank" rel="noopener noreferrer">
+                      <a href={`https://wa.me/919891487876?text=${encodeURIComponent(`Hi, I'm interested in ${formattedProjectName} project on Growperty.com`)}`} target="_blank" rel="noopener noreferrer">
                         WhatsApp
                       </a>
                     </Button>
@@ -447,15 +447,15 @@ const ProjectDetailPage = () => {
                       <p className="text-sm font-bold text-foreground mb-4">Or contact us directly:</p>
                       <div className="flex flex-col gap-3">
                         <Button asChild variant="outline" className="w-full h-12 font-bold border-brand-blue text-brand-blue hover:bg-brand-blue/5 dark:border-slate-700 dark:text-white rounded-xl">
-                          <a href="tel:+919953537876">
+                          <a href="tel:+919891487876">
                             <Phone className="w-4 h-4 mr-2" />
-                            Call +91 9953537876
+                            Call +91 9891487876
                           </a>
                         </Button>
                         <Button asChild className="w-full h-12 font-bold bg-[#25D366] hover:bg-[#20bd5a] text-white rounded-xl shadow-md">
-                          <a href="https://wa.me/919953537876" target="_blank" rel="noopener noreferrer">
+                          <a href="https://wa.me/919891487876" target="_blank" rel="noopener noreferrer">
                             <MessageCircle className="w-4 h-4 mr-2" />
-                            WhatsApp +91 9953537876
+                            WhatsApp +91 9891487876
                           </a>
                         </Button>
                       </div>

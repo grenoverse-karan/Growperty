@@ -1,8 +1,35 @@
 import express from 'express';
 import BuyerRequirement from '../models/BuyerRequirement.js';
+import ChannelPartner from '../models/ChannelPartner.js';
+import CPVisitor from '../models/CPVisitor.js';
+import User from '../models/User.js';
+import { verifyToken } from '../utils/jwt.js';
 import { connectMongoDB } from '../utils/mongodb.js';
 import logger from '../utils/logger.js';
 import { sendTemplateAsync } from '../utils/whatsappTemplates.js';
+
+const authenticate = (req, res, next) => {
+  const auth = req.headers.authorization;
+  if (!auth?.startsWith('Bearer ')) return res.status(401).json({ error: 'Unauthorized' });
+  try {
+    req.userId = verifyToken(auth.slice(7)).sub;
+    next();
+  } catch {
+    res.status(401).json({ error: 'Invalid or expired token' });
+  }
+};
+
+const authenticateAdmin = (req, res, next) => {
+  const auth = req.headers.authorization;
+  if (!auth?.startsWith('Bearer ')) return res.status(401).json({ error: 'Unauthorized' });
+  try {
+    const payload = verifyToken(auth.slice(7));
+    if (payload.role !== 'admin') return res.status(403).json({ error: 'Admin access required' });
+    next();
+  } catch {
+    res.status(401).json({ error: 'Invalid or expired token' });
+  }
+};
 
 function formatIndianPrice(n) {
   if (!n || isNaN(n)) return '-';
@@ -18,8 +45,33 @@ const router = express.Router();
 router.post('/', async (req, res) => {
   try {
     await connectMongoDB();
-    const doc = await BuyerRequirement.create(req.body);
+    const { cpPublicId, refToken, visitorToken, ...body } = req.body || {};
+
+    // Resolve the sitewide referral cookie pair to a validated cpId for lead credit
+    let cpId = '';
+    if (cpPublicId && refToken) {
+      try {
+        const cp = await ChannelPartner.findOne({ cpPublicId, refToken, status: 'approved' }).select('_id').lean();
+        if (cp) cpId = cp._id.toString();
+      } catch { /* non-blocking */ }
+    }
+
+    const doc = await BuyerRequirement.create({ ...body, ...(cpId && { cpId }), cpVisitorToken: visitorToken || '' });
     logger.info('[Requirements] New requirement saved', { id: doc._id, phone: doc.buyerPhone });
+
+    // Escalate the linked CPVisitor tracking record to 'inquiry' and notify the CP
+    if (visitorToken) {
+      CPVisitor.recordInquiry(visitorToken, { name: doc.buyerName, phone: doc.buyerPhone, stage: 'inquiry' })
+        .then(async (visitor) => {
+          if (!visitor) return;
+          const rank = await CPVisitor.countDocuments({ cpId: visitor.cpId, firstVisit: { $lt: visitor.firstVisit } });
+          const label = [doc.propertyType, doc.city].filter(Boolean).join(' in ') || 'a property';
+          await ChannelPartner.findByIdAndUpdate(visitor.cpId, {
+            $push: { activities: { type: 'visitor_inquiry', message: `Visitor #${rank + 1} submitted an inquiry — ${label}`, createdAt: new Date() } },
+          });
+        })
+        .catch(err => logger.warn('[CPVisitor] recordInquiry (requirement) failed', { error: err.message }));
+    }
 
     // WhatsApp confirmation to buyer
     if (doc.buyerPhone) {
@@ -71,8 +123,25 @@ router.get('/public', async (req, res) => {
   }
 });
 
+// GET /requirements/mine — requirements posted by the logged-in user (matched by their phone)
+router.get('/mine', authenticate, async (req, res) => {
+  try {
+    await connectMongoDB();
+    const user = await User.findById(req.userId).select('phone').lean();
+    if (!user?.phone) return res.json({ items: [] });
+
+    const last10 = user.phone.replace(/\D/g, '').slice(-10);
+    const items = await BuyerRequirement.find({ buyerPhone: new RegExp(last10 + '$') })
+      .sort({ createdAt: -1 }).lean();
+    return res.json({ items: items.map(r => ({ ...r, id: r._id.toString() })) });
+  } catch (err) {
+    logger.error('[Requirements] /mine error', { error: err.message });
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // GET /requirements (admin)
-router.get('/', async (req, res) => {
+router.get('/', authenticateAdmin, async (req, res) => {
   try {
     await connectMongoDB();
     const page  = Math.max(1, parseInt(req.query.page) || 1);
@@ -84,6 +153,55 @@ router.get('/', async (req, res) => {
     ]);
     return res.json({ items, total, page, totalPages: Math.ceil(total / limit) });
   } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// PATCH /requirements/:id (admin) — lead temperature, featured/boost, unlist/relist
+const PATCHABLE_FIELDS = {
+  leadTemperature: (v) => v === null || ['Hot', 'Warm', 'Cold'].includes(v),
+  featured:        (v) => typeof v === 'boolean',
+  status:          (v) => ['active', 'unlisted'].includes(v),
+};
+
+router.patch('/:id', authenticateAdmin, async (req, res) => {
+  try {
+    await connectMongoDB();
+    const update = {};
+    for (const [field, isValid] of Object.entries(PATCHABLE_FIELDS)) {
+      if (field in req.body) {
+        if (!isValid(req.body[field])) {
+          return res.status(400).json({ success: false, error: `Invalid value for ${field}` });
+        }
+        update[field] = req.body[field];
+      }
+    }
+    if (!Object.keys(update).length) {
+      return res.status(400).json({ success: false, error: 'No valid fields to update' });
+    }
+
+    const doc = await BuyerRequirement.findByIdAndUpdate(req.params.id, update, { new: true }).lean();
+    if (!doc) return res.status(404).json({ success: false, error: 'Requirement not found' });
+
+    logger.info('[Requirements] Admin update', { id: req.params.id, update });
+    return res.json({ success: true, item: doc });
+  } catch (err) {
+    logger.error('[Requirements] PATCH error', { error: err.message });
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// DELETE /requirements/:id (admin)
+router.delete('/:id', authenticateAdmin, async (req, res) => {
+  try {
+    await connectMongoDB();
+    const doc = await BuyerRequirement.findByIdAndDelete(req.params.id).lean();
+    if (!doc) return res.status(404).json({ success: false, error: 'Requirement not found' });
+
+    logger.info('[Requirements] Admin delete', { id: req.params.id });
+    return res.json({ success: true });
+  } catch (err) {
+    logger.error('[Requirements] DELETE error', { error: err.message });
     return res.status(500).json({ success: false, error: err.message });
   }
 });

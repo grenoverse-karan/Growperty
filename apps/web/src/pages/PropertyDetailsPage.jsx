@@ -10,13 +10,18 @@ import {
   MapPin, Bed, Bath, Maximize, Phone, MessageCircle,
   ArrowLeft, ShieldCheck, Car, Bike, Building2,
   CheckCircle2, ChevronLeft, ChevronRight, Image as ImageIcon,
-  Home, IndianRupee, Tag, Info, Clock, CalendarDays,
+  Home, IndianRupee, Tag, Info, Clock, CalendarDays, Heart, Share2,
 } from 'lucide-react';
+import { toast } from 'sonner';
 import { formatIndianPrice } from '@/hooks/useProperties.js';
-import apiServerClient from '@/lib/apiServerClient.js';
+import apiServerClient, { API_SERVER_URL } from '@/lib/apiServerClient.js';
 import { PLATFORM_PHONE, PLATFORM_WHATSAPP } from '@/constants/contactInfo.js';
 import VisitRequestModal from '@/components/VisitRequestModal.jsx';
+import SectorMap from '@/components/SectorMap.jsx';
 import { useAuth } from '@/contexts/AuthContext.jsx';
+import { isWishlisted, toggleWishlist } from '@/lib/wishlist.js';
+import { getActiveCpContact } from '@/lib/cpRef.js';
+import { trackCpVisitor } from '@/lib/cpVisitorTracking.js';
 
 const PLACEHOLDER = 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=1200&q=80';
 
@@ -67,6 +72,7 @@ const PropertyDetailsPage = () => {
   const [visitModalOpen, setVisitModalOpen] = useState(false);
   // CP referral: { cpName, cpPhone, cpToken } or null
   const [cpContact, setCpContact] = useState(null);
+  const [wishlisted, setWishlisted] = useState(false);
 
   // Require login before requesting a visit; otherwise send guests to login
   const handleRequestVisit = () => {
@@ -77,6 +83,30 @@ const PropertyDetailsPage = () => {
     setVisitModalOpen(true);
   };
 
+  const handleToggleWishlist = () => {
+    const nowWishlisted = toggleWishlist(id);
+    setWishlisted(nowWishlisted);
+    toast.success(nowWishlisted ? 'Added to wishlist' : 'Removed from wishlist');
+  };
+
+  const handleShare = async () => {
+    const url = window.location.href;
+    if (navigator.share) {
+      try { await navigator.share({ title: document.title, url }); } catch { /* user cancelled */ }
+    } else {
+      await navigator.clipboard.writeText(url);
+      toast.success('Link copied to clipboard');
+    }
+  };
+
+  useEffect(() => {
+    if (id) setWishlisted(isWishlisted(id));
+  }, [id]);
+
+  useEffect(() => {
+    if (id && id !== 'undefined') trackCpVisitor({ propertyId: id });
+  }, [id]);
+
   useEffect(() => {
     if (!id || id === 'undefined') {
       setError('Invalid property ID.');
@@ -85,28 +115,14 @@ const PropertyDetailsPage = () => {
     }
     (async () => {
       try {
-        const res = await apiServerClient.fetch(`/properties/${id}`);
+        // thumbOnly: only the cover image + imageCount come back here (fast);
+        // the rest of the gallery loads on demand via /:id/images/:index below.
+        const res = await apiServerClient.fetch(`/properties/${id}?thumbOnly=true`);
         if (!res.ok) {
           const err = await res.json().catch(() => ({}));
           throw new Error(err.message || `Server error: ${res.status}`);
         }
         const data = await res.json();
-
-        // ── Full document log ─────────────────────────────────
-        console.group(`[PropertyDetails] Document for id=${id}`);
-        console.log('All fields:', Object.keys(data));
-        console.table(
-          Object.entries(data)
-            .filter(([, v]) => typeof v !== 'object' || v === null)
-            .map(([k, v]) => ({ field: k, value: v }))
-        );
-        console.log('images:', data.images);
-        console.log('amenities:', data.amenities);
-        console.log('nearbyAmenities:', data.nearbyAmenities);
-        console.log('furnishingItems:', data.furnishingItems);
-        console.groupEnd();
-        // ──────────────────────────────────────────────────────
-
         setProperty(data);
       } catch (err) {
         console.error('[PropertyDetails] fetch error:', err);
@@ -138,8 +154,14 @@ const PropertyDetailsPage = () => {
     } else {
       try {
         const saved = localStorage.getItem(lsKey);
-        if (saved) setCpContact(JSON.parse(saved));
+        if (saved) {
+          setCpContact(JSON.parse(saved));
+          return;
+        }
       } catch {}
+      // No per-property share link — fall back to the sitewide referral cookie
+      const sitewide = getActiveCpContact();
+      if (sitewide) setCpContact({ ...sitewide, cpToken: '', leadSource: '' });
     }
   }, [id, searchParams]);
 
@@ -195,8 +217,14 @@ const PropertyDetailsPage = () => {
     return new Date(dateStr).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
   })();
 
-  const images = Array.isArray(property.images) && property.images.length > 0
-    ? property.images
+  // First image comes inline from the thumbOnly fetch (already loaded, no extra request);
+  // remaining images are served individually so the browser can fetch/cache them in parallel.
+  const imageCount = property.imageCount ?? (Array.isArray(property.images) ? property.images.length : 0);
+  const firstImage = Array.isArray(property.images) ? property.images[0] : null;
+  const images = imageCount > 0
+    ? Array.from({ length: imageCount }, (_, i) =>
+        i === 0 && firstImage ? firstImage : `${API_SERVER_URL}/properties/${property.id}/images/${i}`
+      )
     : null;
 
   const title = [property.bhk, property.propertyType].filter(Boolean).join(' ') || property.name || 'Property';
@@ -258,6 +286,25 @@ const PropertyDetailsPage = () => {
                             </Badge>
                           )}
                         </div>
+                        {/* Wishlist + Share */}
+                        <div className="absolute top-3 right-3 flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={handleToggleWishlist}
+                            aria-label="Add to wishlist"
+                            className="h-9 w-9 rounded-full bg-white/90 backdrop-blur-sm shadow-md flex items-center justify-center hover:bg-white transition-colors"
+                          >
+                            <Heart className={`h-4 w-4 ${wishlisted ? 'fill-red-500 text-red-500' : 'text-slate-700'}`} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handleShare}
+                            aria-label="Share property"
+                            className="h-9 w-9 rounded-full bg-white/90 backdrop-blur-sm shadow-md flex items-center justify-center hover:bg-white transition-colors"
+                          >
+                            <Share2 className="h-4 w-4 text-slate-700" />
+                          </button>
+                        </div>
                         {/* Arrows */}
                         {images.length > 1 && (
                           <>
@@ -282,7 +329,7 @@ const PropertyDetailsPage = () => {
                               onClick={() => setActiveImg(i)}
                               className={`shrink-0 w-20 h-14 rounded-lg overflow-hidden border-2 transition-all ${i === activeImg ? 'border-primary scale-105' : 'border-transparent opacity-70 hover:opacity-100'}`}
                             >
-                              <img src={src} alt="" className="w-full h-full object-cover" onError={(e) => { e.target.src = PLACEHOLDER; }} />
+                              <img src={src} alt="" loading="lazy" className="w-full h-full object-cover" onError={(e) => { e.target.src = PLACEHOLDER; }} />
                             </button>
                           ))}
                         </div>
@@ -302,6 +349,24 @@ const PropertyDetailsPage = () => {
                             <ShieldCheck className="h-3 w-3" /> Verified
                           </Badge>
                         )}
+                      </div>
+                      <div className="absolute top-3 right-3 flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={handleToggleWishlist}
+                          aria-label="Add to wishlist"
+                          className="h-9 w-9 rounded-full bg-white/90 backdrop-blur-sm shadow-md flex items-center justify-center hover:bg-white transition-colors"
+                        >
+                          <Heart className={`h-4 w-4 ${wishlisted ? 'fill-red-500 text-red-500' : 'text-slate-700'}`} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleShare}
+                          aria-label="Share property"
+                          className="h-9 w-9 rounded-full bg-white/90 backdrop-blur-sm shadow-md flex items-center justify-center hover:bg-white transition-colors"
+                        >
+                          <Share2 className="h-4 w-4 text-slate-700" />
+                        </button>
                       </div>
                     </div>
                   )}
@@ -562,6 +627,9 @@ const PropertyDetailsPage = () => {
                       </div>
                     )}
                   </div>
+
+                  {/* Sector-level map link — never the exact property location */}
+                  <SectorMap sector={property.sector} city={property.city} />
 
                   {/* Listed by */}
                   <div>

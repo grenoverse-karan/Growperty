@@ -33,6 +33,9 @@ const channelPartnerSchema = new mongoose.Schema(
     },
     passwordHash: { type: String },
     shareToken:   { type: String, unique: true, sparse: true },
+    cpPublicId:   { type: String, unique: true, sparse: true }, // GP + phone + joinDate (DDMMYYYY) — sitewide referral link id
+    refToken:     { type: String }, // 12-char random token, paired with cpPublicId for the referral link
+    refLink:      { type: String }, // growperty.com/ref/<cpPublicId>/<refToken> — permanent, set once on approval
     activities:   { type: [activitySchema], default: [] },
   },
   {

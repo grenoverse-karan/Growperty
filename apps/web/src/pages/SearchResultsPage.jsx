@@ -7,6 +7,7 @@ import Header from '@/components/Header.jsx';
 import Footer from '@/components/Footer.jsx';
 import PropertyCard from '@/components/PropertyCard.jsx';
 import apiServerClient from '@/lib/apiServerClient';
+import { trackCpVisitor } from '@/lib/cpVisitorTracking.js';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
@@ -30,7 +31,7 @@ const SearchResultsPage = () => {
       queryParams.set('page', page);
       queryParams.set('limit', 10);
       
-      const response = await apiServerClient.fetch(`/properties/search?${queryParams.toString()}`);
+      const response = await apiServerClient.fetch(`/properties?${queryParams.toString()}`);
       
       if (!response.ok) {
         throw new Error('Failed to fetch search results');
@@ -63,6 +64,12 @@ const SearchResultsPage = () => {
 
   useEffect(() => {
     fetchResults(1);
+  }, [searchParams]);
+
+  useEffect(() => {
+    const keyword = [searchParams.get('bhk'), searchParams.get('propertyType'), searchParams.get('city')]
+      .filter(Boolean).join(' ').toLowerCase();
+    trackCpVisitor(keyword ? { keyword } : {});
   }, [searchParams]);
 
   // Re-sort when sortBy changes without re-fetching

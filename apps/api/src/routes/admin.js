@@ -19,6 +19,22 @@ async function generateCpShareId(phone, date = new Date()) {
   }
   return base + randomBytes(2).toString('hex').toUpperCase();
 }
+
+// GP{phone}{DD}{MM}{YYYY} — sitewide referral link id, e.g. GP9288123062026
+async function generateCpPublicId(phone, date = new Date()) {
+  const digits = String(phone || '').replace(/\D/g, '');
+  const dd = String(date.getDate()).padStart(2, '0');
+  const mm = String(date.getMonth() + 1).padStart(2, '0');
+  const yyyy = String(date.getFullYear());
+  const base = `GP${digits}${dd}${mm}${yyyy}`;
+  if (!await ChannelPartner.findOne({ cpPublicId: base }).lean()) return base;
+  return base + randomBytes(2).toString('hex').toUpperCase();
+}
+
+function generateRefToken() {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  return Array.from({ length: 12 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+}
 import logger from '../utils/logger.js';
 import verifyAdminToken from '../middleware/verifyAdminToken.js';
 import Property from '../models/Property.js';
@@ -234,9 +250,12 @@ router.put('/channel-partners/:id/approve', verifyAdminToken, async (req, res) =
     if (!existing) return res.status(404).json({ error: 'Channel partner not found' });
 
     const shareToken = await generateCpShareId(existing.phone);
+    const cpPublicId = await generateCpPublicId(existing.phone);
+    const refToken   = generateRefToken();
+    const refLink    = `growperty.com/ref/${cpPublicId}/${refToken}`;
     const cp = await ChannelPartner.findByIdAndUpdate(
       req.params.id,
-      { $set: { status: 'approved', shareToken } },
+      { $set: { status: 'approved', shareToken, cpPublicId, refToken, refLink } },
       { new: true, runValidators: true }
     ).select('-passwordHash').lean();
 

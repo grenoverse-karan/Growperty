@@ -49,7 +49,7 @@ const DisclaimerPage = () => (
                 <p><strong>Grenoverse Multi Ventures LLP</strong></p>
                 <p>Head Office: 01, Mannat Tower, Bindal Enclave, Kasna near Sector Phi-4, Greater Noida, Uttar Pradesh – 201310</p>
                 <p>Branch Office: 01, Kirat Tower, Bindal Enclave, Kasna near Sector Phi-4, Greater Noida, Uttar Pradesh – 201310</p>
-                <p>Email: <a href="mailto:support@growperty.com" className="text-primary underline">support@growperty.com</a> &nbsp;·&nbsp; Phone: <a href="tel:+919891117876" className="text-primary underline">+91 9891117876</a>, <a href="tel:+919971007876" className="text-primary underline">+91 9971007876</a></p>
+                <p>Email: <a href="mailto:support@growperty.com" className="text-primary underline">support@growperty.com</a> &nbsp;·&nbsp; Phone: <a href="tel:+919891117876" className="text-primary underline">+91 9891117876</a>, <a href="tel:+919891487876" className="text-primary underline">+91 9891487876</a></p>
               </div>
               <p className="text-sm leading-relaxed">By accessing or using the Platform, you acknowledge and agree to this Disclaimer in addition to the applicable Terms and Conditions and Privacy Policy.</p>
 
@@ -144,7 +144,7 @@ const DisclaimerPage = () => (
                 <p>Head Office: 01, Mannat Tower, Bindal Enclave, Kasna near Sector Phi-4, Greater Noida, Uttar Pradesh – 201310</p>
                 <p>Branch Office: 01, Kirat Tower, Bindal Enclave, Kasna near Sector Phi-4, Greater Noida, Uttar Pradesh – 201310</p>
                 <p>Email: <a href="mailto:support@growperty.com" className="text-primary underline">support@growperty.com</a></p>
-                <p>Phone: <a href="tel:+919891117876" className="text-primary underline">+91 9891117876</a>, <a href="tel:+919971007876" className="text-primary underline">+91 9971007876</a></p>
+                <p>Phone: <a href="tel:+919891117876" className="text-primary underline">+91 9891117876</a>, <a href="tel:+919891487876" className="text-primary underline">+91 9891487876</a></p>
               </Section>
             </div>
           </div>

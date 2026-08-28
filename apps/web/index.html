@@ -1,22 +1,74 @@
 <!doctype html>
 <html lang="en">
-	<head>
-		<meta charset="UTF-8" />
-		<link rel="icon" type="image/svg+xml" href="/vite.svg" />
-		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-		<title>Growperty — Greater Noida ka Apna Property Platform</title>
-		<meta property="og:site_name" content="Growperty" />
-		<meta property="og:title" content="Growperty — Greater Noida ka Apna Property Platform" />
-		<meta property="og:description" content="Greater Noida ki Best & Affordable Properties. Buy, Sell aur WhatsApp Alerts pao. Growperty.com" />
-		<meta property="og:url" content="https://growperty.com" />
-		<meta property="og:type" content="website" />
-		<meta property="og:image" content="https://growperty.com/growperty-logo.png" />
-		<meta name="twitter:card" content="summary_large_image" />
-		<meta name="twitter:title" content="Growperty — Greater Noida ka Apna Property Platform" />
-		<meta name="description" content="Greater Noida ki Best & Affordable Properties. Buy, Sell aur WhatsApp Alerts pao. Growperty.com" />
-	</head>
-	<body>
-		<div id="root"></div>
-		<script type="module" src="/src/main.jsx"></script>
-	</body>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#1e3a5f" />
+    <link rel="icon" type="image/png" href="/growperty-logo.png" />
+
+    <title>Growperty — Greater Noida ka Apna Property Platform</title>
+    <meta name="description" content="Greater Noida ki Best &amp; Affordable Properties. Buy, Sell aur WhatsApp Alerts pao. Growperty.com" />
+
+    <!-- OG / Twitter -->
+    <meta property="og:site_name" content="Growperty" />
+    <meta property="og:title" content="Growperty — Greater Noida ka Apna Property Platform" />
+    <meta property="og:description" content="Greater Noida ki Best &amp; Affordable Properties. Buy, Sell aur WhatsApp Alerts pao. Growperty.com" />
+    <meta property="og:url" content="https://growperty.com" />
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content="https://growperty.com/growperty-logo.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Growperty — Greater Noida ka Apna Property Platform" />
+
+    <!--
+      Preconnect to Google Fonts origins so the DNS + TLS handshake is done
+      before the browser needs to fetch the font CSS.
+    -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+
+    <!--
+      Non-blocking font load:
+        1. rel="preload" + as="style" downloads the CSS in the background
+           without blocking the parser.
+        2. onload swaps it to a real stylesheet once ready.
+        3. <noscript> fallback for JS-disabled browsers.
+    -->
+    <link
+      rel="preload"
+      as="style"
+      href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&display=swap"
+      onload="this.onload=null;this.rel='stylesheet'"
+    />
+    <noscript>
+      <link
+        rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&display=swap"
+      />
+    </noscript>
+
+    <!--
+      Inline critical font-stack fallback so text is visible immediately
+      even before the web font arrives.
+    -->
+    <style>
+      body {
+        font-family: 'Plus Jakarta Sans', ui-sans-serif, system-ui, -apple-system,
+          BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+      }
+      /* Prevent layout shift while font loads */
+      @font-face {
+        font-family: 'Plus Jakarta Sans';
+        font-style: normal;
+        font-weight: 400 800;
+        font-display: swap;
+        src: local('Plus Jakarta Sans');
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
 </html>
