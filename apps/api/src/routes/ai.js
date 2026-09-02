@@ -30,6 +30,14 @@ function buildPrompt(property, nearby) {
   if (property.priceNegotiable) lines.push(`Price negotiable: yes`);
   if (property.bankLoanAvailable) lines.push(`Bank loan available: ${property.bankLoanAvailable}`);
 
+  if (property.visitTimeType === 'anytime') {
+    lines.push(`Preferred visit time: Any time (10am–6pm)`);
+  } else if (property.visitTimeType === 'fixed' && Array.isArray(property.visitFixedSlots) && property.visitFixedSlots.length) {
+    lines.push(`Preferred visit time: Fixed slots — ${property.visitFixedSlots.join(', ')}`);
+  } else if (property.visitTimeType === 'flexible' && Array.isArray(property.visitFlexibleSlots) && property.visitFlexibleSlots.length) {
+    lines.push(`Preferred visit time: Flexible — ${property.visitFlexibleSlots.join(', ')}`);
+  }
+
   if (nearby && nearby.length) {
     lines.push(`Nearby (real road distance, verified via Google Maps): ${nearby.map(n => `${n.label} - ${n.name} (${n.distanceKm}km)`).join('; ')}`);
   }
@@ -43,7 +51,7 @@ ${lines.join('\n')}
 
 Requirements:
 - Start with a short, punchy headline-style first line (no markdown symbols, just plain bold-sounding text) summarizing the property.
-- Follow with 2-4 short paragraphs covering: the property itself (config, area, condition), the location (city/sector, plus the nearby facilities ONLY if given above, using their exact real distances), and a closing call-to-action line.
+- Follow with 2-4 short paragraphs covering: the property itself (config, area, condition), the location (city/sector, plus the nearby facilities ONLY if given above, using their exact real distances), and a closing call-to-action line that invites the reader to schedule a visit — mention the preferred visit time above if given.
 - Do NOT mention specific metro stations, distances to landmarks, or nearby facilities unless explicitly provided in the data above. Only describe what is factually given — never invent a distance or a name.
 - Total length: 120-180 words.
 - Plain text only, no markdown headers or bullet symbols.`;

@@ -1146,9 +1146,9 @@ const PropertyListingForm = ({ isAdmin = false, initialData = null, cpMode = fal
             </div>
           </div>
 
-          {/* (15) IMAGES & DESCRIPTION */}
+          {/* (15) IMAGES */}
           <div className="bg-white dark:bg-slate-950 rounded-2xl p-6 md:p-8 shadow-sm border border-slate-200 dark:border-slate-800 space-y-6">
-            <Label className="text-lg font-bold text-slate-900 dark:text-white block border-b border-slate-100 dark:border-slate-800 pb-3">11. Media & Description</Label>
+            <Label className="text-lg font-bold text-slate-900 dark:text-white block border-b border-slate-100 dark:border-slate-800 pb-3">11. Media</Label>
 
             {/* Image Upload */}
             <div className="space-y-3">
@@ -1211,31 +1211,6 @@ const PropertyListingForm = ({ isAdmin = false, initialData = null, cpMode = fal
                   ))}
                 </div>
               )}
-            </div>
-
-            {/* Description */}
-            <div className="space-y-3">
-              <div className="flex items-center justify-between gap-3">
-                <Label className="text-sm font-bold text-slate-700 dark:text-slate-300">Description</Label>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  onClick={handleGenerateDescription}
-                  disabled={generatingDescription}
-                  className="h-8 gap-1.5 text-xs font-bold border-[#10B981]/30 text-[#10B981] hover:bg-[#10B981]/10 hover:text-[#10B981]"
-                >
-                  {generatingDescription ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
-                  {generatingDescription ? 'Generating...' : 'Make Description with AI'}
-                </Button>
-              </div>
-              <Textarea
-                name="description"
-                value={formData.description}
-                onChange={handleInputChange}
-                placeholder="Describe what makes your property special. (Note: Phone numbers will be hidden for privacy)"
-                className="min-h-[150px] rounded-xl resize-none bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800"
-              />
             </div>
           </div>
 
@@ -1332,10 +1307,35 @@ const PropertyListingForm = ({ isAdmin = false, initialData = null, cpMode = fal
             )}
           </div>
 
+          {/* DESCRIPTION */}
+          <div className="bg-white dark:bg-slate-950 rounded-2xl p-6 md:p-8 shadow-sm border border-slate-200 dark:border-slate-800 space-y-3">
+            <div className="flex items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800 pb-3">
+              <Label className="text-lg font-bold text-slate-900 dark:text-white">13. Description</Label>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={handleGenerateDescription}
+                disabled={generatingDescription}
+                className="h-8 gap-1.5 text-xs font-bold border-[#10B981]/30 text-[#10B981] hover:bg-[#10B981]/10 hover:text-[#10B981]"
+              >
+                {generatingDescription ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+                {generatingDescription ? 'Generating...' : 'Make Description with AI'}
+              </Button>
+            </div>
+            <Textarea
+              name="description"
+              value={formData.description}
+              onChange={handleInputChange}
+              placeholder="Describe what makes your property special. (Note: Phone numbers will be hidden for privacy)"
+              className="min-h-[150px] rounded-xl resize-none bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800"
+            />
+          </div>
+
           {/* (16) OWNER DETAILS */}
           {cpMode ? null : isAdmin ? (
             <div className="bg-white dark:bg-slate-950 rounded-2xl p-6 md:p-8 shadow-sm border border-slate-200 dark:border-slate-800">
-              <Label className="text-lg font-bold text-slate-900 dark:text-white block border-b border-slate-100 dark:border-slate-800 pb-3">13. Listed By</Label>
+              <Label className="text-lg font-bold text-slate-900 dark:text-white block border-b border-slate-100 dark:border-slate-800 pb-3">14. Listed By</Label>
               <div className="flex items-center gap-3 mt-4">
                 <div className="h-10 w-10 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center shrink-0">
                   <span className="text-emerald-600 dark:text-emerald-400 font-extrabold text-sm">G</span>
@@ -1348,7 +1348,7 @@ const PropertyListingForm = ({ isAdmin = false, initialData = null, cpMode = fal
             </div>
           ) : (
             <div className="bg-white dark:bg-slate-950 rounded-2xl p-6 md:p-8 shadow-sm border border-slate-200 dark:border-slate-800 space-y-5">
-              <Label className="text-lg font-bold text-slate-900 dark:text-white block border-b border-slate-100 dark:border-slate-800 pb-3">13. Owner Details</Label>
+              <Label className="text-lg font-bold text-slate-900 dark:text-white block border-b border-slate-100 dark:border-slate-800 pb-3">14. Owner Details</Label>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <div id="field-name" className="space-y-2">
                   <Label className="text-sm font-bold text-slate-700 dark:text-slate-300">Full Name *</Label>
