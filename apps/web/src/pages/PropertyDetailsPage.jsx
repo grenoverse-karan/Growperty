@@ -229,6 +229,7 @@ const PropertyDetailsPage = () => {
 
   const title = [property.bhk, property.propertyType].filter(Boolean).join(' ') || property.name || 'Property';
   const formattedPrice = formatIndianPrice(property.totalPrice);
+  const isSold = property.status === 'sold';
 
   const pricePerSqft = property.totalPrice && property.totalArea
     ? Math.round(Number(property.totalPrice) / Number(property.totalArea))
@@ -278,12 +279,17 @@ const PropertyDetailsPage = () => {
                         />
                         {/* Badges */}
                         <div className="absolute top-3 left-3 flex gap-2">
-                          {listedAgo && <Badge className="bg-black/60 backdrop-blur-sm text-white font-semibold px-3 text-xs border-0">{listedAgo}</Badge>}
-
-                          {property.status === 'approved' && (
-                            <Badge className="bg-[#10B981] text-white font-bold px-3 flex items-center gap-1 text-xs">
-                              <ShieldCheck className="h-3 w-3" /> Verified
-                            </Badge>
+                          {isSold ? (
+                            <Badge className="bg-red-600 text-white font-extrabold px-3 tracking-wide text-xs border-0">SOLD</Badge>
+                          ) : (
+                            <>
+                              {listedAgo && <Badge className="bg-black/60 backdrop-blur-sm text-white font-semibold px-3 text-xs border-0">{listedAgo}</Badge>}
+                              {property.status === 'approved' && (
+                                <Badge className="bg-[#10B981] text-white font-bold px-3 flex items-center gap-1 text-xs">
+                                  <ShieldCheck className="h-3 w-3" /> Verified
+                                </Badge>
+                              )}
+                            </>
                           )}
                         </div>
                         {/* Wishlist + Share */}
@@ -343,11 +349,17 @@ const PropertyDetailsPage = () => {
                         <p className="text-sm font-bold">No photos uploaded</p>
                       </div>
                       <div className="absolute top-3 left-3 flex gap-2">
-                        <Badge className="bg-primary text-primary-foreground font-bold px-3 uppercase tracking-wider text-xs">For Sale</Badge>
-                        {property.status === 'approved' && (
-                          <Badge className="bg-[#10B981] text-white font-bold px-3 flex items-center gap-1 text-xs">
-                            <ShieldCheck className="h-3 w-3" /> Verified
-                          </Badge>
+                        {isSold ? (
+                          <Badge className="bg-red-600 text-white font-extrabold px-3 tracking-wide text-xs border-0">SOLD</Badge>
+                        ) : (
+                          <>
+                            <Badge className="bg-primary text-primary-foreground font-bold px-3 uppercase tracking-wider text-xs">For Sale</Badge>
+                            {property.status === 'approved' && (
+                              <Badge className="bg-[#10B981] text-white font-bold px-3 flex items-center gap-1 text-xs">
+                                <ShieldCheck className="h-3 w-3" /> Verified
+                              </Badge>
+                            )}
+                          </>
                         )}
                       </div>
                       <div className="absolute top-3 right-3 flex items-center gap-2">
@@ -648,43 +660,51 @@ const PropertyDetailsPage = () => {
                   </div>
 
                   {/* CTA buttons */}
-                  <div className="space-y-2">
-                    <Button
-                      onClick={() => {
-                        const phone = cpContact ? cpContact.cpPhone.replace(/\D/g, '') : PLATFORM_PHONE;
-                        window.location.href = `tel:${phone}`;
-                      }}
-                      className="w-full h-12 text-base font-bold rounded-xl bg-primary text-primary-foreground shadow-md hover:shadow-lg transition-all active:scale-[0.98]"
-                    >
-                      <Phone className="mr-2 h-4 w-4" /> Call Now
-                    </Button>
-                    <Button
-                      onClick={() => {
-                        if (cpContact) {
-                          const phone = `91${cpContact.cpPhone.replace(/\D/g, '').slice(-10)}`;
-                          const url = window.location.href.split('?')[0];
-                          const msg = encodeURIComponent(`Hi, I'm interested in this property ${url}`);
-                          window.open(`https://wa.me/${phone}?text=${msg}`, '_blank');
-                        } else {
-                          window.open(`https://wa.me/${PLATFORM_WHATSAPP}`, '_blank');
-                        }
-                      }}
-                      className="w-full h-12 text-base font-bold rounded-xl bg-[#25D366] hover:bg-[#20bd5a] text-white shadow-md hover:shadow-lg transition-all active:scale-[0.98]"
-                    >
-                      <MessageCircle className="mr-2 h-4 w-4" /> WhatsApp
-                    </Button>
-                    <Button
-                      onClick={handleRequestVisit}
-                      variant="outline"
-                      className="w-full h-12 text-base font-bold rounded-xl border-2 border-primary text-primary hover:bg-primary/5 shadow-sm transition-all active:scale-[0.98]"
-                    >
-                      <CalendarDays className="mr-2 h-4 w-4" /> Request to Visit
-                    </Button>
-                  </div>
+                  {isSold ? (
+                    <div className="w-full rounded-xl py-3 text-center text-sm font-bold bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400">
+                      This property has been sold
+                    </div>
+                  ) : (
+                    <>
+                      <div className="space-y-2">
+                        <Button
+                          onClick={() => {
+                            const phone = cpContact ? cpContact.cpPhone.replace(/\D/g, '') : PLATFORM_PHONE;
+                            window.location.href = `tel:${phone}`;
+                          }}
+                          className="w-full h-12 text-base font-bold rounded-xl bg-primary text-primary-foreground shadow-md hover:shadow-lg transition-all active:scale-[0.98]"
+                        >
+                          <Phone className="mr-2 h-4 w-4" /> Call Now
+                        </Button>
+                        <Button
+                          onClick={() => {
+                            if (cpContact) {
+                              const phone = `91${cpContact.cpPhone.replace(/\D/g, '').slice(-10)}`;
+                              const url = window.location.href.split('?')[0];
+                              const msg = encodeURIComponent(`Hi, I'm interested in this property ${url}`);
+                              window.open(`https://wa.me/${phone}?text=${msg}`, '_blank');
+                            } else {
+                              window.open(`https://wa.me/${PLATFORM_WHATSAPP}`, '_blank');
+                            }
+                          }}
+                          className="w-full h-12 text-base font-bold rounded-xl bg-[#25D366] hover:bg-[#20bd5a] text-white shadow-md hover:shadow-lg transition-all active:scale-[0.98]"
+                        >
+                          <MessageCircle className="mr-2 h-4 w-4" /> WhatsApp
+                        </Button>
+                        <Button
+                          onClick={handleRequestVisit}
+                          variant="outline"
+                          className="w-full h-12 text-base font-bold rounded-xl border-2 border-primary text-primary hover:bg-primary/5 shadow-sm transition-all active:scale-[0.98]"
+                        >
+                          <CalendarDays className="mr-2 h-4 w-4" /> Request to Visit
+                        </Button>
+                      </div>
 
-                  <p className="text-xs text-center text-muted-foreground">
-                    Direct contact details are hidden for privacy.
-                  </p>
+                      <p className="text-xs text-center text-muted-foreground">
+                        Direct contact details are hidden for privacy.
+                      </p>
+                    </>
+                  )}
                 </div>
               </div>
 

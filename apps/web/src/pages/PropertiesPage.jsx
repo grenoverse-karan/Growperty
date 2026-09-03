@@ -15,7 +15,9 @@ const PropertiesPage = () => {
   const { fetchProperties, filterProperties, isLoading, error } = useProperties();
 
   useEffect(() => {
-    fetchProperties('approved');
+    // Include sold listings too — PropertyCard renders them distinctly and
+    // filterProperties() below sorts them to the end of the grid.
+    fetchProperties('approved,sold');
   }, [fetchProperties]);
 
   const [filters, setFilters] = useState({

@@ -60,7 +60,7 @@ export const getFilteredAddress = (property) => {
     const parts = [
       property.sector,
       property.locality,
-      property.landmark ? `Near ${property.landmark}` : null,
+      property.landmark,
       property.city
     ].filter(Boolean);
     return parts.join(', ');

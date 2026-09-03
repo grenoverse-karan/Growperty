@@ -94,7 +94,18 @@ export const useProperties = () => {
       }
 
       if (filters.type && filters.type !== 'all') {
-        if (property.propertyType !== filters.type) return false;
+        // Residential/Industrial Plot and Land are all propertyType "Plot/Land" —
+        // distinguished by propertySubType, not propertyType.
+        const plotSubtypes = ['Residential Plot', 'Industrial Plot', 'Agricultural Land'];
+        if (plotSubtypes.includes(filters.type)) {
+          if (property.propertySubType !== filters.type) return false;
+        } else if (property.propertyType !== filters.type) {
+          return false;
+        }
+      }
+
+      if (filters.plotType && filters.plotType !== 'all') {
+        if (property.plotType !== filters.plotType) return false;
       }
 
       if (filters.bhk && filters.bhk !== 'all') {
@@ -105,10 +116,13 @@ export const useProperties = () => {
         }
       }
 
+      if (filters.minSize && Number(property.totalArea) < Number(filters.minSize)) return false;
+      if (filters.maxSize && Number(property.totalArea) > Number(filters.maxSize)) return false;
+
       if (filters.maxPrice && property.totalPrice > filters.maxPrice) return false;
 
       return true;
-    });
+    }).sort((a, b) => (a.status === 'sold') - (b.status === 'sold')); // sold listings sink to the end, newest-first order preserved otherwise
   }, [properties]);
 
   return { properties, isLoading, error, fetchProperties, filterProperties };

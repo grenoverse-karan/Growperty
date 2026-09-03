@@ -53,6 +53,7 @@ const PropertyCard = ({ property }) => {
     : (typeof property.images === 'string' ? property.images : null);
 
   const ph = TYPE_PLACEHOLDER[property.propertyType] || DEFAULT_PLACEHOLDER;
+  const isSold = property.status === 'sold';
 
   const [isWishlisted, setIsWishlisted] = useState(false);
 
@@ -82,30 +83,38 @@ const PropertyCard = ({ property }) => {
 
   return (
     <Link to={`/property/${property.id}`} className="block h-full">
-    <Card className="group overflow-hidden bg-card border-border/50 shadow-lg hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 rounded-2xl flex flex-col h-full cursor-pointer">
+    <Card className={`group overflow-hidden bg-card border-border/50 shadow-lg hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 rounded-2xl flex flex-col h-full cursor-pointer ${isSold ? 'opacity-80' : ''}`}>
       <div className="relative overflow-hidden aspect-[4/3] bg-slate-100 dark:bg-slate-800">
         {firstImage ? (
           <img
             src={firstImage}
             alt={property.title || 'Property Image'}
-            className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+            className={`w-full h-full object-cover transition-transform duration-700 group-hover:scale-110 ${isSold ? 'grayscale' : ''}`}
             loading="lazy"
             decoding="async"
           />
         ) : (
-          <div className={`w-full h-full bg-gradient-to-br ${ph.gradient} flex items-center justify-center transition-transform duration-700 group-hover:scale-110`}>
+          <div className={`w-full h-full bg-gradient-to-br ${ph.gradient} flex items-center justify-center transition-transform duration-700 group-hover:scale-110 ${isSold ? 'grayscale' : ''}`}>
             <ph.Icon className="h-16 w-16 text-white/30" strokeWidth={1} />
           </div>
         )}
         <div className="absolute inset-0 bg-gradient-to-t from-slate-950/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-        
-        <div className="absolute top-4 left-4 flex flex-col gap-2">
-          {timeAgo(property.createdAt) && (
-            <Badge className="bg-black/60 backdrop-blur-sm text-white shadow-md font-semibold px-3 py-1 text-xs border-0">
-              {timeAgo(property.createdAt)}
-            </Badge>
-          )}
-        </div>
+
+        {isSold ? (
+          <div className="absolute top-0 left-0 w-32 h-32 overflow-hidden pointer-events-none">
+            <div className="absolute top-[22px] left-[-38px] w-[170px] -rotate-45 bg-red-600 text-center text-white text-xs font-extrabold py-1.5 shadow-md tracking-widest">
+              SOLD
+            </div>
+          </div>
+        ) : (
+          <div className="absolute top-4 left-4 flex flex-col gap-2">
+            {timeAgo(property.createdAt) && (
+              <Badge className="bg-black/60 backdrop-blur-sm text-white shadow-md font-semibold px-3 py-1 text-xs border-0">
+                {timeAgo(property.createdAt)}
+              </Badge>
+            )}
+          </div>
+        )}
 
         <div className="absolute top-4 right-4 flex items-center gap-2">
           <button
@@ -171,34 +180,40 @@ const PropertyCard = ({ property }) => {
       </CardContent>
       
       <CardFooter className="p-6 pt-0 mt-auto">
-        <div className="grid grid-cols-2 gap-2 w-full">
-          <Button
-            variant="outline"
-            className="w-full transition-all duration-200 active:scale-[0.98] rounded-xl h-10 text-sm font-bold border-primary/20 text-primary hover:bg-primary/10"
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              const cp = getActiveCpContact();
-              const phone = cp ? cp.cpPhone.replace(/\D/g, '') : PLATFORM_PHONE;
-              window.location.href = `tel:${phone}`;
-            }}
-          >
-            <Phone className="h-4 w-4 mr-1.5" /> Call
-          </Button>
-          <Button
-            variant="outline"
-            className="w-full transition-all duration-200 active:scale-[0.98] rounded-xl h-10 text-sm font-bold border-[#25D366]/20 text-[#25D366] hover:bg-[#25D366]/10"
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              const cp = getActiveCpContact();
-              const whatsapp = cp ? `91${cp.cpPhone.replace(/\D/g, '').slice(-10)}` : PLATFORM_WHATSAPP;
-              window.open(`https://wa.me/${whatsapp}`, '_blank');
-            }}
-          >
-            <MessageCircle className="h-4 w-4 mr-1.5" /> WhatsApp
-          </Button>
-        </div>
+        {isSold ? (
+          <div className="w-full rounded-xl h-10 flex items-center justify-center text-sm font-bold bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400">
+            This property has been sold
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 gap-2 w-full">
+            <Button
+              variant="outline"
+              className="w-full transition-all duration-200 active:scale-[0.98] rounded-xl h-10 text-sm font-bold border-primary/20 text-primary hover:bg-primary/10"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const cp = getActiveCpContact();
+                const phone = cp ? cp.cpPhone.replace(/\D/g, '') : PLATFORM_PHONE;
+                window.location.href = `tel:${phone}`;
+              }}
+            >
+              <Phone className="h-4 w-4 mr-1.5" /> Call
+            </Button>
+            <Button
+              variant="outline"
+              className="w-full transition-all duration-200 active:scale-[0.98] rounded-xl h-10 text-sm font-bold border-[#25D366]/20 text-[#25D366] hover:bg-[#25D366]/10"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const cp = getActiveCpContact();
+                const whatsapp = cp ? `91${cp.cpPhone.replace(/\D/g, '').slice(-10)}` : PLATFORM_WHATSAPP;
+                window.open(`https://wa.me/${whatsapp}`, '_blank');
+              }}
+            >
+              <MessageCircle className="h-4 w-4 mr-1.5" /> WhatsApp
+            </Button>
+          </div>
+        )}
       </CardFooter>
     </Card>
     </Link>

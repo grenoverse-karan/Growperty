@@ -5,6 +5,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Slider } from '@/components/ui/slider';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Input } from '@/components/ui/input';
 import { SlidersHorizontal, X } from 'lucide-react';
 import { formatIndianPrice } from '@/hooks/useProperties.js';
 
@@ -14,9 +15,13 @@ const PropertyFilter = ({ onFilter }) => {
     type: 'all',
     plotType: 'all',
     bhk: 'all',
+    minSize: '',
+    maxSize: '',
     maxPrice: 500000000, // 50 Cr default max
     verified: false
   });
+
+  const isPlotType = ['Residential Plot', 'Industrial Plot', 'Agricultural Land'].includes(localFilters.type);
 
   const locations = [
     { id: 'all', label: 'All Locations' },
@@ -29,17 +34,17 @@ const PropertyFilter = ({ onFilter }) => {
     { id: 'all', label: 'All Types' },
     { id: 'Flat', label: 'Flat / Apartment' },
     { id: 'Villa', label: 'Villa / House' },
-    { id: 'Plot', label: 'Residential Plot' },
+    { id: 'Residential Plot', label: 'Residential Plot' },
     { id: 'Industrial Plot', label: 'Industrial Plot' },
+    { id: 'Agricultural Land', label: 'Land' },
     { id: 'Commercial', label: 'Commercial Space' }
   ];
 
   const plotTypes = [
     { id: 'all', label: 'All Plot Types' },
-    { id: 'Residential Plot', label: 'Residential Plot' },
-    { id: 'Kisan Kota % Plot', label: 'Kisan Kota % Plot' },
-    { id: 'Industrial Plot', label: 'Industrial Plot' },
-    { id: 'Agriculture Land', label: 'Agriculture Land' }
+    { id: 'Free Hold', label: 'Free Hold' },
+    { id: 'Lease Hold', label: 'Lease Hold' },
+    { id: 'Kisan Kota', label: 'Kisan Kota' }
   ];
 
   const bhkOptions = [
@@ -61,6 +66,8 @@ const PropertyFilter = ({ onFilter }) => {
       type: 'all',
       plotType: 'all',
       bhk: 'all',
+      minSize: '',
+      maxSize: '',
       maxPrice: 500000000,
       verified: false
     };
@@ -101,7 +108,7 @@ const PropertyFilter = ({ onFilter }) => {
           <Label className="text-sm font-semibold text-foreground">Property Type</Label>
           <Select
             value={localFilters.type}
-            onValueChange={(value) => setLocalFilters({ ...localFilters, type: value, plotType: 'all' })}
+            onValueChange={(value) => setLocalFilters({ ...localFilters, type: value, plotType: 'all', bhk: 'all', minSize: '', maxSize: '' })}
           >
             <SelectTrigger className="h-12 rounded-xl bg-slate-50 dark:bg-slate-800/50 border-border/50 focus-visible:ring-primary">
               <SelectValue placeholder="Select type" />
@@ -116,7 +123,7 @@ const PropertyFilter = ({ onFilter }) => {
           </Select>
         </div>
 
-        {localFilters.type === 'Plot' && (
+        {localFilters.type === 'Residential Plot' && (
           <div className="space-y-3">
             <Label className="text-sm font-semibold text-foreground">Plot Type</Label>
             <Select
@@ -137,25 +144,50 @@ const PropertyFilter = ({ onFilter }) => {
           </div>
         )}
 
-        <div className="space-y-3">
-          <Label className="text-sm font-semibold text-foreground">BHK</Label>
-          <Select
-            value={localFilters.bhk}
-            onValueChange={(value) => setLocalFilters({ ...localFilters, bhk: value })}
-            disabled={localFilters.type === 'Plot' || localFilters.type === 'Commercial'}
-          >
-            <SelectTrigger className="h-12 rounded-xl bg-slate-50 dark:bg-slate-800/50 border-border/50 focus-visible:ring-primary">
-              <SelectValue placeholder="Select BHK" />
-            </SelectTrigger>
-            <SelectContent>
-              {bhkOptions.map((bhk) => (
-                <SelectItem key={bhk.id} value={bhk.id}>
-                  {bhk.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+        {isPlotType ? (
+          <div className="space-y-3">
+            <Label className="text-sm font-semibold text-foreground">Size (Min-Max)</Label>
+            <div className="flex items-center gap-3">
+              <Input
+                type="number"
+                min="0"
+                placeholder="Min"
+                value={localFilters.minSize}
+                onChange={(e) => setLocalFilters({ ...localFilters, minSize: e.target.value })}
+                className="h-12 rounded-xl bg-slate-50 dark:bg-slate-800/50 border-border/50 focus-visible:ring-primary"
+              />
+              <span className="text-muted-foreground text-sm font-medium">–</span>
+              <Input
+                type="number"
+                min="0"
+                placeholder="Max"
+                value={localFilters.maxSize}
+                onChange={(e) => setLocalFilters({ ...localFilters, maxSize: e.target.value })}
+                className="h-12 rounded-xl bg-slate-50 dark:bg-slate-800/50 border-border/50 focus-visible:ring-primary"
+              />
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <Label className="text-sm font-semibold text-foreground">BHK</Label>
+            <Select
+              value={localFilters.bhk}
+              onValueChange={(value) => setLocalFilters({ ...localFilters, bhk: value })}
+              disabled={localFilters.type === 'Commercial'}
+            >
+              <SelectTrigger className="h-12 rounded-xl bg-slate-50 dark:bg-slate-800/50 border-border/50 focus-visible:ring-primary">
+                <SelectValue placeholder="Select BHK" />
+              </SelectTrigger>
+              <SelectContent>
+                {bhkOptions.map((bhk) => (
+                  <SelectItem key={bhk.id} value={bhk.id}>
+                    {bhk.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
 
         <div className="space-y-4">
           <div className="flex items-center justify-between">

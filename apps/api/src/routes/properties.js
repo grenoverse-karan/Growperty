@@ -134,7 +134,10 @@ router.get('/', async (req, res) => {
     const limit = Math.max(1, Math.min(1000, parseInt(req.query.limit) || 20));
     const skip  = (page - 1) * limit;
     const filter = {};
-    if (req.query.status) filter.status = req.query.status;
+    if (req.query.status) {
+      const statuses = req.query.status.split(',').map(s => s.trim()).filter(Boolean);
+      filter.status = statuses.length > 1 ? { $in: statuses } : statuses[0];
+    }
     if (req.query.city)   filter.city   = req.query.city;
     if (req.query.propertyType) filter.propertyType = req.query.propertyType;
     if (req.query.bhk)   filter.bhk = req.query.bhk;
@@ -182,8 +185,12 @@ router.get('/', async (req, res) => {
       return item;
     });
 
-    // Cache public approved listings for 5min at the CDN edge + 10min stale window
-    if (!req.query.status || req.query.status === 'approved') {
+    // Cache public listings (approved and/or sold — both safe to expose) for
+    // 5min at the CDN edge + 10min stale window; anything else (pending review
+    // queues etc.) must stay fresh for admins.
+    const requestedStatuses = req.query.status ? req.query.status.split(',').map(s => s.trim()) : [];
+    const isPubliclySafe = requestedStatuses.length === 0 || requestedStatuses.every(s => ['approved', 'sold'].includes(s));
+    if (isPubliclySafe) {
       res.set('Cache-Control', 'public, max-age=300, stale-while-revalidate=600');
     } else {
       res.set('Cache-Control', 'no-store');
