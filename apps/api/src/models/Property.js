@@ -6,6 +6,7 @@ const propertySchema = new mongoose.Schema(
     propertyType:    { type: String, required: true },
     propertySubType: { type: String },
     bhk:             { type: String },
+    rooms:           { type: Number, default: 0 },
     bathrooms:       { type: Number, default: 0 },
     balconies:       { type: Number, default: 0 },
     city:            { type: String, required: true },

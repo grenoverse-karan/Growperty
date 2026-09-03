@@ -10,7 +10,7 @@ import {
   MapPin, Bed, Bath, Maximize, Phone, MessageCircle,
   ArrowLeft, ShieldCheck, Car, Bike, Building2,
   CheckCircle2, ChevronLeft, ChevronRight, Image as ImageIcon,
-  Home, IndianRupee, Tag, Info, Clock, CalendarDays, Heart, Share2,
+  Home, IndianRupee, Tag, Info, Clock, CalendarDays, Heart, Share2, DoorOpen,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatIndianPrice } from '@/hooks/useProperties.js';
@@ -227,7 +227,8 @@ const PropertyDetailsPage = () => {
       )
     : null;
 
-  const title = [property.bhk, property.propertyType].filter(Boolean).join(' ') || property.name || 'Property';
+  const roomsLabel = !property.bhk && property.rooms > 0 ? `${property.rooms} Room${property.rooms > 1 ? 's' : ''}` : null;
+  const title = [property.bhk || roomsLabel, property.propertyType].filter(Boolean).join(' ') || property.name || 'Property';
   const formattedPrice = formatIndianPrice(property.totalPrice);
   const isSold = property.status === 'sold';
 
@@ -402,9 +403,10 @@ const PropertyDetailsPage = () => {
                     <SpecRow label="Property Type" value={property.propertyType} />
                     {property.propertySubType && <SpecRow label="Sub Type" value={property.propertySubType} />}
                     <SpecRow label="BHK / Configuration" value={property.bhk} />
+                    {property.rooms > 0 && <SpecRow label="Rooms" value={property.rooms} />}
                     <SpecRow label="Bathrooms" value={property.bathrooms} />
                     <SpecRow label="Balconies" value={property.balconies} />
-                    <SpecRow label="Owner Type" value={property.ownerType} />
+                    {property.ownershipType && <SpecRow label="Ownership Type" value={property.ownershipType} />}
                     {property.plotType && <SpecRow label="Plot Type" value={property.plotType} />}
                   </div>
                 </div>
@@ -618,6 +620,12 @@ const PropertyDetailsPage = () => {
                       <div className="flex items-center gap-2">
                         <Bed className="h-4 w-4 text-primary shrink-0" />
                         <span className="text-sm font-bold text-foreground">{property.bhk}</span>
+                      </div>
+                    )}
+                    {property.rooms > 0 && (
+                      <div className="flex items-center gap-2">
+                        <DoorOpen className="h-4 w-4 text-primary shrink-0" />
+                        <span className="text-sm font-bold text-foreground">{property.rooms} Rooms</span>
                       </div>
                     )}
                     {property.bathrooms > 0 && (

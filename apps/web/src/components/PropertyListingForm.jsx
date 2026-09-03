@@ -70,6 +70,7 @@ const PropertyListingForm = ({ isAdmin = false, initialData = null, cpMode = fal
     propertyType: '',
     propertySubType: '',
     bhk: '',
+    rooms: 0,
     bathrooms: 0,
     balconies: 0,
     totalArea: '',
@@ -120,7 +121,7 @@ const PropertyListingForm = ({ isAdmin = false, initialData = null, cpMode = fal
   const validateForm = () => {
     const errors = {};
     if (!formData.propertyType) errors.propertyType = 'Property type select karo';
-    if (showBhk && !formData.bhk) errors.bhk = 'BHK configuration select karo';
+    if (showBhk && !formData.bhk && !formData.rooms) errors.bhk = 'BHK ya Rooms count me se koi ek select karo';
     if (!formData.totalArea) errors.totalArea = 'Total area enter karo';
     if (!formData.totalPrice || Number(formData.totalPrice) <= 0) errors.totalPrice = 'Expected price enter karo';
     if (!formData.city) errors.city = 'City select karo';
@@ -153,6 +154,7 @@ const PropertyListingForm = ({ isAdmin = false, initialData = null, cpMode = fal
         propertyType:     d.propertyType     || '',
         propertySubType:  d.propertySubType  || '',
         bhk:              d.bhk              || '',
+        rooms:            d.rooms            || 0,
         bathrooms:        d.bathrooms        || 0,
         balconies:        d.balconies        || 0,
         totalArea:        d.totalArea        || '',
@@ -227,6 +229,9 @@ const PropertyListingForm = ({ isAdmin = false, initialData = null, cpMode = fal
       if (field === 'furnishingType' && value === 'Unfurnished') {
         newData.furnishingItems = {};
       }
+      if (field === 'bhk') {
+        newData.rooms = 0; // BHK and Rooms are mutually exclusive
+      }
       return newData;
     });
     clearFieldError(field);
@@ -271,6 +276,13 @@ const PropertyListingForm = ({ isAdmin = false, initialData = null, cpMode = fal
     } finally {
       setGeneratingDescription(false);
     }
+  };
+
+  const handleRoomsChange = (increment) => {
+    setFormData(prev => {
+      const rooms = Math.max(0, prev.rooms + increment);
+      return { ...prev, rooms, bhk: rooms > 0 ? '' : prev.bhk }; // BHK and Rooms are mutually exclusive
+    });
   };
 
   const handleCounterChange = (field, increment) => {
@@ -436,7 +448,7 @@ const PropertyListingForm = ({ isAdmin = false, initialData = null, cpMode = fal
 
   const progressSections = useMemo(() => [
     { label: 'Property Type',  done: !!formData.propertyType },
-    { label: 'Details',        done: !showBhk || !!formData.bhk },
+    { label: 'Details',        done: !showBhk || !!formData.bhk || !!formData.rooms },
     { label: 'Area & Price',   done: !!formData.totalArea && !!formData.totalPrice },
     { label: 'Location',       done: !!formData.city && !!formData.sector && !!formData.houseNo },
     { label: 'Status & Type',  done: !!formData.possessionStatus && OWNERSHIP_TYPE.includes(formData.ownershipType) && !!formData.directionFacing },
@@ -507,6 +519,7 @@ const PropertyListingForm = ({ isAdmin = false, initialData = null, cpMode = fal
         propertyType: formData.propertyType,
         propertySubType: formData.propertySubType,
         bhk: formData.bhk,
+        rooms: formData.rooms,
         bathrooms: formData.bathrooms,
         balconies: formData.balconies,
         totalArea: formData.totalArea,
@@ -785,13 +798,26 @@ const PropertyListingForm = ({ isAdmin = false, initialData = null, cpMode = fal
           {/* (3) BHK CONFIGURATION */}
           {showBhk && (
             <div id="field-bhk" className={`bg-white dark:bg-slate-950 rounded-2xl p-6 md:p-8 shadow-sm border dark:border-slate-800 space-y-5 animate-in fade-in ${fieldErrors.bhk ? 'border-red-400' : 'border-slate-200'}`}>
-              <Label className="text-lg font-bold text-slate-900 dark:text-white block border-b border-slate-100 dark:border-slate-800 pb-3">2. BHK Configuration *</Label>
+              <div className="border-b border-slate-100 dark:border-slate-800 pb-3">
+                <Label className="text-lg font-bold text-slate-900 dark:text-white block">2. BHK Configuration *</Label>
+                <p className="text-xs text-slate-400 font-medium mt-1">Select BHK or enter Rooms count below — only one is required</p>
+              </div>
               <div className="grid grid-cols-3 md:grid-cols-5 gap-3">
                 {BHK_OPTIONS.map(bhk => (
                   <Chip key={bhk} label={bhk} selected={formData.bhk === bhk} onClick={() => handleSelect('bhk', bhk)} />
                 ))}
               </div>
               {fieldErrors.bhk && <p className="text-red-500 text-xs font-bold mt-1">⚠ {fieldErrors.bhk}</p>}
+
+              <div className="flex items-center gap-4">
+                <div className="flex-1 h-px bg-slate-200 dark:bg-slate-800" />
+                <span className="text-xs font-extrabold text-slate-400 tracking-widest">OR</span>
+                <div className="flex-1 h-px bg-slate-200 dark:bg-slate-800" />
+              </div>
+
+              <div className="max-w-[200px]">
+                <CounterBlock label="Rooms" value={formData.rooms} onDecrement={() => handleRoomsChange(-1)} onIncrement={() => handleRoomsChange(1)} />
+              </div>
             </div>
           )}
 

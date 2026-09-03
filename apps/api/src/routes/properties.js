@@ -114,7 +114,7 @@ router.post('/', requireAuth, async (req, res) => {
 // Fields returned on list endpoint. Images are handled separately via aggregation
 // so MongoDB only returns the first image (thumbnail) — not all 16.
 const LIST_AGG_PROJECT = {
-  propertyType: 1, propertySubType: 1, bhk: 1, bathrooms: 1, balconies: 1,
+  propertyType: 1, propertySubType: 1, bhk: 1, rooms: 1, bathrooms: 1, balconies: 1,
   city: 1, sector: 1, houseNo: 1, landmark: 1, towerBlock: 1,
   totalPrice: 1, totalArea: 1, areaUnit: 1,
   name: 1, mobileNumber: 1, email: 1,

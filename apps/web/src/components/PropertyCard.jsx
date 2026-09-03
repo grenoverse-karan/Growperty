@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Bed, MapPin, Bath, Phone, MessageCircle, Heart, Share2, Building2, TreePine, Store, Home } from 'lucide-react';
+import { Bed, MapPin, Bath, Phone, MessageCircle, Heart, Share2, Building2, TreePine, Store, Home, DoorOpen } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatIndianPrice } from '@/hooks/useProperties.js';
 import { getFilteredAddress } from '@/lib/contentFilteringUtils.js';
@@ -40,11 +40,14 @@ function timeAgo(dateStr) {
 const PropertyCard = ({ property }) => {
   const formattedPrice = formatIndianPrice(property.totalPrice || property.price);
   const displayAddress = getFilteredAddress(property);
-  const areaPrefix = !property.bhk && property.totalArea && property.areaUnit
+  const roomsPrefix = !property.bhk && property.rooms > 0
+    ? `${property.rooms} Room${property.rooms > 1 ? 's' : ''} `
+    : '';
+  const areaPrefix = !property.bhk && !property.rooms && property.totalArea && property.areaUnit
     ? `${property.totalArea} ${property.areaUnit} `
     : '';
   const title = property.propertyType
-    ? `${property.bhk ? property.bhk + ' ' : areaPrefix}${property.propertyType}`
+    ? `${property.bhk ? property.bhk + ' ' : roomsPrefix || areaPrefix}${property.propertyType}`
     : property.name || property.title || 'Untitled Property';
   const bedrooms = property.bhk ? parseInt(property.bhk) || 0 : (property.bedrooms || 0);
 
@@ -161,6 +164,18 @@ const PropertyCard = ({ property }) => {
               <div>
                 <p className="text-sm font-bold text-foreground">{bedrooms} BHK</p>
                 <p className="text-xs text-muted-foreground font-medium">Bedrooms</p>
+              </div>
+            </div>
+          )}
+
+          {!property.bhk && property.rooms > 0 && (
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-primary/10 rounded-lg">
+                <DoorOpen className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <p className="text-sm font-bold text-foreground">{property.rooms}</p>
+                <p className="text-xs text-muted-foreground font-medium">Rooms</p>
               </div>
             </div>
           )}

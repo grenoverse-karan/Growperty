@@ -135,8 +135,8 @@ export const sanitizePropertyFormData = (formData, propertyType) => {
     { name: 'ownerType', type: 'text' },
   ];
 
-  // BHK is required for certain property types
-  if (BHK_REQUIRED_TYPES.includes(propertyType)) {
+  // BHK is required for certain property types — unless Rooms count was given instead
+  if (BHK_REQUIRED_TYPES.includes(propertyType) && !formData.rooms) {
     requiredFields.push({ name: 'bhk', type: 'select', values: BHK_OPTIONS });
   }
 
@@ -192,6 +192,7 @@ export const sanitizePropertyFormData = (formData, propertyType) => {
     { name: 'status', type: 'select', values: ['pending', 'approved', 'rejected', 'suspended'] },
     { name: 'listedBy', type: 'text' },
     { name: 'liveAt', type: 'text' },
+    { name: 'rooms', type: 'number', min: 0 },
     { name: 'bathrooms', type: 'number' },
     { name: 'balconies', type: 'number' },
     { name: 'floorNumber', type: 'number' },
