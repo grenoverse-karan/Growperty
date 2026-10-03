@@ -1,21 +1,27 @@
-// Build-time prerendering for static (non-DB) routes. Runs after `vite
-// build`: boots a local preview server over the built dist/, visits each
+// Local-only tool — run this by hand (`npm run prerender`) whenever one of
+// the static pages below changes, NOT as part of the Vercel build.
+//
+// Vercel's build container is a minimal Linux image that's missing the
+// shared libraries (libnspr4.so, libnss3.so, …) Puppeteer's bundled
+// Chromium needs, so launching a browser there fails outright. Rather than
+// fighting that environment, this runs locally (where Chromium launches
+// fine) and writes its output into prerendered/ — a plain, git-tracked
+// directory of static HTML. apply-prerendered.mjs (Puppeteer-free, just
+// file copies) runs that output into dist/ on every actual Vercel build.
+//
+// Builds dist/ itself first, boots a preview server over it, visits each
 // route in headless Chromium, waits for React + react-helmet to finish
 // mounting, and writes the fully-rendered DOM (H1, body copy, FAQ,
-// JSON-LD, and react-helmet's per-page title/meta/canonical) back into
-// dist/ as a static HTML file at that route.
+// JSON-LD, and react-helmet's per-page title/meta/canonical) to
+// prerendered/<route>.html.
 //
-// Listings on these pages stay client-fetched — the snapshot captures
-// whatever's rendered at wait time, loading spinner or already-loaded
-// cards, and the client takes over identically either way once its JS
-// boots (createRoot().render() replaces #root; react-helmet recognizes
-// its own data-react-helmet="true" tags from the snapshot and updates
-// them in place rather than duplicating them).
-//
-// Vercel serves a matching dist/<route>.html ahead of the SPA catch-all
-// rewrite because of "cleanUrls": true in vercel.json — without that, this
-// script's output would never actually be reached.
-import { preview } from 'vite';
+// Listings stay client-fetched — the snapshot captures whatever's
+// rendered at wait time, loading spinner or already-loaded cards, and the
+// client takes over identically either way once its JS boots
+// (createRoot().render() replaces #root; react-helmet recognizes its own
+// data-react-helmet="true" tags from the snapshot and updates them in
+// place rather than duplicating them).
+import { build, preview } from 'vite';
 import puppeteer from 'puppeteer';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -37,15 +43,21 @@ const ROUTES = [
   '/property-near-noida-international-airport',
 ];
 
-const DIST = path.resolve(process.cwd(), 'dist');
+const OUT_DIR = path.resolve(process.cwd(), 'prerendered');
 const PORT = 4174;
 
 async function main() {
+  console.log('[generate-prerendered] building dist/ first...');
+  await build();
+
   const server = await preview({ preview: { port: PORT, host: '127.0.0.1', strictPort: true } });
   const base = `http://127.0.0.1:${PORT}`;
 
   const browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox'] });
   const page = await browser.newPage();
+
+  fs.rmSync(OUT_DIR, { recursive: true, force: true });
+  fs.mkdirSync(OUT_DIR, { recursive: true });
 
   for (const route of ROUTES) {
     await page.goto(`${base}${route}`, { waitUntil: 'networkidle0', timeout: 30000 });
@@ -71,20 +83,20 @@ async function main() {
     const html = '<!DOCTYPE html>\n' + (await page.content());
 
     const outPath = route === '/'
-      ? path.join(DIST, 'index.html')
-      : path.join(DIST, `${route.replace(/^\//, '')}.html`);
-    fs.mkdirSync(path.dirname(outPath), { recursive: true });
+      ? path.join(OUT_DIR, 'index.html')
+      : path.join(OUT_DIR, `${route.replace(/^\//, '')}.html`);
     fs.writeFileSync(outPath, html);
 
     const title = await page.title();
-    console.log(`✓ ${route.padEnd(45)} -> ${path.relative(DIST, outPath).padEnd(40)} "${title}" (${html.length} bytes)`);
+    console.log(`✓ ${route.padEnd(45)} -> ${path.relative(OUT_DIR, outPath).padEnd(40)} "${title}" (${html.length} bytes)`);
   }
 
   await browser.close();
   await new Promise((resolve) => server.httpServer.close(resolve));
+  console.log(`\n[generate-prerendered] done — review prerendered/, then commit it.`);
 }
 
 main().catch((err) => {
-  console.error('[prerender] failed:', err);
+  console.error('[generate-prerendered] failed:', err);
   process.exit(1);
 });
