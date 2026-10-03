@@ -1,18 +1,15 @@
 // Link previews for shared /property/:id URLs and the static SEO landing
-// pages. Crawlers (WhatsApp, Facebook, Twitter…) read only the first HTML
-// response and never run the SPA's JS, so for them this Vercel middleware
-// returns a tiny page with Open Graph tags; everyone else gets the normal SPA.
+// pages. Only social link-preview bots (WhatsApp, Facebook, Twitter…) get
+// this stub — they read only the first HTML response and never run the
+// SPA's JS. Search engines (Googlebot, Bingbot, Applebot, etc.) are
+// deliberately excluded from BOT_UA: every page carries real, unique
+// content written to rank on Google, so search crawlers must always see
+// the full SPA, never this thin OG-only stub (no body content beyond a
+// single link) — Phase 2 moves static routes to build-time prerendering so
+// search engines get the same real, indexable HTML everyone else does.
 import { SITE_URL } from './src/lib/siteUrl.js';
 
-const BOT_UA = /WhatsApp|facebookexternalhit|Facebot|Twitterbot|LinkedInBot|TelegramBot|Slackbot|Discordbot|Pinterest|Googlebot|bingbot|Applebot|Iframely|preview|crawler/i;
-
-// Narrower than BOT_UA — social link-preview bots only, deliberately
-// excluding Googlebot/bingbot/Applebot. The locality landing pages carry
-// real, unique content written to rank on Google — serving search crawlers
-// the thin OG-only stub below (no body content) instead of the full SPA
-// would defeat that, so they still get the real page. Social bots don't
-// execute JS at all, so they need the stub regardless.
-const SOCIAL_PREVIEW_UA = /WhatsApp|facebookexternalhit|Facebot|Twitterbot|LinkedInBot|TelegramBot|Slackbot|Discordbot|Pinterest|Iframely/i;
+const BOT_UA = /WhatsApp|facebookexternalhit|Facebot|Twitterbot|LinkedInBot|TelegramBot|Slackbot|Discordbot|Pinterest|Iframely/i;
 
 const API = 'https://growperty-api.vercel.app';
 const SITE = SITE_URL;
@@ -96,12 +93,12 @@ export default async function middleware(request) {
 
   const url = new URL(request.url);
 
-  // Static SEO landing pages — no API round-trip needed. Only social
-  // preview bots get the stub here (see SOCIAL_PREVIEW_UA); search
-  // crawlers fall through to the real, fully-indexable SPA content.
+  // Static SEO landing pages — no API round-trip needed. The outer BOT_UA
+  // gate already excludes search engines, so every request reaching here
+  // is a social preview bot.
   const localitySlug = url.pathname.replace(/^\//, '').replace(/\/$/, '');
   const localityMeta = LOCALITY_PAGE_META[localitySlug];
-  if (localityMeta && SOCIAL_PREVIEW_UA.test(ua)) {
+  if (localityMeta) {
     const html = buildOgHtml({
       title: localityMeta.title,
       description: localityMeta.description,
