@@ -7,6 +7,7 @@ Before every `vercel deploy --prod` (API or Web), in this order:
 1. **Commit first.** Stage and commit all pending changes — never deploy from an uncommitted working directory. The commit message must clearly state what changed (not generic messages like "update" or "fix").
 2. **Push to GitHub** (`git push origin master`) right after committing, before deploying.
 3. **Only then deploy.** `vercel deploy --prod` from `apps/api` for the API, from the repo root for Web (Root Directory is already set to `apps/web`).
+4. **Smoke test immediately after.** `npm run smoke-test` (from `apps/web`) — hits 10 key routes covering all 3 ways this site serves a page (prerendered static file, SPA catch-all, middleware-rendered `/property/:id`) and fails loudly if any 404s. This caught a real production outage on 2026-10-03 (a `vercel.json` change broke the SPA catch-all for every non-prerendered route — `/properties`, `/search`, `/login`, etc. all 404ing) that a build-time check couldn't have caught, since the build succeeds fine; only the live routing was broken. If it fails: `vercel rollback <previous-deployment-url> --prod` first, investigate after.
 
 This keeps GitHub as the source of truth for what's actually live, and gives every deploy a matching commit to roll back to if something breaks.
 

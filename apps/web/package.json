@@ -7,6 +7,7 @@
     "dev": "vite --host :: --port 3000",
     "build": "node scripts/check-prerendered-fresh.mjs && vite build && node scripts/apply-prerendered.mjs",
     "prerender": "node scripts/generate-prerendered.mjs",
+    "smoke-test": "node scripts/smoke-test.mjs",
     "start": "vite preview --host :: --port 3000",
     "lint": "eslint . --quiet",
     "lint:warn": "eslint ."
