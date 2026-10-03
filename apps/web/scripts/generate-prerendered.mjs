@@ -11,9 +11,19 @@
 //
 // Builds dist/ itself first, boots a preview server over it, visits each
 // route in headless Chromium, waits for React + react-helmet to finish
-// mounting, and writes the fully-rendered DOM (H1, body copy, FAQ,
-// JSON-LD, and react-helmet's per-page title/meta/canonical) to
-// prerendered/<route>.html.
+// mounting, and writes prerendered/<route>.json — NOT a full HTML
+// document. A full document would embed THIS build's hashed asset
+// filenames (e.g. /assets/index-C87ULHU2.js); Vercel's own build produces
+// different hashes for the same source whenever ANYTHING bundled changes,
+// so a stored <script src="..."> from a local build goes stale the
+// moment source drifts — the browser requests a JS/CSS file that doesn't
+// exist in that deployment's dist/assets/, which falls through the SPA's
+// catch-all rewrite to index.html and fails with a MIME-type error
+// instead of executing (exactly what broke production on 2026-10-03).
+// So only the page-specific pieces are stored — react-helmet's tags
+// (title, meta, canonical, JSON-LD) and #root's rendered content —  and
+// apply-prerendered.mjs splices them into THAT build's own freshly-built
+// dist/index.html, whose asset tags are always correct by construction.
 //
 // Listings stay client-fetched in principle, but a naive capture would bake
 // whatever prices/listings happen to be live AT GENERATION TIME into a
@@ -38,7 +48,7 @@ import puppeteer from 'puppeteer';
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
-import { PAGE_SOURCES } from './prerender-sources.mjs';
+import { PAGES, ROUTES_WITH_LISTINGS } from './prerender-sources.mjs';
 
 // Hash of each page's source files' current contents, written into
 // manifest.json alongside the snapshots — check-prerendered-fresh.mjs
@@ -54,34 +64,6 @@ function hashSources(sources) {
   }
   return hash.digest('hex');
 }
-
-const ROUTES = [
-  '/',
-  '/about',
-  '/how-it-works',
-  '/fast-track',
-  '/faq',
-  '/contact',
-  '/privacy',
-  '/terms-and-conditions',
-  '/disclaimer',
-  '/flats-in-greater-noida',
-  '/freehold-plots-greater-noida',
-  '/commercial-property-greater-noida',
-  '/plots-near-yamuna-expressway',
-  '/property-near-noida-international-airport',
-];
-
-// Routes that render a live /properties listings grid — see the big
-// comment above for why their listings fetch is blocked during capture.
-const ROUTES_WITH_LISTINGS = new Set([
-  '/',
-  '/flats-in-greater-noida',
-  '/freehold-plots-greater-noida',
-  '/commercial-property-greater-noida',
-  '/plots-near-yamuna-expressway',
-  '/property-near-noida-international-airport',
-]);
 
 const OUT_DIR = path.resolve(process.cwd(), 'prerendered');
 const PORT = 4174;
@@ -110,7 +92,9 @@ async function main() {
   fs.rmSync(OUT_DIR, { recursive: true, force: true });
   fs.mkdirSync(OUT_DIR, { recursive: true });
 
-  for (const route of ROUTES) {
+  const manifest = {};
+
+  for (const [route, { snapshot, sources }] of Object.entries(PAGES)) {
     blockListings = ROUTES_WITH_LISTINGS.has(route);
     // networkidle0 would itself hang forever on these routes since the
     // blocked request never resolves — domcontentloaded + waitForSelector
@@ -119,40 +103,36 @@ async function main() {
     await page.waitForSelector('h1', { timeout: 15000 });
     if (blockListings) await new Promise((r) => setTimeout(r, 1000)); // let the loading skeleton actually paint
 
-    // Drop any static default <meta>/<link> that react-helmet has a
-    // page-specific replacement for, so the output carries exactly one
-    // (the correct, page-specific) copy of each — not index.html's
-    // generic default duplicated alongside it.
-    await page.evaluate(() => {
-      const helmetKeys = new Set();
-      document.querySelectorAll('[data-react-helmet="true"]').forEach((el) => {
-        const key = el.getAttribute('name') || el.getAttribute('property') || el.tagName.toLowerCase();
-        helmetKeys.add(key);
-      });
-      document.querySelectorAll('meta[name], meta[property]').forEach((el) => {
-        if (el.getAttribute('data-react-helmet') === 'true') return;
-        const key = el.getAttribute('name') || el.getAttribute('property');
-        if (helmetKeys.has(key)) el.remove();
-      });
-    });
+    // headExtra = exactly what react-helmet added (title, description,
+    // canonical, OG, JSON-LD — tagged data-react-helmet="true" by Helmet
+    // itself, not something this script adds). bodyHtml = #root's
+    // rendered content. Nothing else — no <script>/<link> boilerplate, no
+    // static index.html defaults — gets stored.
+    const { headExtra, bodyHtml } = await page.evaluate(() => ({
+      // react-helmet sets document.title directly rather than tagging the
+      // <title> element with data-react-helmet="true" the way it does for
+      // meta/link/script — so the title needs capturing (and escaping,
+      // via a throwaway element's own serialization) separately, or it
+      // silently never makes it into the snapshot at all.
+      headExtra: (() => {
+        const titleEl = document.createElement('title');
+        titleEl.textContent = document.title;
+        return titleEl.outerHTML + '\n' + [...document.querySelectorAll('[data-react-helmet="true"]')].map((el) => el.outerHTML).join('\n');
+      })(),
+      bodyHtml: document.getElementById('root').innerHTML,
+    }));
 
-    const html = await page.content(); // already includes <!DOCTYPE html>
-
-    const fileName = route === '/' ? 'index.html' : `${route.replace(/^\//, '')}.html`;
-    const outPath = path.join(OUT_DIR, fileName);
-    fs.writeFileSync(outPath, html);
+    const outPath = path.join(OUT_DIR, snapshot);
+    fs.writeFileSync(outPath, JSON.stringify({ headExtra, bodyHtml }, null, 2) + '\n');
+    manifest[snapshot] = hashSources(sources);
 
     const title = await page.title();
-    console.log(`✓ ${route.padEnd(45)} -> ${fileName.padEnd(40)} "${title}" (${html.length} bytes)`);
+    console.log(`✓ ${route.padEnd(45)} -> ${snapshot.padEnd(40)} "${title}" (${bodyHtml.length} bytes body)`);
   }
 
   await browser.close();
   await new Promise((resolve) => server.httpServer.close(resolve));
 
-  const manifest = {};
-  for (const [fileName, sources] of Object.entries(PAGE_SOURCES)) {
-    manifest[fileName] = hashSources(sources);
-  }
   fs.writeFileSync(path.join(OUT_DIR, 'manifest.json'), JSON.stringify(manifest, null, 2) + '\n');
 
   console.log(`\n[generate-prerendered] done — review prerendered/, then commit it (including manifest.json).`);

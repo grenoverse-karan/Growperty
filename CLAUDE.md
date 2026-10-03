@@ -1,17 +1,25 @@
 # Growperty — Project Rules
 
+## ⚠️ No production deploys (as of 2026-10-03)
+
+**Never run `vercel deploy --prod` on the Web project.** Deploy to **preview only** (`vercel deploy`, no `--prod`) and hand the user the preview URL. The user checks it themselves and promotes to production from the Vercel dashboard when satisfied — that promotion step is theirs alone, not something to do or ask to do.
+
+This followed a real incident: Phase 2/3 prerendering changes passed `npm run build` and all post-deploy smoke tests locally, but broke multiple pages on production while localhost stayed fine — a gap between "build succeeds" and "production actually works" that preview-first catches before it reaches real users.
+
+The API project (`apps/api`) is not affected by this rule unless the user says otherwise — confirm if unsure.
+
 ## Deploy workflow (required)
 
-Before every `vercel deploy --prod` (API or Web), in this order:
+Before every deploy (API prod, or Web preview per the rule above), in this order:
 
 1. **Commit first.** Stage and commit all pending changes — never deploy from an uncommitted working directory. The commit message must clearly state what changed (not generic messages like "update" or "fix").
 2. **Push to GitHub** (`git push origin master`) right after committing, before deploying.
-3. **Only then deploy.** `vercel deploy --prod` from `apps/api` for the API, from the repo root for Web (Root Directory is already set to `apps/web`).
-4. **Smoke test immediately after.** `npm run smoke-test` (from `apps/web`) — hits 10 key routes covering all 3 ways this site serves a page (prerendered static file, SPA catch-all, middleware-rendered `/property/:id`) and fails loudly if any 404s. This caught a real production outage on 2026-10-03 (a `vercel.json` change broke the SPA catch-all for every non-prerendered route — `/properties`, `/search`, `/login`, etc. all 404ing) that a build-time check couldn't have caught, since the build succeeds fine; only the live routing was broken. If it fails: `vercel rollback <previous-deployment-url> --prod` first, investigate after.
+3. **Only then deploy.** API: `vercel deploy --prod` from `apps/api`. Web: `vercel deploy` (no `--prod`, see the rule above) from the repo root (Root Directory is already set to `apps/web`).
+4. **Smoke test immediately after, against the deployment just created** — its preview URL for Web (`npm run smoke-test -- <preview-url>`), production for API. `npm run smoke-test` (from `apps/web`) hits 10 key routes covering all 3 ways this site serves a page (prerendered static file, SPA catch-all, middleware-rendered `/property/:id`) and fails loudly if any 404s, or if a page fails to actually render (see below). This class of bug — build succeeds, but real routing/rendering is broken — has twice slipped past a successful build on this project (2026-10-03, twice), which is exactly why Web no longer deploys straight to production.
 
 This keeps GitHub as the source of truth for what's actually live, and gives every deploy a matching commit to roll back to if something breaks.
 
-Reminder: `git push` does **not** auto-deploy on this project — deploying is always a separate, explicit `vercel deploy --prod` step, run only when the user asks for it.
+Reminder: `git push` does **not** auto-deploy on this project — deploying is always a separate, explicit step, run only when the user asks for it.
 
 ## Prerendered pages (required)
 

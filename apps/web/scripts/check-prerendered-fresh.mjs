@@ -7,7 +7,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
-import { PAGE_SOURCES } from './prerender-sources.mjs';
+import { PAGES } from './prerender-sources.mjs';
 
 const OUT_DIR = path.resolve(process.cwd(), 'prerendered');
 const MANIFEST_PATH = path.join(OUT_DIR, 'manifest.json');
@@ -34,14 +34,14 @@ if (!fs.existsSync(MANIFEST_PATH)) {
 const manifest = JSON.parse(fs.readFileSync(MANIFEST_PATH, 'utf8'));
 const stale = [];
 
-for (const [fileName, sources] of Object.entries(PAGE_SOURCES)) {
-  if (!fs.existsSync(path.join(OUT_DIR, fileName))) {
-    stale.push(`${fileName} — snapshot file itself is missing`);
+for (const { snapshot, sources } of Object.values(PAGES)) {
+  if (!fs.existsSync(path.join(OUT_DIR, snapshot))) {
+    stale.push(`${snapshot} — snapshot file itself is missing`);
     continue;
   }
   const currentHash = hashSources(sources);
-  if (manifest[fileName] !== currentHash) {
-    stale.push(`${fileName} (source: ${sources[0]})`);
+  if (manifest[snapshot] !== currentHash) {
+    stale.push(`${snapshot} (source: ${sources[0]})`);
   }
 }
 
