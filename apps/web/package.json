@@ -5,7 +5,7 @@
   "private": true,
   "scripts": {
     "dev": "vite --host :: --port 3000",
-    "build": "vite build && node scripts/apply-prerendered.mjs",
+    "build": "node scripts/check-prerendered-fresh.mjs && vite build && node scripts/apply-prerendered.mjs",
     "prerender": "node scripts/generate-prerendered.mjs",
     "start": "vite preview --host :: --port 3000",
     "lint": "eslint . --quiet",
