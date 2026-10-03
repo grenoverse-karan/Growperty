@@ -80,7 +80,7 @@ async function main() {
       });
     });
 
-    const html = '<!DOCTYPE html>\n' + (await page.content());
+    const html = await page.content(); // already includes <!DOCTYPE html>
 
     const outPath = route === '/'
       ? path.join(OUT_DIR, 'index.html')
