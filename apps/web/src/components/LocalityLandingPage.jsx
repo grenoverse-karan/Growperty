@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge.jsx';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion.jsx';
 import apiServerClient from '@/lib/apiServerClient.js';
 import { LOCALITY_PAGES } from '@/lib/localityPages.js';
+import { SITE_URL } from '@/lib/siteUrl.js';
 
 /**
  * Shared template for dedicated SEO landing pages (one per high-intent
@@ -67,8 +68,8 @@ export default function LocalityLandingPage({
   const mapsUrl = mapQuery ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapQuery)}` : null;
   const mapEmbedUrl = mapQuery ? `https://maps.google.com/maps?q=${encodeURIComponent(mapQuery)}&output=embed` : null;
 
-  const pageUrl = canonicalPath ? `https://growperty.com${canonicalPath}` : undefined;
-  const ogImage = 'https://growperty.com/growperty-logo.png';
+  const pageUrl = canonicalPath ? `${SITE_URL}${canonicalPath}` : undefined;
+  const ogImage = `${SITE_URL}/growperty-logo.png`;
 
   const faqJsonLd = faqs.length ? {
     '@context': 'https://schema.org',
@@ -84,7 +85,7 @@ export default function LocalityLandingPage({
     '@context': 'https://schema.org',
     '@type': 'BreadcrumbList',
     itemListElement: [
-      { '@type': 'ListItem', position: 1, name: 'Home', item: 'https://growperty.com/' },
+      { '@type': 'ListItem', position: 1, name: 'Home', item: `${SITE_URL}/` },
       { '@type': 'ListItem', position: 2, name: title, item: pageUrl },
     ],
   } : null;

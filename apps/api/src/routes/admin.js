@@ -44,7 +44,7 @@ import { connectMongoDB } from '../utils/mongodb.js';
 import { sendTemplateMessage } from '../utils/whatsappTemplates.js';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret';
-const APP_URL = process.env.APP_URL || 'https://growperty.com';
+const APP_URL = process.env.APP_URL || 'https://www.growperty.com';
 
 const router = express.Router();
 

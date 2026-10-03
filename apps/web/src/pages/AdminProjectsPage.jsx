@@ -15,6 +15,7 @@ import { Label } from '@/components/ui/label';
 import apiServerClient from '@/lib/apiServerClient.js';
 import { useAdminAuth } from '@/contexts/AdminAuthContext.jsx';
 import { formatIndianPrice } from '@/hooks/useProperties.js';
+import { SITE_URL } from '@/lib/siteUrl.js';
 
 // ── Colour palette (matches AdminDashboard / AdminPropertiesPage) ──
 const C = {
@@ -135,7 +136,7 @@ const flattenPricing = (propertyTypePricing) => {
   return rows;
 };
 
-const PUBLIC_SITE_URL = import.meta.env.DEV ? 'http://localhost:3000' : 'https://www.growperty.com';
+const PUBLIC_SITE_URL = import.meta.env.DEV ? 'http://localhost:3000' : SITE_URL;
 
 function groupByDate(items) {
   const map = {};

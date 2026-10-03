@@ -6,6 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Textarea } from '@/components/ui/textarea';
 import { MapPin, CheckCircle, XCircle, Edit, Trash2, Image as ImageIcon, MessageCircle, Phone } from 'lucide-react';
 import { formatIndianPrice } from '@/hooks/useProperties.js';
+import { SITE_URL } from '@/lib/siteUrl.js';
 
 const AdminPropertyCard = ({ property, onApprove, onReject, onDelete }) => {
   const [isRejectModalOpen, setIsRejectModalOpen] = useState(false);
@@ -23,7 +24,7 @@ const AdminPropertyCard = ({ property, onApprove, onReject, onDelete }) => {
     rejected: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
   };
 
-  const whatsappMessage = `Hi, I'm interested in your property: ${property.title} - ${formatIndianPrice(property.price)} - ${property.location}. View details: https://growperty.com/properties/${property.id}`;
+  const whatsappMessage = `Hi, I'm interested in your property: ${property.title} - ${formatIndianPrice(property.price)} - ${property.location}. View details: ${SITE_URL}/properties/${property.id}`;
   const whatsappUrl = `https://wa.me/${property.ownerPhone?.replace(/\D/g, '')}?text=${encodeURIComponent(whatsappMessage)}`;
 
   return (

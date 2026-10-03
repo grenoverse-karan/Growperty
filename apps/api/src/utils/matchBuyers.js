@@ -43,7 +43,7 @@ export async function notifyMatchingBuyers(property) {
     }).lean();
 
     const propertyPrice = Number(property.totalPrice || property.price || 0);
-    const listingUrl = `https://growperty.com/property/${property._id}`;
+    const listingUrl = `https://www.growperty.com/property/${property._id}`;
     const propertyArea = property.sector || property.landmark || '-';
     const propertySize = property.bhk ? `${property.bhk} BHK` : (property.totalArea ? `${property.totalArea} ${property.areaUnit || ''}`.trim() : '-');
 

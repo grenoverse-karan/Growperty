@@ -6,22 +6,22 @@
 
 Growperty is a real estate marketplace focused on Greater Noida and surrounding regions. It connects property buyers, sellers, and channel partners directly — no broker fees on buyer side.
 
-- Platform URL: https://growperty.com
+- Platform URL: https://www.growperty.com
 - Company: Grenoverse Multi Ventures LLP
-- Contact: https://growperty.com/contact
+- Contact: https://www.growperty.com/contact
 
 ## Key Sections
 
-- [All Properties](https://growperty.com/properties) — Browse approved listings filtered by BHK, type, price, sector
-- [Fast Track](https://growperty.com/fast-track) — Shortlisted premium properties, quick decision listings
-- [Projects](https://growperty.com/projects) — New launch and under-construction projects
-- [Post Requirement](https://growperty.com/post-requirement) — Buyers describe what they need; get matched listings via WhatsApp
-- [List Property](https://growperty.com/list-property) — Sellers submit their property; reviewed and published within 24 hours
-- [Become Channel Partner](https://growperty.com/become-channel-partner) — Real estate agents join as channel partners
-- [Area Guide — Greater Noida](https://growperty.com/area-guide/greater-noida) — Sector-level breakdown of localities, connectivity, price trends
-- [Area Guide — YEIDA](https://growperty.com/area-guide/yeida)
-- [Blog](https://growperty.com/blog)
-- [FAQ](https://growperty.com/faq)
+- [All Properties](https://www.growperty.com/properties) — Browse approved listings filtered by BHK, type, price, sector
+- [Fast Track](https://www.growperty.com/fast-track) — Shortlisted premium properties, quick decision listings
+- [Projects](https://www.growperty.com/projects) — New launch and under-construction projects
+- [Post Requirement](https://www.growperty.com/post-requirement) — Buyers describe what they need; get matched listings via WhatsApp
+- [List Property](https://www.growperty.com/list-property) — Sellers submit their property; reviewed and published within 24 hours
+- [Become Channel Partner](https://www.growperty.com/become-channel-partner) — Real estate agents join as channel partners
+- [Area Guide — Greater Noida](https://www.growperty.com/area-guide/greater-noida) — Sector-level breakdown of localities, connectivity, price trends
+- [Area Guide — YEIDA](https://www.growperty.com/area-guide/yeida)
+- [Blog](https://www.growperty.com/blog)
+- [FAQ](https://www.growperty.com/faq)
 
 ## Property Types Supported
 
@@ -43,11 +43,11 @@ Currently live: Greater Noida (Alpha, Beta, Gamma, Delta, Zeta, Eta sectors, Kno
 ## Data / API
 
 - Property listings are publicly viewable at `/property/:id`
-- Sitemap: https://growperty.com/sitemap.xml
-- Robots: https://growperty.com/robots.txt
+- Sitemap: https://www.growperty.com/sitemap.xml
+- Robots: https://www.growperty.com/robots.txt
 
 ## Legal
 
-- [Terms & Conditions](https://growperty.com/terms)
-- [Privacy Policy](https://growperty.com/privacy)
-- [RERA Disclaimer](https://growperty.com/rera-disclaimer)
+- [Terms & Conditions](https://www.growperty.com/terms)
+- [Privacy Policy](https://www.growperty.com/privacy)
+- [RERA Disclaimer](https://www.growperty.com/rera-disclaimer)

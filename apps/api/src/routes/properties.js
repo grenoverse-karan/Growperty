@@ -98,7 +98,7 @@ router.post('/', requireAuth, async (req, res) => {
         logger.info('[WA] under_review sent', { id: saved._id, phone: saved.mobileNumber });
       } else if (saved.status === 'approved') {
         // Admin-listed property — goes live directly
-        const propertyUrl = `https://growperty.com/property/${saved._id}`;
+        const propertyUrl = `https://www.growperty.com/property/${saved._id}`;
         await sendTemplateMessage(saved.mobileNumber, 'property_approved', { userName: ownerName, propertyUrl });
         logger.info('[WA] property_approved sent (admin listing)', { id: saved._id, phone: saved.mobileNumber });
         notifyMatchingBuyers(saved);
@@ -331,7 +331,7 @@ router.put('/:id', async (req, res) => {
     if (updated.mobileNumber) {
       const ownerName = updated.name || 'there';
       if (data.status === 'approved') {
-        const propertyUrl = `https://growperty.com/property/${updated._id}`;
+        const propertyUrl = `https://www.growperty.com/property/${updated._id}`;
         console.log('🟡 [property_approved] Sending WA to:', updated.mobileNumber);
         const waRes = await sendTemplateMessage(updated.mobileNumber, 'property_approved', { userName: ownerName, propertyUrl });
         console.log('🟢 [property_approved] WA result:', JSON.stringify(waRes));

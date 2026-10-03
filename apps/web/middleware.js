@@ -2,6 +2,8 @@
 // pages. Crawlers (WhatsApp, Facebook, Twitter…) read only the first HTML
 // response and never run the SPA's JS, so for them this Vercel middleware
 // returns a tiny page with Open Graph tags; everyone else gets the normal SPA.
+import { SITE_URL } from './src/lib/siteUrl.js';
+
 const BOT_UA = /WhatsApp|facebookexternalhit|Facebot|Twitterbot|LinkedInBot|TelegramBot|Slackbot|Discordbot|Pinterest|Googlebot|bingbot|Applebot|Iframely|preview|crawler/i;
 
 // Narrower than BOT_UA — social link-preview bots only, deliberately
@@ -13,7 +15,7 @@ const BOT_UA = /WhatsApp|facebookexternalhit|Facebot|Twitterbot|LinkedInBot|Tele
 const SOCIAL_PREVIEW_UA = /WhatsApp|facebookexternalhit|Facebot|Twitterbot|LinkedInBot|TelegramBot|Slackbot|Discordbot|Pinterest|Iframely/i;
 
 const API = 'https://growperty-api.vercel.app';
-const SITE = 'https://www.growperty.com';
+const SITE = SITE_URL;
 const FALLBACK_IMAGE = `${SITE}/growperty-logo.png`;
 // A cold API start takes 2–5s; crawlers wait longer than that, so allow
 // time for it — past this we fall back to the SPA's generic site preview.

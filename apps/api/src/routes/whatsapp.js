@@ -427,7 +427,7 @@ async function handleButtonPress(fromPhone, buttonText, payload) {
     const property = await Property.findById(visitRequest.propertyId).lean();
     const buyerName  = visitRequest.visitorName || 'there';
     const buyerPhone = visitRequest.visitorPhone;
-    const listingUrl = `https://growperty.com/property/${visitRequest.propertyId}`;
+    const listingUrl = `https://www.growperty.com/property/${visitRequest.propertyId}`;
 
     logger.info('[WA] Confirm visit', {
       sellerPhone: fromPhone, buyerPhone,
