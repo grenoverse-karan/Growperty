@@ -12,7 +12,6 @@ import sectorMaps from '@/data/sectorMaps.js';
 const ZONES = [
   { id: 'greater-noida', label: 'Greater Noida', maps: sectorMaps },
   { id: 'yeida', label: 'Yeida (Yamuna Expressway)', maps: [] },
-  { id: 'noida', label: 'Noida', maps: [] },
 ];
 
 const MapGrid = ({ maps, onPreview }) => {
@@ -115,7 +114,7 @@ const DownloadSectorMapsPage = () => {
                 Download Sector Maps
               </h1>
               <p className="text-lg text-slate-500 dark:text-slate-400 font-medium max-w-2xl mx-auto">
-                Layout plans for Greater Noida, Noida, and Yeida (Yamuna Expressway) sectors. Search by name, view, or download any map individually.
+                Layout plans for Greater Noida and Yeida (Yamuna Expressway) sectors. Search by name, view, or download any map individually.
               </p>
 
               <div className="relative max-w-md mx-auto mt-8">

@@ -1,5 +1,6 @@
 import express from 'express';
 import propertiesRouter from './properties.js';
+import projectsRouter from './projects.js';
 import adminRouter from './admin.js';
 import whatsappRouter from './whatsapp.js';
 import authRouter from './auth.js';
@@ -12,6 +13,7 @@ import blogRouter from './blog.js';
 import cpRouter from './cp.js';
 import cpVisitorsRouter from './cpVisitors.js';
 import aiRouter from './ai.js';
+import ogRouter from './og.js';
 
 export default function routes() {
   const router = express.Router();
@@ -23,6 +25,7 @@ export default function routes() {
   router.use('/auth', authRouter);
   router.use('/users', usersRouter);
   router.use('/properties', propertiesRouter);
+  router.use('/projects', projectsRouter);
   router.use('/admin', adminRouter);
   router.use('/cp', cpRouter);
   router.use('/cp-visitors', cpVisitorsRouter);
@@ -33,6 +36,7 @@ export default function routes() {
   router.use('/analytics', analyticsRouter);
   router.use('/blog', blogRouter);
   router.use('/ai', aiRouter);
+  router.use('/og', ogRouter);
 
   return router;
 }

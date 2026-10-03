@@ -24,7 +24,7 @@ const PROPERTY_TYPES = [
 ];
 
 const BHK_OPTIONS = ['1 BHK', '2 BHK', '3 BHK', '4 BHK', '5+ BHK'];
-const CITIES = ['Greater Noida', 'Noida', 'YEIDA/Yamuna Expressway'];
+const CITIES = ['Greater Noida', 'YEIDA/Yamuna Expressway'];
 const TIMELINES = ['Immediately', 'Within 1 Month', 'Within 3 Months', 'Within 6 Months', 'Just Exploring'];
 
 const AddRequirementPage = () => {
@@ -146,7 +146,7 @@ const AddRequirementPage = () => {
     <>
       <Helmet>
         <title>Tell Us What You're Looking For | Growperty.com</title>
-        <meta name="description" content="Share your property requirement and our dedicated team will find the best matching properties for you in Noida, Greater Noida, and YEIDA." />
+        <meta name="description" content="Share your property requirement and our dedicated team will find the best matching properties for you in Greater Noida and YEIDA." />
       </Helmet>
 
       <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-background">
@@ -330,7 +330,7 @@ const AddRequirementPage = () => {
                             <Label htmlFor="sector" className="text-foreground font-semibold">Preferred Sector / Area <span className="text-muted-foreground font-normal">(Optional)</span></Label>
                             <Input 
                               id="sector" 
-                              placeholder="e.g., Sector 150, Noida Extension" 
+                              placeholder="e.g., Alpha 1, Phi 4, Sector 22D" 
                               className="h-12 rounded-xl text-foreground bg-background"
                               value={formData.sector}
                               onChange={(e) => handleInputChange('sector', e.target.value)}

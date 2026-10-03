@@ -17,6 +17,11 @@ function setCache(key, data) {
   _cache[key] = { data, ts: Date.now() };
 }
 
+// Converts an area value to Sq.ft so min/max size filters compare correctly
+// across listings stored in different area units.
+const SQFT_PER_UNIT = { 'Sq.ft': 1, 'Sq.yd': 9, 'Sq.m': 10.7639 };
+const toSqFt = (value, unit) => Number(value) * (SQFT_PER_UNIT[unit] || 1);
+
 /**
  * Formats a price number using Indian numbering system
  * Examples: 500000 → '₹ 5,00,000', 5000000 → '₹ 50,00,000', 10000000 → '₹ 1,00,00,000'
@@ -93,6 +98,10 @@ export const useProperties = () => {
         }
       }
 
+      if (filters.sectors && filters.sectors.length > 0) {
+        if (!filters.sectors.includes(property.sector)) return false;
+      }
+
       if (filters.type && filters.type !== 'all') {
         // Residential/Industrial Plot and Land are all propertyType "Plot/Land" —
         // distinguished by propertySubType, not propertyType.
@@ -116,13 +125,16 @@ export const useProperties = () => {
         }
       }
 
-      if (filters.minSize && Number(property.totalArea) < Number(filters.minSize)) return false;
-      if (filters.maxSize && Number(property.totalArea) > Number(filters.maxSize)) return false;
+      if (filters.minSize || filters.maxSize) {
+        const areaSqFt = toSqFt(property.totalArea, property.areaUnit);
+        if (filters.minSize && areaSqFt < toSqFt(filters.minSize, filters.sizeUnit)) return false;
+        if (filters.maxSize && areaSqFt > toSqFt(filters.maxSize, filters.sizeUnit)) return false;
+      }
 
       if (filters.maxPrice && property.totalPrice > filters.maxPrice) return false;
 
       return true;
-    }).sort((a, b) => (a.status === 'sold') - (b.status === 'sold')); // sold listings sink to the end, newest-first order preserved otherwise
+    });
   }, [properties]);
 
   return { properties, isLoading, error, fetchProperties, filterProperties };

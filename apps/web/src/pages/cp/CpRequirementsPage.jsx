@@ -13,7 +13,7 @@ const C = {
   greenDark: '#059669',
 };
 
-const CITY_OPTIONS = ['Noida', 'Greater Noida', 'YEIDA'];
+const CITY_OPTIONS = ['Greater Noida', 'YEIDA'];
 const PROPERTY_TYPES = ['Flat/Apartment', 'Studio', 'House/Villa', 'Penthouse', 'Farm House', 'Plot/Land', 'Commercial'];
 const BHK_TYPES = ['Flat/Apartment', 'House/Villa', 'Penthouse', 'Farm House'];
 const BHK_OPTIONS = ['1 BHK', '2 BHK', '3 BHK', '4 BHK', '5+ BHK'];

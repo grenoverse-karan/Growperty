@@ -13,6 +13,36 @@
     <priority>1</priority>
   </url>
   <url>
+    <loc>https://growperty.com/property-near-noida-international-airport</loc>
+    <lastmod>2026-10-02</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <url>
+    <loc>https://growperty.com/plots-near-yamuna-expressway</loc>
+    <lastmod>2026-10-02</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <url>
+    <loc>https://growperty.com/flats-in-greater-noida</loc>
+    <lastmod>2026-10-02</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <url>
+    <loc>https://growperty.com/freehold-plots-greater-noida</loc>
+    <lastmod>2026-10-02</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <url>
+    <loc>https://growperty.com/commercial-property-greater-noida</loc>
+    <lastmod>2026-10-02</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <url>
     <loc>https://growperty.com/how-it-works</loc>
     <lastmod>2026-04-16</lastmod>
     <changefreq>daily</changefreq>
@@ -67,12 +97,6 @@
     <priority>1</priority>
   </url>
   <url>
-    <loc>https://growperty.com/area-guide/noida</loc>
-    <lastmod>2026-04-16</lastmod>
-    <changefreq>daily</changefreq>
-    <priority>1</priority>
-  </url>
-  <url>
     <loc>https://growperty.com/area-guide/yeida</loc>
     <lastmod>2026-04-16</lastmod>
     <changefreq>daily</changefreq>
@@ -86,12 +110,6 @@
   </url>
   <url>
     <loc>https://growperty.com/post-requirement</loc>
-    <lastmod>2026-04-16</lastmod>
-    <changefreq>daily</changefreq>
-    <priority>1</priority>
-  </url>
-  <url>
-    <loc>https://growperty.com/search</loc>
     <lastmod>2026-04-16</lastmod>
     <changefreq>daily</changefreq>
     <priority>1</priority>

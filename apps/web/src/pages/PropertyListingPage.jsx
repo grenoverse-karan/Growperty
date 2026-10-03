@@ -9,7 +9,7 @@ const PropertyListingPage = () => {
     <div className="min-h-screen flex flex-col bg-background">
       <Helmet>
         <title>List Your Property for Free | Growperty.com</title>
-        <meta name="description" content="List your property for free on Growperty.com. Reach thousands of potential buyers and tenants in Noida and Greater Noida." />
+        <meta name="description" content="List your property for free on Growperty.com. Reach thousands of potential buyers and tenants in Greater Noida and YEIDA." />
       </Helmet>
       
       <Header />

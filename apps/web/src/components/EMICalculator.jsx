@@ -8,29 +8,35 @@ function formatINR(n) {
   return '₹' + Math.round(n).toLocaleString('en-IN');
 }
 
+// Standard reducing-balance EMI — shared with the per-property calculator.
+export function calculateEmi(loanAmount, interestRate, tenureYears) {
+  const p = Number(loanAmount) || 0;
+  const r = (Number(interestRate) || 0) / 12 / 100;
+  const n = (Number(tenureYears) || 0) * 12;
+  if (p <= 0 || r <= 0 || n <= 0) {
+    return { emi: 0, totalInterest: 0, totalPayment: 0, principalPct: 100 };
+  }
+  const factor = Math.pow(1 + r, n);
+  const monthlyEmi = (p * r * factor) / (factor - 1);
+  const total = monthlyEmi * n;
+  const interest = total - p;
+  return {
+    emi: monthlyEmi,
+    totalInterest: interest,
+    totalPayment: total,
+    principalPct: total > 0 ? (p / total) * 100 : 100,
+  };
+}
+
 export default function EMICalculator() {
   const [loanAmount, setLoanAmount] = useState(5000000);
   const [interestRate, setInterestRate] = useState(8.5);
   const [tenureYears, setTenureYears] = useState(20);
 
-  const { emi, totalInterest, totalPayment, principalPct } = useMemo(() => {
-    const p = Number(loanAmount) || 0;
-    const r = (Number(interestRate) || 0) / 12 / 100;
-    const n = (Number(tenureYears) || 0) * 12;
-    if (p <= 0 || r <= 0 || n <= 0) {
-      return { emi: 0, totalInterest: 0, totalPayment: 0, principalPct: 100 };
-    }
-    const factor = Math.pow(1 + r, n);
-    const monthlyEmi = (p * r * factor) / (factor - 1);
-    const total = monthlyEmi * n;
-    const interest = total - p;
-    return {
-      emi: monthlyEmi,
-      totalInterest: interest,
-      totalPayment: total,
-      principalPct: total > 0 ? (p / total) * 100 : 100,
-    };
-  }, [loanAmount, interestRate, tenureYears]);
+  const { emi, totalInterest, totalPayment, principalPct } = useMemo(
+    () => calculateEmi(loanAmount, interestRate, tenureYears),
+    [loanAmount, interestRate, tenureYears]
+  );
 
   return (
     <section className="py-20 md:py-24 bg-slate-50 dark:bg-slate-900/20">

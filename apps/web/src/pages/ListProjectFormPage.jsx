@@ -9,7 +9,7 @@ const ListProjectFormPage = () => {
     <>
       <Helmet>
         <title>List Your Project - Growperty.com</title>
-        <meta name="description" content="List your residential or commercial project on Growperty.com and reach thousands of potential buyers in Noida, Greater Noida, and YEIDA." />
+        <meta name="description" content="List your residential or commercial project on Growperty.com and reach thousands of potential buyers in Greater Noida and YEIDA." />
       </Helmet>
 
       <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-background">

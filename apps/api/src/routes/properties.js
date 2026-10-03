@@ -7,6 +7,8 @@ import { verifyToken } from '../utils/jwt.js';
 import { sendTemplateMessage } from '../utils/whatsappTemplates.js';
 import { notifyMatchingBuyers } from '../utils/matchBuyers.js';
 import { generateThumbnail } from '../utils/imageThumbnail.js';
+import { moderateFreeTextFields } from '../utils/contactModeration.js';
+import { sanitizeConnectivity } from '../utils/connectivity.js';
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 2 * 1024 * 1024, files: 20 } });
 
@@ -70,8 +72,18 @@ router.post('/', requireAuth, async (req, res) => {
   try {
     validateRequiredFields(data, req.isAdmin);
 
+    const cleaned = await moderateFreeTextFields({
+      description: data.description,
+      currentAddress: data.currentAddress,
+      nearbyFamousPlace: data.nearbyFamousPlace,
+      offerTitle: data.offerTitle,
+      offerDetails: data.offerDetails,
+    });
+
     const property = new Property({
       ...data,
+      ...cleaned,
+      connectivity: sanitizeConnectivity(data.connectivity),
       status: data.listedBy === 'admin' ? (data.status || 'approved') : 'pending',
     });
 
@@ -115,12 +127,13 @@ router.post('/', requireAuth, async (req, res) => {
 // so MongoDB only returns the first image (thumbnail) — not all 16.
 const LIST_AGG_PROJECT = {
   propertyType: 1, propertySubType: 1, bhk: 1, rooms: 1, bathrooms: 1, balconies: 1,
-  city: 1, sector: 1, houseNo: 1, landmark: 1, towerBlock: 1,
+  city: 1, sector: 1, houseNo: 1, landmark: 1, towerBlock: 1, facingType: 1, nearbyFamousPlace: 1,
   totalPrice: 1, totalArea: 1, areaUnit: 1,
   name: 1, mobileNumber: 1, email: 1,
   ownerType: 1, status: 1, listedBy: 1,
   possessionStatus: 1, furnishingType: 1, saleType: 1,
   visitTimeType: 1, visitFixedSlots: 1, visitFlexibleSlots: 1,
+  offerTitle: 1, offerDetails: 1, offerValidTill: 1,
   createdAt: 1, updatedAt: 1, liveAt: 1,
   thumbnail: 1,
   // Fallback for properties uploaded before thumbnails existed — dropped
@@ -142,8 +155,20 @@ router.get('/', async (req, res) => {
     if (req.query.propertyType) filter.propertyType = req.query.propertyType;
     if (req.query.bhk)   filter.bhk = req.query.bhk;
     if (req.query.q) {
-      const regex = new RegExp(req.query.q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
-      filter.$or = [{ sector: regex }, { city: regex }, { landmark: regex }, { propertyType: regex }];
+      const q = req.query.q.trim();
+      const escape = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const regex = new RegExp(escape(q), 'i');
+      const orClauses = [{ sector: regex }, { city: regex }, { landmark: regex }, { propertyType: regex }];
+
+      // bhk is stored as "1 BHK" / "5+ BHK" (always a space before "BHK"),
+      // so a query like "1bhk" or "1 bhk" never substring-matches it above
+      // — match on the number instead so any spacing/casing works.
+      const bhkMatch = q.match(/^(\d+\+?)\s*bhk$/i);
+      if (bhkMatch) {
+        orClauses.push({ bhk: new RegExp(`^${escape(bhkMatch[1])}\\s*bhk`, 'i') });
+      }
+
+      filter.$or = orClauses;
     }
 
     let docs;
@@ -191,7 +216,10 @@ router.get('/', async (req, res) => {
     const requestedStatuses = req.query.status ? req.query.status.split(',').map(s => s.trim()) : [];
     const isPubliclySafe = requestedStatuses.length === 0 || requestedStatuses.every(s => ['approved', 'sold'].includes(s));
     if (isPubliclySafe) {
-      res.set('Cache-Control', 'public, max-age=300, stale-while-revalidate=600');
+      // s-maxage caches at the CDN only; browsers get max-age=0 so they
+      // revalidate every load (cheap 304 via ETag) and see edits — e.g. a
+      // newly added offer — instead of a 5-min-stale local copy.
+      res.set('Cache-Control', 'public, max-age=0, s-maxage=300, stale-while-revalidate=600');
     } else {
       res.set('Cache-Control', 'no-store');
     }
@@ -276,6 +304,18 @@ router.put('/:id', async (req, res) => {
     delete data.createdAt;
     delete data.updatedAt;
 
+    if (data.connectivity !== undefined) data.connectivity = sanitizeConnectivity(data.connectivity);
+
+    const textFields = {};
+    if (data.description !== undefined) textFields.description = data.description;
+    if (data.currentAddress !== undefined) textFields.currentAddress = data.currentAddress;
+    if (data.nearbyFamousPlace !== undefined) textFields.nearbyFamousPlace = data.nearbyFamousPlace;
+    if (data.offerTitle !== undefined) textFields.offerTitle = data.offerTitle;
+    if (data.offerDetails !== undefined) textFields.offerDetails = data.offerDetails;
+    if (Object.keys(textFields).length > 0) {
+      Object.assign(data, await moderateFreeTextFields(textFields));
+    }
+
     const updated = await Property.findByIdAndUpdate(
       req.params.id,
       { $set: data },
@@ -349,6 +389,44 @@ router.post('/:id/images', requireAuth, upload.array('images', 20), async (req, 
     return res.status(200).json({ success: true, imageCount: updated.images.length });
   } catch (err) {
     logger.error('POST /api/properties/:id/images error', { message: err.message });
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// =====================
+// PUT /:id/images/arrange — Keep/reorder/delete existing images.
+// Body: { order: [indexes into the current images array] }. The result is
+// exactly those images in that order; anything left out is deleted.
+// images[0] is the listing's display (cover) image, so the list thumbnail is
+// regenerated from it. Called by the edit form after any new uploads.
+// =====================
+router.put('/:id/images/arrange', requireAuth, async (req, res) => {
+  try {
+    const { order } = req.body || {};
+    if (!Array.isArray(order) || order.some(i => !Number.isInteger(i))) {
+      return res.status(400).json({ success: false, message: 'order must be an array of image indexes' });
+    }
+
+    const existing = await Property.findById(req.params.id, { images: 1, owner_id: 1 }).lean();
+    if (!existing) return res.status(404).json({ success: false, message: 'Property not found' });
+    if (!req.isAdmin && existing.owner_id !== req.userId) {
+      return res.status(403).json({ success: false, message: 'Not allowed to edit this property' });
+    }
+
+    const current = existing.images || [];
+    if (order.some(i => i < 0 || i >= current.length) || new Set(order).size !== order.length) {
+      return res.status(400).json({ success: false, message: 'Invalid image order' });
+    }
+
+    const images = order.map(i => current[i]);
+    const thumbnail = images.length ? await generateThumbnail(images[0]) : null;
+    const update = thumbnail ? { $set: { images, thumbnail } } : { $set: { images }, $unset: { thumbnail: 1 } };
+
+    await Property.findByIdAndUpdate(req.params.id, update);
+    logger.info('Images arranged', { id: req.params.id, kept: images.length, removed: current.length - images.length });
+    return res.status(200).json({ success: true, imageCount: images.length });
+  } catch (err) {
+    logger.error('PUT /api/properties/:id/images/arrange error', { message: err.message });
     return res.status(500).json({ success: false, message: err.message });
   }
 });

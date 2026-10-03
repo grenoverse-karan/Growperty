@@ -16,8 +16,8 @@ const ListPropertyPage = () => {
   return (
     <>
       <Helmet>
-        <title>List Your Property or Project in Delhi NCR - Growperty.com</title>
-        <meta name="description" content="List your property or new project on Growperty.com and reach thousands of potential buyers in Noida, Greater Noida, and YEIDA. Simple, fast, and effective." />
+        <title>List Your Property or Project in Greater Noida & YEIDA - Growperty.com</title>
+        <meta name="description" content="List your property or new project on Growperty.com and reach thousands of potential buyers in Greater Noida and YEIDA. Simple, fast, and effective." />
       </Helmet>
 
       <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-background">

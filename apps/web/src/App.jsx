@@ -35,6 +35,13 @@ const SitemapPage           = lazy(() => import('@/pages/SitemapPage.jsx'));
 const DownloadSectorMapsPage = lazy(() => import('@/pages/DownloadSectorMapsPage.jsx'));
 const MasterPlansPage        = lazy(() => import('@/pages/MasterPlansPage.jsx'));
 
+// SEO landing pages — one per high-intent keyword
+const PropertyNearNoidaAirportPage      = lazy(() => import('@/pages/PropertyNearNoidaAirportPage.jsx'));
+const PlotsNearYamunaExpresswayPage     = lazy(() => import('@/pages/PlotsNearYamunaExpresswayPage.jsx'));
+const FlatsInGreaterNoidaPage           = lazy(() => import('@/pages/FlatsInGreaterNoidaPage.jsx'));
+const FreeholdPlotsGreaterNoidaPage     = lazy(() => import('@/pages/FreeholdPlotsGreaterNoidaPage.jsx'));
+const CommercialPropertyGreaterNoidaPage = lazy(() => import('@/pages/CommercialPropertyGreaterNoidaPage.jsx'));
+
 // Area guides
 const GreaterNoidaAreaGuide = lazy(() => import('@/components/GreaterNoidaAreaGuide.jsx'));
 const NoidaAreaGuide        = lazy(() => import('@/components/NoidaAreaGuide.jsx'));
@@ -95,10 +102,12 @@ const AdminResetPasswordPage       = lazy(() => import('@/pages/AdminResetPasswo
 const AdminSettingsPage            = lazy(() => import('@/pages/AdminSettingsPage.jsx'));
 const AdminApprovalsPage           = lazy(() => import('@/pages/AdminApprovalsPage.jsx'));
 const AdminPropertiesPage          = lazy(() => import('@/pages/AdminPropertiesPage.jsx'));
+const AdminProjectsPage            = lazy(() => import('@/pages/AdminProjectsPage.jsx'));
 const AdminListPropertyPage        = lazy(() => import('@/pages/AdminListPropertyPage.jsx'));
 const AdminListPropertyFormPage    = lazy(() => import('@/pages/AdminListPropertyFormPage.jsx'));
 const AdminListProjectFormPage     = lazy(() => import('@/pages/AdminListProjectFormPage.jsx'));
 const AdminEditPropertyPage        = lazy(() => import('@/pages/AdminEditPropertyPage.jsx'));
+const AdminEditProjectPage         = lazy(() => import('@/pages/AdminEditProjectPage.jsx'));
 const AdminUsersPage               = lazy(() => import('@/pages/AdminUsersPage.jsx'));
 const AdminComingSoonPage          = lazy(() => import('@/pages/AdminComingSoonPage.jsx'));
 const AdminCampaignsPage           = lazy(() => import('@/pages/AdminCampaignsPage.jsx'));
@@ -163,7 +172,7 @@ function App() {
                 <Route path="/properties"                element={<PropertiesPage />} />
                 <Route path="/property/:id"              element={<PropertyDetailsPage />} />
                 <Route path="/projects"                  element={<ProjectsPage />} />
-                <Route path="/projects/:projectName"     element={<ProjectDetailPage />} />
+                <Route path="/project/:id"               element={<ProjectDetailPage />} />
                 <Route path="/contact"                   element={<ContactPage />} />
                 <Route path="/invest"                    element={<InvestorPage />} />
                 <Route path="/area-guide/greater-noida"  element={<GreaterNoidaAreaGuide />} />
@@ -176,6 +185,13 @@ function App() {
                 <Route path="/sitemap"                   element={<SitemapPage />} />
                 <Route path="/download-sector-maps"      element={<DownloadSectorMapsPage />} />
                 <Route path="/master-plans"               element={<MasterPlansPage />} />
+
+                {/* SEO landing pages */}
+                <Route path="/property-near-noida-international-airport" element={<PropertyNearNoidaAirportPage />} />
+                <Route path="/plots-near-yamuna-expressway"               element={<PlotsNearYamunaExpresswayPage />} />
+                <Route path="/flats-in-greater-noida"                     element={<FlatsInGreaterNoidaPage />} />
+                <Route path="/freehold-plots-greater-noida"               element={<FreeholdPlotsGreaterNoidaPage />} />
+                <Route path="/commercial-property-greater-noida"          element={<CommercialPropertyGreaterNoidaPage />} />
 
                 {/* ── Legal ── */}
                 <Route path="/terms-and-conditions"      element={<TermsAndConditionsPage />} />
@@ -235,6 +251,7 @@ function App() {
                 {/* ── Admin ── */}
                 <Route path="/admin"                     element={<AdminProtectedRoute><AdminDashboard /></AdminProtectedRoute>} />
                 <Route path="/admin/properties"          element={<AdminProtectedRoute><AdminPropertiesPage /></AdminProtectedRoute>} />
+                <Route path="/admin/projects"             element={<AdminProtectedRoute><AdminProjectsPage /></AdminProtectedRoute>} />
                 <Route path="/admin/properties/:id"      element={<AdminProtectedRoute><AdminPropertyDetailsPage /></AdminProtectedRoute>} />
                 <Route path="/admin/devices"             element={<AdminProtectedRoute><AdminDeviceManagementPage /></AdminProtectedRoute>} />
                 <Route path="/admin/settings"            element={<AdminProtectedRoute><AdminSettingsPage /></AdminProtectedRoute>} />
@@ -243,6 +260,7 @@ function App() {
                 <Route path="/admin/list-property/property" element={<AdminProtectedRoute><AdminListPropertyFormPage /></AdminProtectedRoute>} />
                 <Route path="/admin/list-property/project"  element={<AdminProtectedRoute><AdminListProjectFormPage /></AdminProtectedRoute>} />
                 <Route path="/admin/edit-property/:id"   element={<AdminProtectedRoute><AdminEditPropertyPage /></AdminProtectedRoute>} />
+                <Route path="/admin/edit-project/:id"    element={<AdminProtectedRoute><AdminEditProjectPage /></AdminProtectedRoute>} />
                 <Route path="/admin/users"               element={<AdminProtectedRoute><AdminUsersPage /></AdminProtectedRoute>} />
                 <Route path="/admin/campaigns"           element={<AdminProtectedRoute><AdminCampaignsPage /></AdminProtectedRoute>} />
                 <Route path="/admin/visits"              element={<AdminProtectedRoute><AdminVisitsPage /></AdminProtectedRoute>} />

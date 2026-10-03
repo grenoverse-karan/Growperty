@@ -1,120 +1,35 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Helmet } from 'react-helmet';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { MapPin, Car, Dumbbell, Waves, Trees, Shield, Zap, Home, Forklift as Lift, Building2, Search, ArrowRight, CheckCircle } from 'lucide-react';
+import { Building2, Search, CheckCircle } from 'lucide-react';
 import Header from '@/components/Header.jsx';
 import Footer from '@/components/Footer.jsx';
 import { Button } from '@/components/ui/button.jsx';
 import { Input } from '@/components/ui/input.jsx';
-import { Badge } from '@/components/ui/badge.jsx';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select.jsx';
+import { Skeleton } from '@/components/ui/skeleton.jsx';
+import apiServerClient from '@/lib/apiServerClient.js';
+import { flattenPricing } from '@/lib/projectPricing.js';
+import { PROJECT_CITY_LABELS } from '@/lib/projectDisplay.js';
+import ProjectCard from '@/components/ProjectCard.jsx';
+import { openWhatsApp } from '@/lib/whatsappLink.js';
 
-const projectsData = [
-  {
-    id: 1,
-    name: 'Greenwood Heights',
-    builder: 'ABC Developers',
-    location: 'Sector 1, Greater Noida',
-    type: '2-3 BHK Apartments',
-    priceRange: '₹45L - ₹85L',
-    status: 'READY TO MOVE',
-    image: 'https://images.unsplash.com/photo-1515263487990-61b07816b324',
-    amenities: [
-      { icon: Car, label: 'Parking' },
-      { icon: Dumbbell, label: 'Gym' },
-      { icon: Waves, label: 'Pool' }
-    ]
-  },
-  {
-    id: 2,
-    name: 'Royal Villas',
-    builder: 'XYZ Builders',
-    location: 'Sector Omega 1, Greater Noida',
-    type: '4-5 BHK Villas',
-    priceRange: '₹1.5Cr - ₹3Cr',
-    status: 'UNDER CONSTRUCTION',
-    image: 'https://images.unsplash.com/photo-1676615026612-8d7642335476',
-    amenities: [
-      { icon: Car, label: 'Parking' },
-      { icon: Trees, label: 'Garden' },
-      { icon: Shield, label: 'Security' }
-    ]
-  },
-  {
-    id: 3,
-    name: 'YEIDA Plot Scheme',
-    builder: 'Authority Plots',
-    location: 'Sector 18, Yamuna Expressway',
-    type: 'Residential Plots',
-    priceRange: '₹25L - ₹80L',
-    status: 'NEW LAUNCH',
-    image: 'https://images.unsplash.com/photo-1693251097322-389b34006058',
-    amenities: [
-      { icon: MapPin, label: 'Road Access' },
-      { icon: Zap, label: 'Utilities' },
-      { icon: Shield, label: 'Gated' }
-    ]
-  },
-  {
-    id: 4,
-    name: 'Tech Park Residency',
-    builder: 'PQR Group',
-    location: 'Sector 62, Noida',
-    type: '2-3 BHK Apartments',
-    priceRange: '₹60L - ₹1.1Cr',
-    status: 'UNDER CONSTRUCTION',
-    image: 'https://images.unsplash.com/photo-1703176309340-68f50990c6c5',
-    amenities: [
-      { icon: Car, label: 'Parking' },
-      { icon: Dumbbell, label: 'Gym' },
-      { icon: Zap, label: 'Co-working' }
-    ]
-  },
-  {
-    id: 5,
-    name: 'Pearl County',
-    builder: 'LMN Builders',
-    location: 'Sector Chi 4, Greater Noida',
-    type: '3-4 BHK Apartments',
-    priceRange: '₹75L - ₹1.4Cr',
-    status: 'READY TO MOVE',
-    image: 'https://images.unsplash.com/photo-1619842799356-06c1c91c9d18',
-    amenities: [
-      { icon: Car, label: 'Parking' },
-      { icon: Waves, label: 'Pool' },
-      { icon: Home, label: 'Clubhouse' }
-    ]
-  },
-  {
-    id: 6,
-    name: 'Business Square',
-    builder: 'RST Developers',
-    location: 'Sector Alpha 2, Greater Noida',
-    type: 'Commercial Shops & Offices',
-    priceRange: '₹30L - ₹2Cr',
-    status: 'NEW LAUNCH',
-    image: 'https://images.unsplash.com/photo-1602385602836-beb9f3d8099f',
-    amenities: [
-      { icon: Car, label: 'Parking' },
-      { icon: Shield, label: 'Security' },
-      { icon: Lift, label: 'Lift' }
-    ]
+const matchesFilters = (p, f) => {
+  if (f.city && p.city !== f.city) return false;
+  if (f.type === 'Plots') {
+    if (!(p.propertyTypes || []).includes('Plot/Land')) return false;
+  } else if (f.type && p.projectType !== f.type && p.projectType !== 'Mixed Use') {
+    return false;
   }
-];
-
-const getStatusColor = (status) => {
-  switch (status) {
-    case 'READY TO MOVE':
-      return 'bg-emerald-500 hover:bg-emerald-600 text-white';
-    case 'UNDER CONSTRUCTION':
-      return 'bg-amber-500 hover:bg-amber-600 text-white';
-    case 'NEW LAUNCH':
-      return 'bg-blue-500 hover:bg-blue-600 text-white';
-    default:
-      return 'bg-slate-500 hover:bg-slate-600 text-white';
-  }
+  if (f.status && p.projectStatus !== f.status) return false;
+  // Budget: keep projects whose price range overlaps the requested one.
+  const { range } = flattenPricing(p.propertyTypePricing);
+  const min = Number(f.minBudget) || 0;
+  const max = Number(f.maxBudget) || Infinity;
+  if ((min || max !== Infinity) && (!range || range.max < min || range.min > max)) return false;
+  return true;
 };
 
 const ProjectsPage = () => {
@@ -125,12 +40,36 @@ const ProjectsPage = () => {
     minBudget: '',
     maxBudget: ''
   });
+  const [projects, setProjects] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+
+  // Only real, admin-approved listings — newest first (API default sort).
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await apiServerClient.fetch('/projects?status=approved&limit=100');
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (!cancelled) setProjects(Array.isArray(data.items) ? data.items : []);
+      } catch {
+        if (!cancelled) setLoadError(true);
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  const visibleProjects = useMemo(() => projects.filter(p => matchesFilters(p, filters)), [projects, filters]);
+  const hasActiveFilters = Object.values(filters).some(Boolean);
 
   return (
     <>
       <Helmet>
-        <title>Top Property Projects in Noida & Greater Noida | Growperty</title>
-        <meta name="description" content="Discover verified residential and commercial projects across Greater Noida, Noida, and YEIDA. Find ready to move, under construction, and new launch properties." />
+        <title>Top Property Projects in Greater Noida & YEIDA | Growperty</title>
+        <meta name="description" content="Discover verified residential and commercial projects across Greater Noida and YEIDA. Find ready to move, under construction, and new launch properties." />
       </Helmet>
 
       <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-background">
@@ -156,7 +95,7 @@ const ProjectsPage = () => {
                   Explore Top Property Projects
                 </h1>
                 <p className="text-lg md:text-xl text-blue-100 dark:text-slate-300 font-medium leading-relaxed max-w-3xl mx-auto text-balance">
-                  Discover verified residential and commercial projects across Greater Noida, Noida, and YEIDA. From luxury villas to high-yield commercial spaces.
+                  Discover verified residential and commercial projects across Greater Noida and YEIDA (Yamuna Expressway). From luxury villas to high-yield commercial spaces.
                 </p>
               </motion.div>
             </div>
@@ -183,9 +122,9 @@ const ProjectsPage = () => {
                       <SelectValue placeholder="Any City" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="greater-noida">Greater Noida</SelectItem>
-                      <SelectItem value="noida">Noida</SelectItem>
-                      <SelectItem value="yeida">YEIDA</SelectItem>
+                      {Object.entries(PROJECT_CITY_LABELS).map(([value, label]) => (
+                        <SelectItem key={value} value={value}>{label}</SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -197,9 +136,9 @@ const ProjectsPage = () => {
                       <SelectValue placeholder="Any Type" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="residential">Residential</SelectItem>
-                      <SelectItem value="commercial">Commercial</SelectItem>
-                      <SelectItem value="plots">Plots</SelectItem>
+                      <SelectItem value="Residential">Residential</SelectItem>
+                      <SelectItem value="Commercial">Commercial</SelectItem>
+                      <SelectItem value="Plots">Plots</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -211,9 +150,9 @@ const ProjectsPage = () => {
                       <SelectValue placeholder="Any Status" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="ready">Ready to Move</SelectItem>
-                      <SelectItem value="under-construction">Under Construction</SelectItem>
-                      <SelectItem value="new-launch">New Launch</SelectItem>
+                      {['Upcoming', 'New Launch', 'Under Construction', 'Nearing Possession', 'Ready to Move', 'Completed'].map(status => (
+                        <SelectItem key={status} value={status}>{status}</SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -239,11 +178,17 @@ const ProjectsPage = () => {
                   </div>
                 </div>
 
-                <div className="lg:col-span-4 mt-2 flex justify-end">
-                  <Button className="w-full md:w-auto h-12 px-8 rounded-xl font-bold bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg shadow-emerald-500/20">
-                    Search Projects
-                  </Button>
-                </div>
+                {hasActiveFilters && (
+                  <div className="lg:col-span-4 mt-2 flex justify-end">
+                    <Button
+                      variant="outline"
+                      onClick={() => setFilters({ city: '', type: '', status: '', minBudget: '', maxBudget: '' })}
+                      className="w-full md:w-auto h-12 px-8 rounded-xl font-bold"
+                    >
+                      Clear Filters
+                    </Button>
+                  </div>
+                )}
               </div>
             </motion.div>
           </section>
@@ -253,84 +198,30 @@ const ProjectsPage = () => {
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
               <div className="mb-12">
                 <h2 className="text-3xl md:text-4xl font-extrabold text-brand-blue dark:text-white tracking-tight">
-                  Featured Projects
+                  {hasActiveFilters ? `${visibleProjects.length} Project${visibleProjects.length === 1 ? '' : 's'} Found` : 'Featured Projects'}
                 </h2>
                 <div className="w-16 h-1.5 bg-emerald-500 mt-4 rounded-full" />
               </div>
 
+              {isLoading ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                  {[0, 1, 2].map(i => <Skeleton key={i} className="h-[460px] rounded-2xl" />)}
+                </div>
+              ) : loadError ? (
+                <p className="text-center text-muted-foreground py-16">Couldn&apos;t load projects right now. Please refresh the page.</p>
+              ) : visibleProjects.length === 0 ? (
+                <div className="text-center py-16 bg-white dark:bg-slate-900 rounded-2xl border border-border/50">
+                  <Building2 className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
+                  <p className="font-bold text-foreground">{projects.length ? 'No projects match these filters.' : 'New projects are coming soon.'}</p>
+                  <p className="text-sm text-muted-foreground mt-1">{projects.length ? 'Try clearing a filter or widening the budget.' : 'Check back shortly — verified projects are being added.'}</p>
+                </div>
+              ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                {projectsData.map((project, index) => (
-                  <motion.div
-                    key={project.id}
-                    initial={{ opacity: 0, y: 20 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true }}
-                    transition={{ delay: index * 0.1 }}
-                    className="group bg-white dark:bg-slate-900 rounded-2xl overflow-hidden shadow-sm hover:shadow-xl hover:-translate-y-1 border border-border/50 transition-all duration-300 flex flex-col h-full"
-                  >
-                    <div className="relative aspect-[4/3] overflow-hidden">
-                      <img 
-                        src={project.image} 
-                        alt={project.name}
-                        className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-                      />
-                      <div className="absolute top-4 right-4">
-                        <Badge className={`px-3 py-1.5 font-bold text-xs shadow-md border-none ${getStatusColor(project.status)}`}>
-                          {project.status}
-                        </Badge>
-                      </div>
-                      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-6 pt-12">
-                        <h3 className="text-2xl font-bold text-white mb-1 leading-tight">
-                          {project.name}
-                        </h3>
-                        <p className="text-slate-300 text-sm font-medium">
-                          by {project.builder}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="p-6 flex flex-col flex-grow">
-                      <div className="flex items-start gap-2 text-muted-foreground mb-4">
-                        <MapPin className="w-5 h-5 shrink-0 text-emerald-500 mt-0.5" />
-                        <span className="font-medium">{project.location}</span>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-4 mb-6 p-4 bg-slate-50 dark:bg-slate-950 rounded-xl border border-border/50">
-                        <div>
-                          <p className="text-xs text-muted-foreground font-semibold uppercase tracking-wider mb-1">Type</p>
-                          <p className="font-bold text-foreground text-sm">{project.type}</p>
-                        </div>
-                        <div>
-                          <p className="text-xs text-muted-foreground font-semibold uppercase tracking-wider mb-1">Price</p>
-                          <p className="font-bold text-emerald-600 dark:text-emerald-400 text-sm">{project.priceRange}</p>
-                        </div>
-                      </div>
-
-                      <div className="mb-8">
-                        <p className="text-xs text-muted-foreground font-semibold uppercase tracking-wider mb-3">Amenities</p>
-                        <div className="flex flex-wrap gap-3">
-                          {project.amenities.map((amenity, i) => {
-                            const Icon = amenity.icon;
-                            return (
-                              <div key={i} className="flex items-center gap-1.5 bg-muted px-3 py-1.5 rounded-lg text-sm font-medium text-foreground" title={amenity.label}>
-                                <Icon className="w-4 h-4 text-muted-foreground" />
-                                <span>{amenity.label}</span>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-
-                      <div className="mt-auto pt-4 border-t border-border/50">
-                        <Button className="w-full h-12 rounded-xl font-bold bg-brand-blue hover:bg-brand-blue/90 text-white transition-all group-hover:bg-emerald-500">
-                          View Project Details
-                          <ArrowRight className="ml-2 w-4 h-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  </motion.div>
+                {visibleProjects.map((project, index) => (
+                  <ProjectCard key={project._id} project={project} index={index} />
                 ))}
               </div>
+              )}
             </div>
           </section>
 
@@ -346,13 +237,11 @@ const ProjectsPage = () => {
                 Enquire through Growperty — owner and builder contact is never shared publicly. We ensure a safe and transparent buying experience.
               </p>
               <Button 
-                asChild 
                 size="lg" 
+                onClick={() => openWhatsApp('Hi, I\'m looking for a project on Growperty.')}
                 className="h-14 px-8 text-lg font-bold bg-white text-emerald-600 hover:bg-slate-50 rounded-xl shadow-xl shadow-black/10 transition-all active:scale-[0.98]"
               >
-                <a href="https://wa.me/919891487876" target="_blank" rel="noopener noreferrer">
-                  Enquire Now via WhatsApp
-                </a>
+                Enquire Now via WhatsApp
               </Button>
             </div>
           </section>
@@ -364,7 +253,7 @@ const ProjectsPage = () => {
                 Are you a Builder or Developer?
               </h2>
               <p className="text-lg text-muted-foreground font-medium mb-8">
-                List your project on Growperty and reach genuine buyers across Greater Noida, Noida, and YEIDA.
+                List your project on Growperty and reach genuine buyers across Greater Noida and YEIDA.
               </p>
               <Button 
                 asChild 

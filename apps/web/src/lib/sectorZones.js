@@ -12,6 +12,16 @@ export const ZONES = [
   { value: 'YEIDA',         label: 'Yamuna Expressway' },
 ];
 
+// City/Zone choices on the property + project listing forms. `comingSoon`
+// zones are shown disabled so listers know they're on the way — flip the flag
+// (and add their ZONE_SECTORS list) when Growperty starts operating there.
+export const LISTING_ZONES = [
+  { value: 'Greater Noida',      label: 'Greater Noida' },
+  { value: 'YEIDA',              label: 'Yamuna Expressway (YEIDA)' },
+  { value: 'Noida',              label: 'Noida', comingSoon: true },
+  { value: 'Greater Noida West', label: 'Greater Noida West', comingSoon: true },
+];
+
 export const ZONE_SECTORS = {
   'Greater Noida': [
     // Core residential sectors (alphabetical groups)

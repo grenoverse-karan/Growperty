@@ -20,7 +20,7 @@ const Footer = () => {
             <div className="space-y-2">
               <p className="text-sm font-bold text-foreground">A Venture of Grenoverse Multi Ventures LLP (Formerly SHUBH GRIHA PROPTECH)</p>
               <p className="text-sm text-muted-foreground leading-relaxed max-w-[30ch] font-medium">
-                Your trusted real estate partner in Noida & Greater Noida. We connect buyers, sellers with best properties.
+                Your trusted real estate partner in Greater Noida & YEIDA. We connect buyers, sellers with best properties.
               </p>
               <p className="text-sm font-bold text-primary flex items-center gap-1 mt-2">
                 Made in Bharat 🇮🇳

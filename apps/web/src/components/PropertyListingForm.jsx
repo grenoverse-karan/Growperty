@@ -9,11 +9,16 @@ import { Label } from '@/components/ui/label.jsx';
 import { Button } from '@/components/ui/button.jsx';
 import { Textarea } from '@/components/ui/textarea.jsx';
 import { Checkbox } from '@/components/ui/checkbox.jsx';
-import { Loader2, UploadCloud, X, Plus, Minus, Info, Sparkles } from 'lucide-react';
+import { Loader2, UploadCloud, X, Plus, Minus, Info, Sparkles, RefreshCw, Star } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext.jsx';
 import { useAdminAuth } from '@/contexts/AdminAuthContext.jsx';
 import { sanitizePropertyFormData, logPropertyPayload } from '@/lib/propertyFormDataMapper.js';
-import { ZONES, ZONE_SECTORS } from '@/lib/sectorZones.js';
+import AiGenerationOverlay, { AI_GENERATION_STEPS } from '@/components/AiGenerationOverlay.jsx';
+import SpecialOfferSection from '@/components/SpecialOfferSection.jsx';
+import { convertHeicToJpeg, IMAGE_ACCEPT_WITH_HEIC } from '@/lib/heicConvert.js';
+import { BEST_FOR_RESIDENTIAL, BEST_FOR_PLOT, BEST_FOR_COMMERCIAL, connectivityToRows, connectivityFromRows } from '@/lib/listingOptions.js';
+import ConnectivityFields from '@/components/ConnectivityFields.jsx';
+import { LISTING_ZONES, ZONE_SECTORS } from '@/lib/sectorZones.js';
 import { Combobox } from '@/components/ui/combobox.jsx';
 
 // --- Constants (Strictly matching PocketBase Schema) ---
@@ -48,7 +53,7 @@ const FURNISHING_ITEMS = [
   'Exhaust Fan', 'Curtains', 'Table', 'Chair',
   'Cooler', 'TV Unit', 'Lights',
 ];
-const PLOT_TYPES_RESIDENTIAL = ['Lease Hold', 'Free Hold', 'Kisan Kota 5%', 'Kisan Kota 6%', 'Kisan Kota 7%'];
+const PLOT_TYPES_RESIDENTIAL = ['Lease Hold', 'Free Hold', 'Kisan Kota'];
 
 const AMENITIES_CATEGORIES = {
   'SECURITY & SAFETY': ['Gated Entry', '24/7 Security Guards', 'CCTV Surveillance', 'Intercom Facility', 'Fire Fighting System', '24/7 Power Backup'],
@@ -56,7 +61,12 @@ const AMENITIES_CATEGORIES = {
   'LIFESTYLE & RECREATION': ['Clubhouse', 'Gymnasium', 'Swimming Pool', 'Park', 'Jogging & Cycling Tracks', "Kids' Play Area", 'Sports Courts'],
   'SOCIAL & CONVENIENCE': ['Community Hall', 'Internal Shopping Complex', 'Visitor Parking', 'Maintenance Staff', 'High-Speed Internet', 'Street Lighting', 'Wide Internal Roads', 'Play School', 'Green Belts']
 };
-const NEARBY_AMENITIES = ['Market', 'Mall', 'Public Park', 'Temple', 'School & Hospital', 'Public Transport', 'Metro'];
+
+// Sector Guide (AI + Google Places counts) is parked until its accuracy is
+// sorted out — flip to true to bring back the section and its auto-fetch.
+// Backend route POST /api/ai/sector-guide and the `sectorGuide` field are kept.
+const SECTOR_GUIDE_ENABLED = false;
+
 
 const PropertyListingForm = ({ isAdmin = false, initialData = null, cpMode = false, cpToken = null }) => {
   const { toast } = useToast();
@@ -86,6 +96,7 @@ const PropertyListingForm = ({ isAdmin = false, initialData = null, cpMode = fal
     houseNo: '',
     possessionStatus: '',
     ownershipType: '',
+    reraApproved: null, // null = not set, true/false once the lister picks Yes/No
     furnishingType: '',
     furnishingItems: {},
     plotType: '',
@@ -96,6 +107,13 @@ const PropertyListingForm = ({ isAdmin = false, initialData = null, cpMode = fal
     bikeParking: { covered: 0, open: 0 },
     amenities: [],
     nearbyAmenities: [],
+    nearbyFamousPlace: '',
+    connectivity: {}, // { [CONNECTIVITY_TYPES key]: { name, distance } }
+    sectorGuide: '',
+    offerTitle: '',
+    offerDetails: '',
+    offerValidTill: '',
+    bestFor: [],
     description: '',
     visitTimeType: 'anytime',
     visitFixedSlots: [],
@@ -109,10 +127,17 @@ const PropertyListingForm = ({ isAdmin = false, initialData = null, cpMode = fal
 
   const [whatsappAlerts, setWhatsappAlerts] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [images, setImages] = useState([]); // [{ id, file, preview }]
+  // New uploads: { id, file, preview }. Already-saved images (edit mode):
+  // { id, preview, existingIndex } — no `file`. images[0] is the display image.
+  const [images, setImages] = useState([]);
+  const existingImageCountRef = useRef(0);
   const [isCompressing, setIsCompressing] = useState(false);
   const [fieldErrors, setFieldErrors] = useState({});
   const [generatingDescription, setGeneratingDescription] = useState(false);
+  const [aiStepIndex, setAiStepIndex] = useState(0);
+  const [generatingSectorGuide, setGeneratingSectorGuide] = useState(false);
+  const [sectorGuideStepIndex, setSectorGuideStepIndex] = useState(0);
+  const lastFetchedSectorGuideRef = useRef(null);
 
   const clearFieldError = (name) => {
     if (fieldErrors[name]) setFieldErrors(prev => { const n = { ...prev }; delete n[name]; return n; });
@@ -170,6 +195,7 @@ const PropertyListingForm = ({ isAdmin = false, initialData = null, cpMode = fal
         houseNo:          d.houseNo          || '',
         possessionStatus: d.possessionStatus || '',
         ownershipType:    d.ownershipType    || '',
+        reraApproved:     typeof d.reraApproved === 'boolean' ? d.reraApproved : null,
         furnishingType:   d.furnishingType   || '',
         furnishingItems:  d.furnishingItems  || {},
         plotType:         d.plotType         || '',
@@ -180,6 +206,13 @@ const PropertyListingForm = ({ isAdmin = false, initialData = null, cpMode = fal
         bikeParking:      typeof d.bikeParking === 'object' ? d.bikeParking : { covered: totalBike, open: 0 },
         amenities:        d.amenities        || [],
         nearbyAmenities:  d.nearbyAmenities  || [],
+        nearbyFamousPlace: d.nearbyFamousPlace || '',
+        connectivity: connectivityFromRows(d.connectivity),
+        sectorGuide: d.sectorGuide || '',
+        offerTitle: d.offerTitle || '',
+        offerDetails: d.offerDetails || '',
+        offerValidTill: d.offerValidTill ? String(d.offerValidTill).slice(0, 10) : '',
+        bestFor:          d.bestFor          || [],
         description:      d.description      || '',
         visitTimeType:    d.visitTimeType     || 'anytime',
         visitFixedSlots:  d.visitFixedSlots   || [],
@@ -190,6 +223,11 @@ const PropertyListingForm = ({ isAdmin = false, initialData = null, cpMode = fal
         currentAddress:   d.currentAddress   || '',
         termsAccepted:    true,
       });
+      // Older listings have no stored preference — they've always had alerts on.
+      setWhatsappAlerts(d.whatsappAlerts !== false);
+      const savedImages = Array.isArray(d.images) ? d.images : [];
+      existingImageCountRef.current = savedImages.length;
+      setImages(savedImages.map((src, i) => ({ id: `existing-${i}`, preview: src, existingIndex: i })));
 
       // Legacy records may carry an ownershipType value from before the field meant
       // entity type (e.g. "Free Hold"/"Leasehold" land-tenure terms). Flag it on load
@@ -250,6 +288,13 @@ const PropertyListingForm = ({ isAdmin = false, initialData = null, cpMode = fal
     clearFieldError('sector');
   };
 
+  const handleConnectivityChange = (key, field, value) => {
+    setFormData(prev => ({
+      ...prev,
+      connectivity: { ...prev.connectivity, [key]: { ...prev.connectivity[key], [field]: value } },
+    }));
+  };
+
   const handleSectorChange = (value) => {
     setFormData(prev => ({ ...prev, sector: value }));
     clearFieldError('sector');
@@ -261,6 +306,10 @@ const PropertyListingForm = ({ isAdmin = false, initialData = null, cpMode = fal
       return;
     }
     setGeneratingDescription(true);
+    setAiStepIndex(0);
+    const stepInterval = setInterval(() => {
+      setAiStepIndex(prev => Math.min(prev + 1, AI_GENERATION_STEPS.length - 1));
+    }, 1200);
     try {
       const res = await apiServerClient.fetch('/ai/generate-description', {
         method: 'POST',
@@ -274,9 +323,46 @@ const PropertyListingForm = ({ isAdmin = false, initialData = null, cpMode = fal
     } catch (err) {
       toast({ title: 'Generation failed', description: err.message || 'Something went wrong.', variant: 'destructive' });
     } finally {
+      clearInterval(stepInterval);
       setGeneratingDescription(false);
     }
   };
+
+  // Auto-fetch (and manual-refresh) an AI-written Sector Guide grounded in
+  // real Google Places infrastructure counts within 2km of the sector.
+  const fetchSectorGuide = async ({ force = false } = {}) => {
+    if (!SECTOR_GUIDE_ENABLED || !formData.city || !formData.sector) return;
+    const sectorKey = `${formData.city}|${formData.sector}`;
+    if (!force && lastFetchedSectorGuideRef.current === sectorKey) return;
+    lastFetchedSectorGuideRef.current = sectorKey;
+
+    setGeneratingSectorGuide(true);
+    setSectorGuideStepIndex(0);
+    const stepInterval = setInterval(() => {
+      setSectorGuideStepIndex(prev => Math.min(prev + 1, AI_GENERATION_STEPS.length - 1));
+    }, 1200);
+    try {
+      const res = await apiServerClient.fetch('/ai/sector-guide', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ city: formData.city, sector: formData.sector }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.success && data.guide) {
+        setFormData(prev => ({ ...prev, sectorGuide: data.guide }));
+      }
+    } catch {
+      // Non-fatal — field just stays empty/manually-editable.
+    } finally {
+      clearInterval(stepInterval);
+      setGeneratingSectorGuide(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchSectorGuide();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formData.city, formData.sector]);
 
   const handleRoomsChange = (increment) => {
     setFormData(prev => {
@@ -387,14 +473,25 @@ const PropertyListingForm = ({ isAdmin = false, initialData = null, cpMode = fal
 
     setIsCompressing(true);
     try {
+      let failed = 0;
       const processed = await Promise.all(
         accepted.map(async (file, i) => {
-          const compressed = await compressImage(file);
-          const preview = URL.createObjectURL(compressed);
-          return { id: `${Date.now()}-${i}`, file: compressed, preview };
+          try {
+            // iPhone HEIC → JPEG first, so it can be previewed and compressed.
+            const jpeg = await convertHeicToJpeg(file);
+            const compressed = await compressImage(jpeg);
+            const preview = URL.createObjectURL(compressed);
+            return { id: `${Date.now()}-${i}`, file: compressed, preview };
+          } catch {
+            failed += 1;
+            return null;
+          }
         })
       );
-      setImages(prev => [...prev, ...processed]);
+      setImages(prev => [...prev, ...processed.filter(Boolean)]);
+      if (failed) {
+        toast({ title: 'Some photos could not be added', description: `${failed} photo(s) couldn't be read. Try exporting them as JPEG.`, variant: 'destructive' });
+      }
     } finally {
       setIsCompressing(false);
       if (imageInputRef.current) imageInputRef.current.value = '';
@@ -404,8 +501,16 @@ const PropertyListingForm = ({ isAdmin = false, initialData = null, cpMode = fal
   const removeImage = (id) => {
     setImages(prev => {
       const img = prev.find(i => i.id === id);
-      if (img) URL.revokeObjectURL(img.preview);
+      if (img?.file) URL.revokeObjectURL(img.preview);
       return prev.filter(i => i.id !== id);
+    });
+  };
+
+  // The first image is the listing's display (cover) image.
+  const setDisplayImage = (id) => {
+    setImages(prev => {
+      const img = prev.find(i => i.id === id);
+      return img ? [img, ...prev.filter(i => i.id !== id)] : prev;
     });
   };
 
@@ -439,6 +544,8 @@ const PropertyListingForm = ({ isAdmin = false, initialData = null, cpMode = fal
   const showBhk = ['Flat/Apartment', 'Independent House', 'Villa', 'Penthouse'].includes(formData.propertyType);
   const showBathBalcony = showBhk;
   const isPlot = formData.propertyType === 'Plot/Land';
+  const isCommercial = formData.propertyType === 'Commercial';
+  const bestForOptions = showBhk ? BEST_FOR_RESIDENTIAL : isPlot ? BEST_FOR_PLOT : isCommercial ? BEST_FOR_COMMERCIAL : [];
   const showFloors = !isPlot;
   const areaUnitConfig = AREA_UNITS_MAP[formData.propertyType] || DEFAULT_AREA_UNITS;
   const showFloorNumber = showFloors && !['Independent House', 'Villa'].includes(formData.propertyType);
@@ -507,11 +614,6 @@ const PropertyListingForm = ({ isAdmin = false, initialData = null, cpMode = fal
     setIsSubmitting(true);
 
     try {
-      // Map plot type for Kisan Kota variants
-      let mappedPlotType = formData.plotType;
-      if (mappedPlotType && mappedPlotType.includes('Kisan Kota')) {
-        mappedPlotType = 'Kisan Kota';
-      }
 
       // Prepare form data for sanitization
       const rawFormData = {
@@ -535,9 +637,10 @@ const PropertyListingForm = ({ isAdmin = false, initialData = null, cpMode = fal
         houseNo: formData.houseNo,
         possessionStatus: formData.possessionStatus,
         ownershipType: formData.ownershipType,
+        reraApproved: formData.reraApproved,
         furnishingType: formData.furnishingType,
         furnishingItems: formData.furnishingItems,
-        plotType: mappedPlotType,
+        plotType: formData.plotType,
         openSide: formData.openSide || undefined,
         directionFacing: formData.directionFacing || undefined,
         facingType: formData.facingType?.length ? formData.facingType : undefined,
@@ -545,6 +648,13 @@ const PropertyListingForm = ({ isAdmin = false, initialData = null, cpMode = fal
         bikeParking: (formData.bikeParking.covered + formData.bikeParking.open),
         amenities: formData.amenities,
         nearbyAmenities: formData.nearbyAmenities,
+        nearbyFamousPlace: formData.nearbyFamousPlace || undefined,
+        connectivity: connectivityToRows(formData.connectivity),
+        sectorGuide: formData.sectorGuide || undefined,
+        offerTitle: formData.offerTitle.trim() || undefined,
+        offerDetails: formData.offerDetails.trim() || undefined,
+        offerValidTill: formData.offerValidTill || undefined,
+        bestFor: formData.bestFor.length ? formData.bestFor : undefined,
         description: sanitizeDescription(formData.description),
         visitTimeType: formData.visitTimeType || undefined,
         visitFixedSlots: formData.visitFixedSlots.length ? formData.visitFixedSlots : undefined,
@@ -585,6 +695,15 @@ const PropertyListingForm = ({ isAdmin = false, initialData = null, cpMode = fal
       }
       // Tower/Block isn't in the sanitizer whitelist — inject directly
       if (formData.towerBlock?.trim()) payload.towerBlock = formData.towerBlock.trim();
+      // The sanitizer drops empty fields, so on edit a removed offer (or
+      // emptied connectivity) would otherwise stay in the DB — send the
+      // cleared values explicitly.
+      if (initialData?._id || initialData?.id) {
+        if (!payload.connectivity) payload.connectivity = [];
+        if (!payload.offerTitle) payload.offerTitle = '';
+        if (!payload.offerDetails) payload.offerDetails = '';
+        if (!payload.offerValidTill) payload.offerValidTill = null;
+      }
 
       console.log('✅ Payload ready, calling API...', { imageCount: images.length });
       logPropertyPayload(payload, 'PropertyListingForm Submission');
@@ -612,10 +731,13 @@ const PropertyListingForm = ({ isAdmin = false, initialData = null, cpMode = fal
       const propertyId = result.propertyId || editId;
       console.log('✅ Property saved successfully. Record ID:', propertyId);
 
-      // Step 2: Upload images separately as multipart/form-data to avoid the 4.5MB Vercel limit
-      if (images.length > 0 && propertyId) {
+      // Step 2: Upload NEW images separately as multipart/form-data to avoid
+      // the 4.5MB Vercel limit. They're appended after any already-saved ones.
+      const newImages = images.filter(img => img.file);
+      let uploadedNew = false;
+      if (newImages.length > 0 && propertyId) {
         const formDataImages = new FormData();
-        images.forEach(img => formDataImages.append('images', img.file));
+        newImages.forEach(img => formDataImages.append('images', img.file));
         const imgRes = await apiServerClient.fetch(`/properties/${propertyId}/images`, {
           method: 'POST',
           headers: { ...(authToken && { Authorization: `Bearer ${authToken}` }) },
@@ -623,9 +745,33 @@ const PropertyListingForm = ({ isAdmin = false, initialData = null, cpMode = fal
         });
         if (!imgRes.ok) {
           const imgErr = await imgRes.json().catch(() => ({}));
-          console.warn('⚠️ Image upload failed (property was still created):', imgErr.message);
+          console.warn('⚠️ Image upload failed (property was still saved):', imgErr.message);
         } else {
+          uploadedNew = true;
           console.log('✅ Images uploaded successfully');
+        }
+      }
+
+      // Step 3 (edit only): apply deletions + the chosen order/display image.
+      // Indexes refer to the stored array: saved images keep their original
+      // index, new uploads sit right after them in upload order.
+      if (editId && propertyId) {
+        const existingCount = existingImageCountRef.current;
+        const order = images
+          .filter(img => !img.file || uploadedNew)
+          .map(img => (img.file ? existingCount + newImages.indexOf(img) : img.existingIndex));
+        const unchanged = order.length === existingCount + (uploadedNew ? newImages.length : 0)
+          && order.every((idx, i) => idx === i);
+        if (!unchanged) {
+          const arrangeRes = await apiServerClient.fetch(`/properties/${propertyId}/images/arrange`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json', ...(authToken && { Authorization: `Bearer ${authToken}` }) },
+            body: JSON.stringify({ order }),
+          });
+          if (!arrangeRes.ok) {
+            const arrErr = await arrangeRes.json().catch(() => ({}));
+            toast({ title: 'Images not updated', description: arrErr.message || 'Property saved, but image changes could not be applied.', variant: 'destructive' });
+          }
         }
       }
 
@@ -774,7 +920,7 @@ const PropertyListingForm = ({ isAdmin = false, initialData = null, cpMode = fal
 
           {/* (2) PROPERTY TYPE */}
           <div id="field-propertyType" className={`bg-white dark:bg-slate-950 rounded-2xl p-6 md:p-8 shadow-sm border dark:border-slate-800 space-y-5 ${fieldErrors.propertyType ? 'border-red-400' : 'border-slate-200'}`}>
-            <Label className="text-lg font-bold text-slate-900 dark:text-white block border-b border-slate-100 dark:border-slate-800 pb-3">1. Property Type *</Label>
+            <Label className="text-lg font-bold text-slate-900 dark:text-white block border-b border-slate-100 dark:border-slate-800 pb-3">Property Type *</Label>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4">
               {PROPERTY_TYPES.map(type => (
                 <Chip key={type} label={type} selected={formData.propertyType === type} onClick={() => handleSelect('propertyType', type)} />
@@ -799,7 +945,7 @@ const PropertyListingForm = ({ isAdmin = false, initialData = null, cpMode = fal
           {showBhk && (
             <div id="field-bhk" className={`bg-white dark:bg-slate-950 rounded-2xl p-6 md:p-8 shadow-sm border dark:border-slate-800 space-y-5 animate-in fade-in ${fieldErrors.bhk ? 'border-red-400' : 'border-slate-200'}`}>
               <div className="border-b border-slate-100 dark:border-slate-800 pb-3">
-                <Label className="text-lg font-bold text-slate-900 dark:text-white block">2. BHK Configuration *</Label>
+                <Label className="text-lg font-bold text-slate-900 dark:text-white block">BHK Configuration *</Label>
                 <p className="text-xs text-slate-400 font-medium mt-1">Select BHK or enter Rooms count below — only one is required</p>
               </div>
               <div className="grid grid-cols-3 md:grid-cols-5 gap-3">
@@ -824,7 +970,7 @@ const PropertyListingForm = ({ isAdmin = false, initialData = null, cpMode = fal
           {/* (4) SIZE CONFIGURATION (Bathrooms/Balconies) */}
           {showBathBalcony && (
             <div className="bg-white dark:bg-slate-950 rounded-2xl p-6 md:p-8 shadow-sm border border-slate-200 dark:border-slate-800 space-y-5 animate-in fade-in">
-              <Label className="text-lg font-bold text-slate-900 dark:text-white block border-b border-slate-100 dark:border-slate-800 pb-3">3. Additional Details</Label>
+              <Label className="text-lg font-bold text-slate-900 dark:text-white block border-b border-slate-100 dark:border-slate-800 pb-3">Additional Details</Label>
               <div className="flex gap-4 w-full">
                 <div className="w-1/2">
                   <CounterBlock label="Bathrooms" value={formData.bathrooms} onDecrement={() => handleCounterChange('bathrooms', -1)} onIncrement={() => handleCounterChange('bathrooms', 1)} />
@@ -838,7 +984,7 @@ const PropertyListingForm = ({ isAdmin = false, initialData = null, cpMode = fal
 
           {/* (5) AREA DETAILS */}
           <div className="bg-white dark:bg-slate-950 rounded-2xl p-6 md:p-8 shadow-sm border border-slate-200 dark:border-slate-800 space-y-5">
-            <Label className="text-lg font-bold text-slate-900 dark:text-white block border-b border-slate-100 dark:border-slate-800 pb-3">4. Area Details *</Label>
+            <Label className="text-lg font-bold text-slate-900 dark:text-white block border-b border-slate-100 dark:border-slate-800 pb-3">Area Details *</Label>
             
             <div className="flex flex-col md:flex-row gap-4">
               <div id="field-totalArea" className="flex-1 space-y-2">
@@ -892,7 +1038,7 @@ const PropertyListingForm = ({ isAdmin = false, initialData = null, cpMode = fal
 
           {/* (6) EXPECTED PRICE */}
           <div className="bg-white dark:bg-slate-950 rounded-2xl p-6 md:p-8 shadow-sm border border-slate-200 dark:border-slate-800 space-y-5">
-            <Label className="text-lg font-bold text-slate-900 dark:text-white block border-b border-slate-100 dark:border-slate-800 pb-3">5. Expected Price *</Label>
+            <Label className="text-lg font-bold text-slate-900 dark:text-white block border-b border-slate-100 dark:border-slate-800 pb-3">Expected Price *</Label>
             
             <div className="space-y-4">
               <div id="field-totalPrice" className="relative">
@@ -924,14 +1070,18 @@ const PropertyListingForm = ({ isAdmin = false, initialData = null, cpMode = fal
 
           {/* (7) LOCATION DETAILS */}
           <div className="bg-white dark:bg-slate-950 rounded-2xl p-6 md:p-8 shadow-sm border border-slate-200 dark:border-slate-800 space-y-5">
-            <Label className="text-lg font-bold text-slate-900 dark:text-white block border-b border-slate-100 dark:border-slate-800 pb-3">6. Location Details *</Label>
+            <Label className="text-lg font-bold text-slate-900 dark:text-white block border-b border-slate-100 dark:border-slate-800 pb-3">Location Details *</Label>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               <div id="field-city" className="space-y-2">
                 <Label className="text-sm font-bold text-slate-700 dark:text-slate-300">Zone *</Label>
                 <select name="city" value={formData.city} onChange={handleZoneChange} className={`flex h-12 w-full items-center justify-between rounded-xl border bg-slate-50 dark:bg-slate-900 px-3 py-2 text-sm font-bold ring-offset-background focus:outline-none focus:ring-2 focus:ring-[#10B981] ${fieldErrors.city ? 'border-red-400' : 'border-slate-200 dark:border-slate-800'}`}>
                   <option value="" disabled>Select Zone</option>
-                  {ZONES.map(z => <option key={z.value} value={z.value}>{z.label}</option>)}
+                  {LISTING_ZONES.map(z => (
+                    <option key={z.value} value={z.value} disabled={z.comingSoon}>
+                      {z.comingSoon ? `${z.label} (Coming soon…)` : z.label}
+                    </option>
+                  ))}
                 </select>
                 {fieldErrors.city && <p className="text-red-500 text-xs font-bold">⚠ {fieldErrors.city}</p>}
               </div>
@@ -975,7 +1125,7 @@ const PropertyListingForm = ({ isAdmin = false, initialData = null, cpMode = fal
           <div className={`bg-white dark:bg-slate-950 rounded-2xl p-6 md:p-8 shadow-sm border dark:border-slate-800 space-y-8 ${fieldErrors.furnishingType ? 'border-red-400' : 'border-slate-200'}`}>
             
             <div className="space-y-4">
-              <Label className="text-lg font-bold text-slate-900 dark:text-white block border-b border-slate-100 dark:border-slate-800 pb-3">7. Status & Type *</Label>
+              <Label className="text-lg font-bold text-slate-900 dark:text-white block border-b border-slate-100 dark:border-slate-800 pb-3">Status & Type *</Label>
               
               <div id="field-possessionStatus" className="space-y-2">
                 <Label className="text-sm font-bold text-slate-500">Possession Status *</Label>
@@ -995,6 +1145,14 @@ const PropertyListingForm = ({ isAdmin = false, initialData = null, cpMode = fal
                   ))}
                 </div>
                 {fieldErrors.ownershipType && <p className="text-red-500 text-xs font-bold mt-1">⚠ {fieldErrors.ownershipType}</p>}
+              </div>
+
+              <div className="space-y-2 pt-2">
+                <Label className="text-sm font-bold text-slate-500">RERA Approved? <span className="text-xs font-normal text-muted-foreground">(Optional)</span></Label>
+                <div className="grid grid-cols-2 gap-3 rounded-xl p-1 max-w-xs">
+                  <Chip label="Yes" selected={formData.reraApproved === true} onClick={() => handleSelect('reraApproved', true)} />
+                  <Chip label="No" selected={formData.reraApproved === false} onClick={() => handleSelect('reraApproved', false)} />
+                </div>
               </div>
 
               <div className="space-y-2 pt-2">
@@ -1061,15 +1219,16 @@ const PropertyListingForm = ({ isAdmin = false, initialData = null, cpMode = fal
             {showPlotType && (
               <div className="space-y-4 animate-in fade-in">
                 <Label className="text-sm font-bold text-slate-500">Plot Type Details (Required for Residential Plots)</Label>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
-                  {PLOT_TYPES_RESIDENTIAL.map(type => {
-                    const isKisan = type.includes('Kisan');
-                    const mainText = isKisan ? 'Kisan Kota' : type;
-                    const subText = isKisan ? type.split(' ')[2] : null;
-                    return (
-                      <Chip key={type} label={mainText} subtext={subText} selected={formData.plotType === type} onClick={() => handleSelect('plotType', type)} />
-                    );
-                  })}
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  {PLOT_TYPES_RESIDENTIAL.map(type => (
+                    <Chip
+                      key={type}
+                      label={type}
+                      subtext={type === 'Kisan Kota' ? '5% · 6% · 7%' : null}
+                      selected={formData.plotType === type}
+                      onClick={() => handleSelect('plotType', type)}
+                    />
+                  ))}
                 </div>
               </div>
             )}
@@ -1078,7 +1237,7 @@ const PropertyListingForm = ({ isAdmin = false, initialData = null, cpMode = fal
           {/* (12) PARKING SECTION */}
           {showFloors && (
             <div className="bg-white dark:bg-slate-950 rounded-2xl p-6 md:p-8 shadow-sm border border-slate-200 dark:border-slate-800 space-y-5">
-              <Label className="text-lg font-bold text-slate-900 dark:text-white block border-b border-slate-100 dark:border-slate-800 pb-3">8. Parking Details</Label>
+              <Label className="text-lg font-bold text-slate-900 dark:text-white block border-b border-slate-100 dark:border-slate-800 pb-3">Parking Details</Label>
               <div className="flex flex-col md:flex-row gap-6">
                 {['carParking', 'bikeParking'].map(vehicle => (
                   <div key={vehicle} className="flex-1 bg-slate-50 dark:bg-slate-900/50 rounded-xl p-5 border border-slate-200 dark:border-slate-800">
@@ -1113,7 +1272,7 @@ const PropertyListingForm = ({ isAdmin = false, initialData = null, cpMode = fal
           {/* (13) AMENITIES & FEATURES */}
           {showAmenities && (
             <div className="bg-white dark:bg-slate-950 rounded-2xl p-6 md:p-8 shadow-sm border border-slate-200 dark:border-slate-800 space-y-6 animate-in fade-in">
-              <Label className="text-lg font-bold text-slate-900 dark:text-white block border-b border-slate-100 dark:border-slate-800 pb-3">9. Amenities & Features</Label>
+              <Label className="text-lg font-bold text-slate-900 dark:text-white block border-b border-slate-100 dark:border-slate-800 pb-3">Amenities & Features</Label>
               
               {Object.entries(AMENITIES_CATEGORIES).map(([category, items]) => {
                 const visibleItems = isPlot
@@ -1148,38 +1307,55 @@ const PropertyListingForm = ({ isAdmin = false, initialData = null, cpMode = fal
             </div>
           )}
 
-          {/* (14) NEARBY AMENITIES */}
+          {/* (14) CONNECTIVITY — older listings' nearbyAmenities chips are kept in state and still shown on the listing page */}
           <div className="bg-white dark:bg-slate-950 rounded-2xl p-6 md:p-8 shadow-sm border border-slate-200 dark:border-slate-800 space-y-4">
-            <Label className="text-lg font-bold text-slate-900 dark:text-white block border-b border-slate-100 dark:border-slate-800 pb-3">10. Nearby Facilities</Label>
-            <div className="flex flex-wrap gap-2 pt-2">
-              {NEARBY_AMENITIES.map(item => {
-                const isSelected = formData.nearbyAmenities.includes(item);
-                return (
-                  <button
-                    key={item}
-                    type="button"
-                    onClick={() => toggleArrayItem('nearbyAmenities', item)}
-                    className={`px-4 py-2 rounded-full text-xs font-bold transition-all border ${
-                      isSelected 
-                        ? 'bg-[#10B981] border-[#10B981] text-white shadow-sm' 
-                        : 'bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:border-[#10B981]/50'
-                    }`}
-                  >
-                    {item}
-                  </button>
-                );
-              })}
+            <Label className="text-lg font-bold text-slate-900 dark:text-white block border-b border-slate-100 dark:border-slate-800 pb-3">Connectivity &amp; Nearby Facilities <span className="text-sm font-normal text-muted-foreground">(Optional)</span></Label>
+            <div>
+              <p className="text-xs text-muted-foreground mb-3">Fill in whichever apply — nearest place and its distance or drive time.</p>
+              <ConnectivityFields value={formData.connectivity} onChange={handleConnectivityChange} inputClassName="h-11 rounded-xl bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800" />
             </div>
           </div>
 
+          {/* (14b) BEST FOR */}
+          {bestForOptions.length > 0 && (
+            <div className="bg-white dark:bg-slate-950 rounded-2xl p-6 md:p-8 shadow-sm border border-slate-200 dark:border-slate-800 space-y-4">
+              <div>
+                <Label className="text-lg font-bold text-slate-900 dark:text-white block border-b border-slate-100 dark:border-slate-800 pb-3">Best For</Label>
+                <p className="text-xs text-muted-foreground mt-2">Optional — select whatever fits this property.</p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {bestForOptions.map(item => {
+                  const isSelected = formData.bestFor.includes(item);
+                  return (
+                    <button
+                      key={item}
+                      type="button"
+                      onClick={() => toggleArrayItem('bestFor', item)}
+                      className={`px-4 py-2 rounded-full text-xs font-bold transition-all border ${
+                        isSelected
+                          ? 'bg-[#10B981] border-[#10B981] text-white shadow-sm'
+                          : 'bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:border-[#10B981]/50'
+                      }`}
+                    >
+                      {item}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {/* (15) IMAGES */}
           <div className="bg-white dark:bg-slate-950 rounded-2xl p-6 md:p-8 shadow-sm border border-slate-200 dark:border-slate-800 space-y-6">
-            <Label className="text-lg font-bold text-slate-900 dark:text-white block border-b border-slate-100 dark:border-slate-800 pb-3">11. Media</Label>
+            <Label className="text-lg font-bold text-slate-900 dark:text-white block border-b border-slate-100 dark:border-slate-800 pb-3">Media</Label>
 
             {/* Image Upload */}
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <Label className="text-sm font-bold text-slate-700 dark:text-slate-300">Property Images</Label>
+                <div>
+                  <Label className="text-sm font-bold text-slate-700 dark:text-slate-300">Property Images</Label>
+                  <p className="text-xs text-muted-foreground mt-0.5">The Display Image is shown first on listing cards — tap “Set as Display” on any photo to change it.</p>
+                </div>
                 <span className={`text-xs font-bold px-2 py-1 rounded-full ${images.length >= MAX_IMAGES ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'}`}>
                   {images.length}/{MAX_IMAGES} images selected
                 </span>
@@ -1201,7 +1377,7 @@ const PropertyListingForm = ({ isAdmin = false, initialData = null, cpMode = fal
                   ) : (
                     <>
                       <UploadCloud className="h-8 w-8" />
-                      <span className="text-sm font-bold">Upload Images (JPG, PNG, WEBP · Max 20)</span>
+                      <span className="text-sm font-bold">Upload Images (JPG, PNG, WEBP, HEIC · Max 20)</span>
                       <span className="text-xs text-slate-400">Images are auto-compressed for faster upload</span>
                     </>
                   )}
@@ -1211,7 +1387,7 @@ const PropertyListingForm = ({ isAdmin = false, initialData = null, cpMode = fal
                 type="file"
                 ref={imageInputRef}
                 onChange={handleImageUpload}
-                accept="image/jpeg,image/png,image/webp"
+                accept={IMAGE_ACCEPT_WITH_HEIC}
                 multiple
                 className="hidden"
               />
@@ -1219,17 +1395,31 @@ const PropertyListingForm = ({ isAdmin = false, initialData = null, cpMode = fal
               {/* Previews */}
               {images.length > 0 && (
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 pt-1">
-                  {images.map((img) => (
-                    <div key={img.id} className="relative group rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 aspect-square bg-slate-100 dark:bg-slate-900">
+                  {images.map((img, idx) => (
+                    <div key={img.id} className={`relative group rounded-xl overflow-hidden border-2 aspect-square bg-slate-100 dark:bg-slate-900 ${idx === 0 ? 'border-[#10B981]' : 'border-slate-200 dark:border-slate-700'}`}>
                       <img
                         src={img.preview}
                         alt=""
                         className="w-full h-full object-cover"
                       />
+                      {idx === 0 ? (
+                        <span className="absolute top-1.5 left-1.5 inline-flex items-center gap-1 bg-[#10B981] text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow">
+                          <Star className="h-3 w-3 fill-white" /> Display Image
+                        </span>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => setDisplayImage(img.id)}
+                          className="absolute bottom-1.5 inset-x-1.5 inline-flex items-center justify-center gap-1 bg-black/65 hover:bg-[#10B981] text-white text-[11px] font-bold py-1 rounded-lg transition-all opacity-100 sm:opacity-0 sm:group-hover:opacity-100"
+                        >
+                          <Star className="h-3 w-3" /> Set as Display
+                        </button>
+                      )}
                       <button
                         type="button"
                         onClick={() => removeImage(img.id)}
-                        className="absolute top-1.5 right-1.5 bg-red-500 hover:bg-red-600 text-white p-1 rounded-full shadow opacity-0 group-hover:opacity-100 transition-opacity"
+                        title="Delete image"
+                        className="absolute top-1.5 right-1.5 bg-red-500 hover:bg-red-600 text-white p-1 rounded-full shadow opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"
                       >
                         <X className="h-3 w-3" />
                       </button>
@@ -1243,7 +1433,7 @@ const PropertyListingForm = ({ isAdmin = false, initialData = null, cpMode = fal
           {/* PREFERRED VISIT TIME */}
           <div id="field-visitTimeType" className={`bg-white dark:bg-slate-950 rounded-2xl p-6 md:p-8 shadow-sm border dark:border-slate-800 space-y-5 ${fieldErrors.visitTimeType ? 'border-red-400' : 'border-slate-200'}`}>
             <Label className="text-lg font-bold text-slate-900 dark:text-white block border-b border-slate-100 dark:border-slate-800 pb-3">
-              12. Preferred Visit Time *
+              Preferred Visit Time *
             </Label>
             {fieldErrors.visitTimeType && <p className="text-red-500 text-xs font-bold -mt-3">⚠ {fieldErrors.visitTimeType}</p>}
 
@@ -1334,9 +1524,9 @@ const PropertyListingForm = ({ isAdmin = false, initialData = null, cpMode = fal
           </div>
 
           {/* DESCRIPTION */}
-          <div className="bg-white dark:bg-slate-950 rounded-2xl p-6 md:p-8 shadow-sm border border-slate-200 dark:border-slate-800 space-y-3">
+          <div className={`relative overflow-hidden bg-white dark:bg-slate-950 rounded-2xl p-6 md:p-8 shadow-sm border border-slate-200 dark:border-slate-800 space-y-3 ${generatingDescription ? 'min-h-[280px]' : ''}`}>
             <div className="flex items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800 pb-3">
-              <Label className="text-lg font-bold text-slate-900 dark:text-white">13. Description</Label>
+              <Label className="text-lg font-bold text-slate-900 dark:text-white">Description</Label>
               <Button
                 type="button"
                 size="sm"
@@ -1356,25 +1546,110 @@ const PropertyListingForm = ({ isAdmin = false, initialData = null, cpMode = fal
               placeholder="Describe what makes your property special. (Note: Phone numbers will be hidden for privacy)"
               className="min-h-[150px] rounded-xl resize-none bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800"
             />
+
+            <AiGenerationOverlay active={generatingDescription} stepIndex={aiStepIndex} />
           </div>
+
+          {/* SPECIAL OFFER — optional; pick a preset chip or type your own */}
+          <SpecialOfferSection
+            values={{ offerTitle: formData.offerTitle, offerDetails: formData.offerDetails, offerValidTill: formData.offerValidTill }}
+            onChange={(name, value) => handleInputChange({ target: { name, value } })}
+          />
+
+          {/* SECTOR GUIDE — placed right after Description (parked, see SECTOR_GUIDE_ENABLED) */}
+          {SECTOR_GUIDE_ENABLED && <div className={`relative overflow-hidden bg-white dark:bg-slate-950 rounded-2xl p-6 md:p-8 shadow-sm border border-slate-200 dark:border-slate-800 space-y-3 ${generatingSectorGuide ? 'min-h-[280px]' : ''}`}>
+            <div className="flex items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800 pb-3">
+              <div>
+                <Label className="text-lg font-bold text-slate-900 dark:text-white">Sector Guide</Label>
+                <p className="text-xs text-muted-foreground mt-1">Auto-generated buyer information guide for this sector</p>
+              </div>
+              <div className="flex items-center gap-1 shrink-0">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => fetchSectorGuide({ force: true })}
+                  disabled={generatingSectorGuide || !formData.city || !formData.sector}
+                  className="h-8 w-8 p-0 border-[#10B981]/30 text-[#10B981] hover:bg-[#10B981]/10 hover:text-[#10B981]"
+                  title="Regenerate"
+                >
+                  <RefreshCw className={`h-3.5 w-3.5 ${generatingSectorGuide ? 'animate-spin' : ''}`} />
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => handleInputChange({ target: { name: 'sectorGuide', value: '' } })}
+                  disabled={generatingSectorGuide || !formData.sectorGuide}
+                  className="h-8 w-8 p-0 border-destructive/30 text-destructive hover:bg-destructive/10"
+                  title="Clear"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            </div>
+            {formData.sectorGuide && (
+              <p className="text-xs text-muted-foreground">Auto-generated — you can edit or add more details</p>
+            )}
+            <Textarea
+              name="sectorGuide"
+              value={formData.sectorGuide}
+              onChange={handleInputChange}
+              placeholder="Select a Zone and Sector above to auto-generate a sector guide, or write your own."
+              className="min-h-[150px] rounded-xl resize-y bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800"
+            />
+            <AiGenerationOverlay active={generatingSectorGuide} stepIndex={sectorGuideStepIndex} />
+          </div>}
 
           {/* (16) OWNER DETAILS */}
           {cpMode ? null : isAdmin ? (
-            <div className="bg-white dark:bg-slate-950 rounded-2xl p-6 md:p-8 shadow-sm border border-slate-200 dark:border-slate-800">
-              <Label className="text-lg font-bold text-slate-900 dark:text-white block border-b border-slate-100 dark:border-slate-800 pb-3">14. Listed By</Label>
-              <div className="flex items-center gap-3 mt-4">
-                <div className="h-10 w-10 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center shrink-0">
-                  <span className="text-emerald-600 dark:text-emerald-400 font-extrabold text-sm">G</span>
-                </div>
-                <div className="flex flex-col">
-                  <span className="text-xs text-slate-400 dark:text-slate-500 font-medium">Listed by</span>
-                  <span className="text-xl font-extrabold text-slate-900 dark:text-white tracking-tight">Growperty</span>
+            <>
+              <div className="bg-white dark:bg-slate-950 rounded-2xl p-6 md:p-8 shadow-sm border border-slate-200 dark:border-slate-800">
+                <Label className="text-lg font-bold text-slate-900 dark:text-white block border-b border-slate-100 dark:border-slate-800 pb-3">Listed By</Label>
+                <div className="flex items-center gap-3 mt-4">
+                  <div className="h-10 w-10 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center shrink-0">
+                    <span className="text-emerald-600 dark:text-emerald-400 font-extrabold text-sm">G</span>
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-xs text-slate-400 dark:text-slate-500 font-medium">Listed by</span>
+                    <span className="text-xl font-extrabold text-slate-900 dark:text-white tracking-tight">Growperty</span>
+                  </div>
                 </div>
               </div>
-            </div>
+
+              {/* (16b) SELLER CONTACT — admin-only, never shown to public/buyers */}
+              <div className="bg-white dark:bg-slate-950 rounded-2xl p-6 md:p-8 shadow-sm border border-slate-200 dark:border-slate-800 space-y-5">
+                <div className="border-b border-slate-100 dark:border-slate-800 pb-3">
+                  <Label className="text-lg font-bold text-slate-900 dark:text-white block">Seller Contact</Label>
+                  <p className="text-xs text-muted-foreground mt-1">Only visible to admin — never shown to buyers or on the public listing.</p>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  <div className="space-y-2">
+                    <Label className="text-sm font-bold text-slate-700 dark:text-slate-300">Seller Name</Label>
+                    <Input name="name" value={formData.name} onChange={handleInputChange} placeholder="Seller's Name" className="h-12 bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-bold text-slate-700 dark:text-slate-300">Seller Mobile Number</Label>
+                    <div className="relative">
+                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 font-bold">+91</span>
+                      <Input name="mobileNumber" type="tel" inputMode="numeric" maxLength="10" value={formData.mobileNumber} onChange={handleInputChange} className="h-12 pl-12 bg-slate-50 dark:bg-slate-900 tracking-wide font-bold border-slate-200 dark:border-slate-800" />
+                    </div>
+                    <p className="text-xs text-muted-foreground">Preferably the seller's WhatsApp number.</p>
+                  </div>
+                  <div className="space-y-2 md:col-span-2">
+                    <Label className="text-sm font-bold text-slate-700 dark:text-slate-300">Seller Email</Label>
+                    <Input name="email" type="email" value={formData.email} onChange={handleInputChange} placeholder="Seller's Email" className="h-12 bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800" />
+                  </div>
+                  <div className="space-y-2 md:col-span-2">
+                    <Label className="text-sm font-bold text-slate-700 dark:text-slate-300">Seller Address</Label>
+                    <Textarea name="currentAddress" value={formData.currentAddress} onChange={handleInputChange} placeholder="Seller's current address" className="min-h-[80px] rounded-xl resize-none bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800" />
+                  </div>
+                </div>
+              </div>
+            </>
           ) : (
             <div className="bg-white dark:bg-slate-950 rounded-2xl p-6 md:p-8 shadow-sm border border-slate-200 dark:border-slate-800 space-y-5">
-              <Label className="text-lg font-bold text-slate-900 dark:text-white block border-b border-slate-100 dark:border-slate-800 pb-3">14. Owner Details</Label>
+              <Label className="text-lg font-bold text-slate-900 dark:text-white block border-b border-slate-100 dark:border-slate-800 pb-3">Owner Details</Label>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <div id="field-name" className="space-y-2">
                   <Label className="text-sm font-bold text-slate-700 dark:text-slate-300">Full Name *</Label>
@@ -1402,7 +1677,7 @@ const PropertyListingForm = ({ isAdmin = false, initialData = null, cpMode = fal
           )}
 
           {/* (16b) WHATSAPP ALERTS */}
-          {!isAdmin && <label className="flex items-start gap-3 cursor-pointer group pt-2">
+          <label className="flex items-start gap-3 cursor-pointer group pt-2">
             <input
               type="checkbox"
               checked={whatsappAlerts}
@@ -1410,10 +1685,10 @@ const PropertyListingForm = ({ isAdmin = false, initialData = null, cpMode = fal
               className="mt-0.5 h-4 w-4 rounded border-slate-300 accent-green-500 cursor-pointer shrink-0"
             />
             <span className="text-sm text-slate-700 dark:text-slate-300 leading-snug group-hover:text-foreground transition-colors">
-              Send me property inquiry alerts on{' '}
+              {isAdmin ? 'Send the buyers' : 'Send me buyer'} leads &amp; site visit alerts on{' '}
               <span className="font-semibold text-[#25D366]">WhatsApp</span>
             </span>
-          </label>}
+          </label>
 
           {/* (17) TERMS & CONDITIONS */}
           <div id="field-termsAccepted" className="bg-transparent pt-4 pb-2">

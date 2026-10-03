@@ -1,6 +1,6 @@
 # Growperty
 
-> Greater Noida's property platform — buy, sell, and get WhatsApp alerts for residential and commercial real estate in Greater Noida, Noida, and YEIDA corridor.
+> Greater Noida's property platform — buy, sell, and get WhatsApp alerts for residential and commercial real estate in Greater Noida and the YEIDA (Yamuna Expressway) corridor.
 
 ## About
 
@@ -19,7 +19,6 @@ Growperty is a real estate marketplace focused on Greater Noida and surrounding 
 - [List Property](https://growperty.com/list-property) — Sellers submit their property; reviewed and published within 24 hours
 - [Become Channel Partner](https://growperty.com/become-channel-partner) — Real estate agents join as channel partners
 - [Area Guide — Greater Noida](https://growperty.com/area-guide/greater-noida) — Sector-level breakdown of localities, connectivity, price trends
-- [Area Guide — Noida](https://growperty.com/area-guide/noida)
 - [Area Guide — YEIDA](https://growperty.com/area-guide/yeida)
 - [Blog](https://growperty.com/blog)
 - [FAQ](https://growperty.com/faq)
@@ -30,7 +29,7 @@ Flat/Apartment, Independent House, Villa, Penthouse, Plot/Land, Commercial
 
 ## Geographic Focus
 
-Greater Noida West (Noida Extension), Greater Noida (Alpha, Beta, Gamma, Delta, Zeta, Eta sectors), Knowledge Park, Yamuna Expressway (YEIDA), Noida sectors
+Currently live: Greater Noida (Alpha, Beta, Gamma, Delta, Zeta, Eta sectors, Knowledge Park) and Yamuna Expressway (YEIDA). Coming soon: Noida, Greater Noida West and the wider Delhi-NCR.
 
 ## How It Works
 

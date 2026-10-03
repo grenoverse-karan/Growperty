@@ -181,6 +181,8 @@ export const sanitizePropertyFormData = (formData, propertyType) => {
     { name: 'visitFixedSlots', type: 'json' },
     { name: 'visitFlexibleSlots', type: 'json' },
     { name: 'isResale', type: 'bool' },
+    { name: 'reraApproved', type: 'bool' },
+    { name: 'whatsappAlerts', type: 'bool' },
     { name: 'furnishingType', type: 'select', values: FURNISHING_TYPES },
     { name: 'amenities', type: 'json' },
     { name: 'floorNo', type: 'text', maxLength: 50, condition: () => FLOOR_APPLICABLE_TYPES.includes(propertyType) },
@@ -199,7 +201,14 @@ export const sanitizePropertyFormData = (formData, propertyType) => {
     { name: 'pricePerUnit', type: 'number' },
     { name: 'propertyAge', type: 'text', maxLength: 100 },
     { name: 'bankLoanAvailable', type: 'text' },
-    { name: 'nearbyAmenities', type: 'json' }
+    { name: 'nearbyAmenities', type: 'json' },
+    { name: 'nearbyFamousPlace', type: 'text', maxLength: 600 },
+    { name: 'connectivity', type: 'json' },
+    { name: 'sectorGuide', type: 'text', maxLength: 2000 },
+    { name: 'offerTitle', type: 'text', maxLength: 60 },
+    { name: 'offerDetails', type: 'text', maxLength: 150 },
+    { name: 'offerValidTill', type: 'text', maxLength: 10 },
+    { name: 'bestFor', type: 'json' }
   ];
 
   // Process optional fields

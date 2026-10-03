@@ -337,9 +337,9 @@ const BuyerRequirementForm = () => {
                 <SelectValue placeholder="Select City" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="Noida">Noida</SelectItem>
                 <SelectItem value="Greater Noida">Greater Noida</SelectItem>
                 <SelectItem value="YEIDA">YEIDA</SelectItem>
+                <SelectItem value="Noida" disabled>Noida (Coming soon…)</SelectItem>
               </SelectContent>
             </Select>
           </FieldGroup>
@@ -388,7 +388,7 @@ const BuyerRequirementForm = () => {
                   value={areaInput}
                   onChange={e => setAreaInput(e.target.value)}
                   onKeyDown={handleAreaKeyDown}
-                  placeholder={formData.city === 'Noida' ? 'e.g. Sector 150, Sector 62…' : formData.city === 'Greater Noida' ? 'e.g. Alpha 1, Phi 4, Omicron…' : 'e.g. Sector 5, Tappal…'}
+                  placeholder={formData.city === 'Greater Noida' ? 'e.g. Alpha 1, Phi 4, Omicron…' : 'e.g. Sector 5, Tappal…'}
                   className="flex-1 h-[44px] px-4 rounded-xl border border-slate-200 bg-background text-sm outline-none focus:ring-2 focus:ring-primary/20 placeholder:text-muted-foreground"
                 />
                 <button type="button" onClick={() => addArea(areaInput)} disabled={!areaInput.trim()}

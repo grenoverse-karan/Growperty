@@ -7,6 +7,7 @@ import { Menu, X, User, LogOut, LayoutDashboard, PlusCircle, Settings, Search, C
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu.jsx';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar.jsx';
 import pb from '@/lib/pocketbaseClient.js';
+import { LOCALITY_PAGES } from '@/lib/localityPages.js';
 
 const Header = () => {
   const { isAuthenticated, currentUser, logout } = useAuth();
@@ -43,8 +44,8 @@ const Header = () => {
       type: 'dropdown',
       items: [
         { name: 'Greater Noida', path: '/area-guide/greater-noida' },
-        { name: 'Noida', path: '/area-guide/noida' },
-        { name: 'YEIDA', path: '/area-guide/yeida' }
+        { name: 'YEIDA', path: '/area-guide/yeida' },
+        ...LOCALITY_PAGES.map(p => ({ name: p.label, path: `/${p.slug}` })),
       ]
     },
     { name: 'Invest', path: '/invest' },
@@ -68,7 +69,7 @@ const Header = () => {
               className="h-10 md:h-14 w-auto object-contain transition-transform duration-300 group-hover:scale-105"
             />
             <span className="text-[8px] md:text-[9px] font-bold text-primary tracking-widest text-center mt-1 uppercase hidden sm:block">
-              GREATER NOIDA • NOIDA • YEIDA
+              GREATER NOIDA • YEIDA
             </span>
           </Link>
 
@@ -95,7 +96,7 @@ const Header = () => {
                     
                     {/* Dropdown Menu */}
                     <div className={`absolute top-full left-1/2 -translate-x-1/2 pt-2 transition-all duration-300 z-50 ${activeDropdown === link.name ? 'opacity-100 visible translate-y-0' : 'opacity-0 invisible 10'}`}>
-                      <div className="bg-white dark:bg-slate-900 border border-border shadow-xl rounded-xl p-2 min-w-[200px] flex flex-col gap-1 relative before:absolute before:-top-2 before:left-1/2 before:-translate-x-1/2 before:border-8 before:border-transparent before:border-b-white dark:before:border-b-slate-900">
+                      <div className="bg-white dark:bg-slate-900 border border-border shadow-xl rounded-xl p-2 min-w-[260px] flex flex-col gap-1 relative before:absolute before:-top-2 before:left-1/2 before:-translate-x-1/2 before:border-8 before:border-transparent before:border-b-white dark:before:border-b-slate-900">
                         {link.items.map((subItem) => (
                           <Link 
                             key={subItem.path} 
@@ -180,8 +181,22 @@ const Header = () => {
             )}
           </div>
 
-          {/* Mobile Menu Toggle */}
-          <div className="xl:hidden flex items-center">
+          {/* Mobile Menu Toggle + Profile */}
+          <div className="xl:hidden flex items-center gap-1">
+            {isAuthenticated ? (
+              <Button variant="ghost" size="icon" onClick={() => navigate('/profile')} aria-label="Profile" className="relative h-9 w-9 rounded-full focus-visible:ring-2 focus-visible:ring-[#10B981] focus-visible:ring-offset-2">
+                <Avatar className="h-9 w-9 border-2 border-primary/10">
+                  <AvatarImage src={currentUser?.avatar ? pb.files.getUrl(currentUser, currentUser.avatar) : ''} alt={currentUser?.name} />
+                  <AvatarFallback className="bg-primary/10 text-primary font-bold text-xs">
+                    {currentUser?.name?.charAt(0)?.toUpperCase() || <User className="h-4 w-4" />}
+                  </AvatarFallback>
+                </Avatar>
+              </Button>
+            ) : (
+              <Button variant="ghost" size="icon" onClick={() => navigate('/login')} aria-label="Log in" className="text-primary hover:bg-[#10B981]/10 hover:text-[#10B981]">
+                <User className="h-6 w-6" />
+              </Button>
+            )}
             <Button variant="ghost" size="icon" onClick={() => setMobileMenuOpen(!mobileMenuOpen)} aria-label="Toggle mobile menu" aria-expanded={mobileMenuOpen} className="text-primary hover:bg-[#10B981]/10 hover:text-[#10B981]">
               {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
             </Button>
@@ -206,7 +221,7 @@ const Header = () => {
                       <ChevronDown className={`w-4 h-4 transition-transform duration-300 ${isDropdownOpen ? 'rotate-180 text-[#10B981]' : ''}`} />
                     </button>
                     
-                    <div className={`overflow-hidden transition-all duration-300 ${isDropdownOpen ? 'max-h-[300px] opacity-100 mt-1' : 'max-h-0 opacity-0'}`}>
+                    <div className={`overflow-hidden transition-all duration-300 ${isDropdownOpen ? 'max-h-[420px] opacity-100 mt-1' : 'max-h-0 opacity-0'}`}>
                       <div className="flex flex-col pl-4 border-l-2 border-[#10B981]/30 ml-4 gap-1">
                         {link.items.map((subItem) => (
                           <Link 
@@ -252,6 +267,10 @@ const Header = () => {
                   <Button variant="secondary" onClick={() => { navigate(currentUser?.role === 'seller' ? '/dashboard/seller' : '/dashboard/buyer'); setMobileMenuOpen(false); }} className="w-full font-bold rounded-xl justify-center h-12">
                     <LayoutDashboard className="mr-2 h-5 w-5" />
                     Dashboard
+                  </Button>
+                  <Button variant="secondary" onClick={() => { navigate('/profile'); setMobileMenuOpen(false); }} className="w-full font-bold rounded-xl justify-center h-12">
+                    <Settings className="mr-2 h-5 w-5" />
+                    Profile Settings
                   </Button>
                   <Button variant="ghost" onClick={handleLogout} className="w-full font-bold rounded-xl justify-center text-destructive hover:text-destructive hover:bg-destructive/10 h-12">
                     <LogOut className="mr-2 h-5 w-5" />

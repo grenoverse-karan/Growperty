@@ -25,7 +25,7 @@ const InvestorPage = () => {
     <>
       <Helmet>
         <title>Invest Smart in Greater Noida & YEIDA - Growperty</title>
-        <meta name="description" content="Discover high-yield real estate investment opportunities in Greater Noida, Noida, and YEIDA. Explore residential, commercial, and plot investments." />
+        <meta name="description" content="Discover high-yield real estate investment opportunities in Greater Noida and YEIDA. Explore residential, commercial, and plot investments." />
       </Helmet>
 
       <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-background">
@@ -71,8 +71,8 @@ const InvestorPage = () => {
                 </div>
                 <div className="bg-white/10 backdrop-blur-md border border-white/10 rounded-2xl p-8 text-center transform transition-transform hover:-translate-y-1">
                   <Home className="w-10 h-10 text-[#10B981] mx-auto mb-4" />
-                  <div className="text-4xl font-extrabold text-white mb-2 tracking-tight">₹8,300</div>
-                  <div className="text-sm font-medium text-slate-300 uppercase tracking-wide">Avg Price per Sq.ft Noida</div>
+                  <div className="text-4xl font-extrabold text-white mb-2 tracking-tight">₹4.5K–8.5K</div>
+                  <div className="text-sm font-medium text-slate-300 uppercase tracking-wide">Avg Price per Sq.ft Greater Noida</div>
                 </div>
                 <div className="bg-white/10 backdrop-blur-md border border-white/10 rounded-2xl p-8 text-center transform transition-transform hover:-translate-y-1">
                   <Plane className="w-10 h-10 text-[#10B981] mx-auto mb-4" />
@@ -219,7 +219,7 @@ const InvestorPage = () => {
                 </h2>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
                 {/* Zone 1 */}
                 <div className="bg-white dark:bg-slate-900 rounded-3xl p-8 border border-border/50 shadow-sm hover:shadow-md hover:-translate-y-1 transition-all duration-300 flex flex-col">
                   <Badge className="bg-[#10B981] hover:bg-[#10B981] text-white w-fit mb-6 px-3 py-1 font-bold border-none">
@@ -234,23 +234,6 @@ const InvestorPage = () => {
                   </ul>
                   <div className="pt-6 border-t border-border/50">
                     <p className="text-lg font-extrabold text-[#10B981]">Avg Price: ₹4,500 — ₹8,500 per Sq.ft</p>
-                  </div>
-                </div>
-
-                {/* Zone 2 */}
-                <div className="bg-white dark:bg-slate-900 rounded-3xl p-8 border border-border/50 shadow-sm hover:shadow-md hover:-translate-y-1 transition-all duration-300 flex flex-col">
-                  <Badge className="bg-[#1e3a5f] hover:bg-[#1e3a5f] text-white w-fit mb-6 px-3 py-1 font-bold border-none">
-                    Premium & Connected
-                  </Badge>
-                  <h3 className="text-2xl font-extrabold text-foreground mb-6">Noida</h3>
-                  <ul className="space-y-3 mb-8 flex-grow">
-                    <li className="flex items-start"><CheckCircle2 className="w-5 h-5 text-[#1e3a5f] dark:text-blue-400 mt-0.5 mr-3 shrink-0" /><span className="text-muted-foreground">Direct Delhi metro link</span></li>
-                    <li className="flex items-start"><CheckCircle2 className="w-5 h-5 text-[#1e3a5f] dark:text-blue-400 mt-0.5 mr-3 shrink-0" /><span className="text-muted-foreground">IT & corporate hub</span></li>
-                    <li className="flex items-start"><CheckCircle2 className="w-5 h-5 text-[#1e3a5f] dark:text-blue-400 mt-0.5 mr-3 shrink-0" /><span className="text-muted-foreground">High rental demand</span></li>
-                    <li className="flex items-start"><CheckCircle2 className="w-5 h-5 text-[#1e3a5f] dark:text-blue-400 mt-0.5 mr-3 shrink-0" /><span className="text-muted-foreground">Premium projects</span></li>
-                  </ul>
-                  <div className="pt-6 border-t border-border/50">
-                    <p className="text-lg font-extrabold text-[#1e3a5f] dark:text-blue-400">Avg Price: ₹6,000 — ₹12,000 per Sq.ft</p>
                   </div>
                 </div>
 
@@ -410,7 +393,7 @@ const InvestorPage = () => {
                 Ready to Invest?
               </h2>
               <p className="text-lg text-emerald-50 mb-10 font-medium">
-                Explore verified investment properties in Greater Noida, Noida, and YEIDA
+                Explore verified investment properties in Greater Noida and YEIDA
               </p>
               <div className="flex flex-col sm:flex-row justify-center gap-4">
                 <Button asChild className="bg-white text-[#10B981] hover:bg-slate-50 h-14 px-8 text-lg font-bold rounded-xl shadow-lg transition-all active:scale-[0.98]">

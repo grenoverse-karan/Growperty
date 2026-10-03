@@ -10,17 +10,22 @@ import {
   MapPin, Bed, Bath, Maximize, Phone, MessageCircle,
   ArrowLeft, ShieldCheck, Car, Bike, Building2,
   CheckCircle2, ChevronLeft, ChevronRight, Image as ImageIcon,
-  Home, IndianRupee, Tag, Info, Clock, CalendarDays, Heart, Share2, DoorOpen,
+  Home, IndianRupee, Tag, Info, Clock, CalendarDays, Heart, Share2, DoorOpen, Landmark, Calculator,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatIndianPrice } from '@/hooks/useProperties.js';
 import apiServerClient, { API_SERVER_URL } from '@/lib/apiServerClient.js';
-import { PLATFORM_PHONE, PLATFORM_WHATSAPP } from '@/constants/contactInfo.js';
+import { PLATFORM_PHONE } from '@/constants/contactInfo.js';
 import VisitRequestModal from '@/components/VisitRequestModal.jsx';
 import SectorMap from '@/components/SectorMap.jsx';
+import PropertyEMICalculator from '@/components/PropertyEMICalculator.jsx';
+import ImageLightbox from '@/components/ImageLightbox.jsx';
+import ConnectivityList from '@/components/ConnectivityList.jsx';
+import { getActiveOffer, getOfferPricing, getOfferBenefitLabel, getOfferSummary, getOfferPhrase } from '@/lib/offerUtils.js';
 import { useAuth } from '@/contexts/AuthContext.jsx';
 import { isWishlisted, toggleWishlist } from '@/lib/wishlist.js';
 import { getActiveCpContact } from '@/lib/cpRef.js';
+import { openWhatsApp } from '@/lib/whatsappLink.js';
 import { trackCpVisitor } from '@/lib/cpVisitorTracking.js';
 
 const PLACEHOLDER = 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=1200&q=80';
@@ -69,6 +74,7 @@ const PropertyDetailsPage = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [activeImg, setActiveImg] = useState(0);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
   const [visitModalOpen, setVisitModalOpen] = useState(false);
   // CP referral: { cpName, cpPhone, cpToken } or null
   const [cpContact, setCpContact] = useState(null);
@@ -229,11 +235,17 @@ const PropertyDetailsPage = () => {
 
   const roomsLabel = !property.bhk && property.rooms > 0 ? `${property.rooms} Room${property.rooms > 1 ? 's' : ''}` : null;
   const title = [property.bhk || roomsLabel, property.propertyType].filter(Boolean).join(' ') || property.name || 'Property';
-  const formattedPrice = formatIndianPrice(property.totalPrice);
   const isSold = property.status === 'sold';
+  const offer = getActiveOffer(property);
+  const offerPricing = getOfferPricing(offer, property.totalPrice);
+  const offerBenefit = getOfferBenefitLabel(offer);
+  // A % offer lowers the shown price (and the EMI calculator's starting
+  // price); the original is struck through beside it.
+  const effectivePrice = offerPricing ? offerPricing.finalPrice : Number(property.totalPrice);
+  const formattedPrice = formatIndianPrice(effectivePrice);
 
-  const pricePerSqft = property.totalPrice && property.totalArea
-    ? Math.round(Number(property.totalPrice) / Number(property.totalArea))
+  const pricePerSqft = effectivePrice && property.totalArea
+    ? Math.round(effectivePrice / Number(property.totalArea))
     : null;
 
   const locationParts = [property.sector, property.landmark, property.city].filter(Boolean);
@@ -248,7 +260,7 @@ const PropertyDetailsPage = () => {
   return (
     <>
       <Helmet>
-        <title>{title} in {property.city || 'Delhi NCR'} | Growperty</title>
+        <title>{title} in {property.city || 'Greater Noida'} | Growperty</title>
       </Helmet>
       <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-background">
         <Header />
@@ -275,7 +287,8 @@ const PropertyDetailsPage = () => {
                           key={activeImg}
                           src={images[activeImg]}
                           alt={`${title} - image ${activeImg + 1}`}
-                          className="w-full h-full object-cover"
+                          className="w-full h-full object-cover cursor-zoom-in"
+                          onClick={() => setLightboxOpen(true)}
                           onError={(e) => { e.target.src = PLACEHOLDER; }}
                         />
                         {/* Badges */}
@@ -327,6 +340,15 @@ const PropertyDetailsPage = () => {
                           </>
                         )}
                       </div>
+                      <ImageLightbox
+                        images={images}
+                        index={activeImg}
+                        onIndexChange={setActiveImg}
+                        open={lightboxOpen}
+                        onClose={() => setLightboxOpen(false)}
+                        alt={title}
+                        placeholder={PLACEHOLDER}
+                      />
                       {/* Thumbnail strip */}
                       {images.length > 1 && (
                         <div className="flex gap-2 overflow-x-auto pb-1">
@@ -343,11 +365,10 @@ const PropertyDetailsPage = () => {
                       )}
                     </>
                   ) : (
-                    <div className="rounded-2xl overflow-hidden bg-slate-200 dark:bg-slate-800 relative" style={{ aspectRatio: '16/9' }}>
-                      <img src={PLACEHOLDER} alt={title} className="w-full h-full object-cover opacity-60" />
+                    <div className="rounded-2xl overflow-hidden bg-gradient-to-br from-slate-200 to-slate-300 dark:from-slate-800 dark:to-slate-900 relative" style={{ aspectRatio: '16/9' }}>
                       <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-500 dark:text-slate-400">
                         <ImageIcon className="h-12 w-12 mb-2 opacity-50" />
-                        <p className="text-sm font-bold">No photos uploaded</p>
+                        <p className="text-sm font-bold">Image uploading soon...</p>
                       </div>
                       <div className="absolute top-3 left-3 flex gap-2">
                         {isSold ? (
@@ -394,7 +415,87 @@ const PropertyDetailsPage = () => {
                       <span className="font-medium text-sm">{locationParts.join(', ')}</span>
                     </div>
                   )}
+                  {property.reraApproved === true && (
+                    <span className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-200 dark:border-emerald-800 px-2.5 py-1 rounded-full mt-2">
+                      <ShieldCheck className="w-3.5 h-3.5" /> RERA Approved
+                    </span>
+                  )}
                 </div>
+
+              </div>{/* end Part A */}
+
+              {/* ════════════════════════════════════════
+                  SIDEBAR CARD 1 — pricing & details
+              ════════════════════════════════════════ */}
+              <div className="lg:col-span-1">
+                <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 border border-border/50 shadow-lg lg:sticky lg:top-24 space-y-5">
+
+                  {/* Price */}
+                  <div>
+                    <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1">Asking Price</p>
+                    <p className="text-3xl font-extrabold text-primary leading-tight">{formattedPrice}</p>
+                    {(offerPricing || offerBenefit) && (
+                      <div className="flex items-center gap-2 flex-wrap mt-1">
+                        {offerPricing && (
+                          <span className="text-base text-muted-foreground line-through">{formatIndianPrice(property.totalPrice)}</span>
+                        )}
+                        <span className="inline-flex items-center text-xs font-extrabold text-white bg-gradient-to-b from-[#FB5C74] to-[#FA233B] shadow-sm shadow-[#FA233B]/30 px-2.5 py-1 rounded-full">
+                          {offerPricing ? `Save ₹${offerPricing.saving.toLocaleString('en-IN')}` : offerBenefit}
+                        </span>
+                      </div>
+                    )}
+                    {pricePerSqft && (
+                      <p className="text-sm text-muted-foreground font-medium mt-1">
+                        ₹ {pricePerSqft.toLocaleString('en-IN')} / {property.areaUnit || 'Sq.ft'}
+                      </p>
+                    )}
+                    {offer && (
+                      <div className="shine-badge relative mt-3 inline-flex max-w-full items-center gap-1.5 rounded-full px-3 py-1.5 bg-gradient-to-r from-amber-500 via-orange-500 to-rose-500 text-white shadow-md">
+                        <span className="text-sm leading-none">{offer.emoji}</span>
+                        <span className="text-xs font-extrabold truncate">
+                          {getOfferSummary(offer)}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Quick specs */}
+                  <div className="grid grid-cols-2 gap-2 py-4 border-y border-border/50">
+                    {property.bhk && (
+                      <div className="flex items-center gap-2">
+                        <Bed className="h-4 w-4 text-primary shrink-0" />
+                        <span className="text-sm font-bold text-foreground">{property.bhk}</span>
+                      </div>
+                    )}
+                    {property.rooms > 0 && (
+                      <div className="flex items-center gap-2">
+                        <DoorOpen className="h-4 w-4 text-primary shrink-0" />
+                        <span className="text-sm font-bold text-foreground">{property.rooms} Rooms</span>
+                      </div>
+                    )}
+                    {property.bathrooms > 0 && (
+                      <div className="flex items-center gap-2">
+                        <Building2 className="h-4 w-4 text-primary shrink-0" />
+                        <span className="text-sm font-bold text-foreground">{property.bathrooms} Bath</span>
+                      </div>
+                    )}
+                    {property.totalArea && (
+                      <div className="flex items-center gap-2 col-span-2">
+                        <Maximize className="h-4 w-4 text-primary shrink-0" />
+                        <span className="text-sm font-bold text-foreground">{property.totalArea} {property.areaUnit || 'Sq.ft'} ({property.areaType})</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Sector-level map link — never the exact property location */}
+                  <SectorMap sector={property.sector} city={property.city} />
+                </div>
+              </div>
+
+              {/* ════════════════════════════════════════
+                  PART B — remaining details
+              ════════════════════════════════════════ */}
+              <div className="lg:col-span-2 space-y-6">
 
                 {/* ── 3. BASIC INFO ─────────────────────── */}
                 <div className="bg-white dark:bg-slate-900 rounded-2xl p-5 border border-border/50 shadow-sm">
@@ -408,28 +509,6 @@ const PropertyDetailsPage = () => {
                     <SpecRow label="Balconies" value={property.balconies} />
                     {property.ownershipType && <SpecRow label="Ownership Type" value={property.ownershipType} />}
                     {property.plotType && <SpecRow label="Plot Type" value={property.plotType} />}
-                  </div>
-                </div>
-
-                {/* ── 4. AREA DETAILS ───────────────────── */}
-                <div className="bg-white dark:bg-slate-900 rounded-2xl p-5 border border-border/50 shadow-sm">
-                  <SectionTitle>Area Details</SectionTitle>
-                  <div className="grid grid-cols-3 gap-4">
-                    <div className="text-center p-3 bg-slate-50 dark:bg-slate-800 rounded-xl">
-                      <p className="text-2xl font-extrabold text-primary">{property.totalArea || '—'}</p>
-                      <p className="text-xs text-muted-foreground font-bold mt-1">{property.areaUnit || 'Sq.ft'}</p>
-                      <p className="text-xs text-muted-foreground">Total Area</p>
-                    </div>
-                    <div className="text-center p-3 bg-slate-50 dark:bg-slate-800 rounded-xl">
-                      <p className="text-base font-extrabold text-foreground leading-tight">{property.areaType || '—'}</p>
-                      <p className="text-xs text-muted-foreground mt-1">Area Type</p>
-                    </div>
-                    {pricePerSqft && (
-                      <div className="text-center p-3 bg-slate-50 dark:bg-slate-800 rounded-xl">
-                        <p className="text-base font-extrabold text-[#10B981]">₹{pricePerSqft.toLocaleString('en-IN')}</p>
-                        <p className="text-xs text-muted-foreground mt-1">per {property.areaUnit || 'Sq.ft'}</p>
-                      </div>
-                    )}
                   </div>
                 </div>
 
@@ -447,34 +526,6 @@ const PropertyDetailsPage = () => {
                     </div>
                   </div>
                 )}
-
-                {/* ── 6. PRICING ────────────────────────── */}
-                <div className="bg-white dark:bg-slate-900 rounded-2xl p-5 border border-border/50 shadow-sm">
-                  <SectionTitle>Pricing</SectionTitle>
-                  <div className="space-y-0">
-                    <SpecRow label="Total Price" value={formattedPrice} />
-                    {pricePerSqft && (
-                      <SpecRow label={`Price per ${property.areaUnit || 'Sq.ft'}`} value={`₹ ${pricePerSqft.toLocaleString('en-IN')}`} />
-                    )}
-                    {property.priceNegotiable && (
-                      <SpecRow label="Negotiable" value="Yes" />
-                    )}
-                    {property.bankLoanAvailable && (
-                      <SpecRow label="Bank Loan Available" value={property.bankLoanAvailable} />
-                    )}
-                  </div>
-                </div>
-
-                {/* ── 7. LOCATION ───────────────────────── */}
-                <div className="bg-white dark:bg-slate-900 rounded-2xl p-5 border border-border/50 shadow-sm">
-                  <SectionTitle>Location Details</SectionTitle>
-                  <div className="space-y-0">
-                    <SpecRow label="City" value={property.city} />
-                    <SpecRow label="Sector / Area" value={property.sector} />
-                    <SpecRow label="Society / Project / Landmark" value={property.landmark} />
-                    <SpecRow label="House / Flat / Plot No." value={property.houseNo} />
-                  </div>
-                </div>
 
                 {/* ── 8. PARKING ────────────────────────── */}
                 {(property.carParking >= 0 || property.bikeParking >= 0) && (
@@ -543,17 +594,30 @@ const PropertyDetailsPage = () => {
                 )}
 
                 {/* ── 12. NEARBY FACILITIES ─────────────── */}
-                {Array.isArray(property.nearbyAmenities) && property.nearbyAmenities.length > 0 && (
+                {((Array.isArray(property.nearbyAmenities) && property.nearbyAmenities.length > 0) || property.nearbyFamousPlace || property.connectivity?.length > 0) && (
                   <div className="bg-white dark:bg-slate-900 rounded-2xl p-5 border border-border/50 shadow-sm">
-                    <SectionTitle>Nearby Facilities ({property.nearbyAmenities.length})</SectionTitle>
-                    <div className="flex flex-wrap gap-2">
-                      {property.nearbyAmenities.map((a, i) => (
-                        <Chip key={i} color="slate">
-                          <MapPin className="h-3.5 w-3.5 shrink-0" />
-                          {a}
-                        </Chip>
-                      ))}
-                    </div>
+                    <SectionTitle>Nearby Facilities {property.nearbyAmenities?.length ? `(${property.nearbyAmenities.length})` : ''}</SectionTitle>
+                    {property.connectivity?.length > 0 && (
+                      <div className="mb-4">
+                        <ConnectivityList rows={property.connectivity} />
+                      </div>
+                    )}
+                    {property.nearbyFamousPlace && (
+                      <div className="flex items-start gap-2 mb-3 text-sm font-semibold text-primary">
+                        <Landmark className="h-4 w-4 mt-0.5 shrink-0" />
+                        <span className="whitespace-pre-line">{property.nearbyFamousPlace}</span>
+                      </div>
+                    )}
+                    {Array.isArray(property.nearbyAmenities) && property.nearbyAmenities.length > 0 && (
+                      <div className="flex flex-wrap gap-2">
+                        {property.nearbyAmenities.map((a, i) => (
+                          <Chip key={i} color="slate">
+                            <MapPin className="h-3.5 w-3.5 shrink-0" />
+                            {a}
+                          </Chip>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -566,6 +630,28 @@ const PropertyDetailsPage = () => {
                     <p className="text-muted-foreground text-sm italic">No description provided.</p>
                   )}
                 </div>
+
+                {/* ── SPECIAL OFFER ─────────────────────── */}
+                {offer && (
+                  <div className="relative overflow-hidden rounded-2xl p-5 bg-gradient-to-r from-amber-500 via-orange-500 to-rose-500 text-white shadow-md">
+                    <div className="flex items-center gap-4">
+                      <div className="shrink-0 w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center text-2xl">
+                        {offer.emoji}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-[11px] font-bold uppercase tracking-wider text-white/80">Special Offer</p>
+                        {offer.title && <p className="text-lg font-extrabold leading-tight">{offer.title}</p>}
+                        {offer.details && <p className="text-sm font-semibold text-white/95">{getOfferPhrase(offer.details)}</p>}
+                        {offer.validTill && (
+                          <p className="text-xs font-semibold text-white/90 mt-1">
+                            Valid till {offer.validTill.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                    <p className="absolute bottom-2 right-3 text-[10px] text-white/75">T&amp;C* apply</p>
+                  </div>
+                )}
 
                 {/* ── 14. VISIT TIMINGS ─────────────────── */}
                 {property.visitTimeType && (
@@ -595,61 +681,21 @@ const PropertyDetailsPage = () => {
                   </div>
                 )}
 
-              </div>{/* end left column */}
+                {/* ── 15. EMI CALCULATOR ────────────────── */}
+                {!isSold && Number(property.totalPrice) > 0 && (
+                  <div className="bg-white dark:bg-slate-900 rounded-2xl p-5 border border-border/50 shadow-sm">
+                    <SectionTitle><span className="flex items-center gap-2"><Calculator className="h-5 w-5 text-primary" />EMI Calculator</span></SectionTitle>
+                    <PropertyEMICalculator key={effectivePrice} price={effectivePrice} />
+                  </div>
+                )}
+
+              </div>{/* end Part B */}
 
               {/* ════════════════════════════════════════
-                  RIGHT COLUMN — sticky price card
+                  SIDEBAR CARD 2 — listed by + contact buttons
               ════════════════════════════════════════ */}
               <div className="lg:col-span-1">
-                <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 border border-border/50 shadow-lg sticky top-24 space-y-5">
-
-                  {/* Price */}
-                  <div>
-                    <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1">Asking Price</p>
-                    <p className="text-3xl font-extrabold text-primary leading-tight">{formattedPrice}</p>
-                    {pricePerSqft && (
-                      <p className="text-sm text-muted-foreground font-medium mt-1">
-                        ₹ {pricePerSqft.toLocaleString('en-IN')} / {property.areaUnit || 'Sq.ft'}
-                      </p>
-                    )}
-                  </div>
-
-                  {/* Quick specs */}
-                  <div className="grid grid-cols-2 gap-2 py-4 border-y border-border/50">
-                    {property.bhk && (
-                      <div className="flex items-center gap-2">
-                        <Bed className="h-4 w-4 text-primary shrink-0" />
-                        <span className="text-sm font-bold text-foreground">{property.bhk}</span>
-                      </div>
-                    )}
-                    {property.rooms > 0 && (
-                      <div className="flex items-center gap-2">
-                        <DoorOpen className="h-4 w-4 text-primary shrink-0" />
-                        <span className="text-sm font-bold text-foreground">{property.rooms} Rooms</span>
-                      </div>
-                    )}
-                    {property.bathrooms > 0 && (
-                      <div className="flex items-center gap-2">
-                        <Building2 className="h-4 w-4 text-primary shrink-0" />
-                        <span className="text-sm font-bold text-foreground">{property.bathrooms} Bath</span>
-                      </div>
-                    )}
-                    {property.totalArea && (
-                      <div className="flex items-center gap-2 col-span-2">
-                        <Maximize className="h-4 w-4 text-primary shrink-0" />
-                        <span className="text-sm font-bold text-foreground">{property.totalArea} {property.areaUnit || 'Sq.ft'} ({property.areaType})</span>
-                      </div>
-                    )}
-                    {property.city && (
-                      <div className="flex items-center gap-2 col-span-2">
-                        <MapPin className="h-4 w-4 text-primary shrink-0" />
-                        <span className="text-sm font-bold text-foreground">{[property.sector, property.city].filter(Boolean).join(', ')}</span>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Sector-level map link — never the exact property location */}
-                  <SectorMap sector={property.sector} city={property.city} />
+                <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 border border-border/50 shadow-lg lg:sticky lg:top-24 space-y-5">
 
                   {/* Listed by */}
                   <div>
@@ -686,14 +732,8 @@ const PropertyDetailsPage = () => {
                         </Button>
                         <Button
                           onClick={() => {
-                            if (cpContact) {
-                              const phone = `91${cpContact.cpPhone.replace(/\D/g, '').slice(-10)}`;
-                              const url = window.location.href.split('?')[0];
-                              const msg = encodeURIComponent(`Hi, I'm interested in this property ${url}`);
-                              window.open(`https://wa.me/${phone}?text=${msg}`, '_blank');
-                            } else {
-                              window.open(`https://wa.me/${PLATFORM_WHATSAPP}`, '_blank');
-                            }
+                            const url = window.location.href.split('?')[0];
+                            openWhatsApp(`Hi, I'm interested in this property: ${url}`);
                           }}
                           className="w-full h-12 text-base font-bold rounded-xl bg-[#25D366] hover:bg-[#20bd5a] text-white shadow-md hover:shadow-lg transition-all active:scale-[0.98]"
                         >
@@ -707,10 +747,6 @@ const PropertyDetailsPage = () => {
                           <CalendarDays className="mr-2 h-4 w-4" /> Request to Visit
                         </Button>
                       </div>
-
-                      <p className="text-xs text-center text-muted-foreground">
-                        Direct contact details are hidden for privacy.
-                      </p>
                     </>
                   )}
                 </div>
@@ -720,7 +756,7 @@ const PropertyDetailsPage = () => {
           </div>
 
           {/* Disclaimer block */}
-          <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pb-10">
+          <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 mt-10 md:mt-14 pb-10">
             <div className="rounded-xl border border-amber-200 dark:border-amber-800/40 bg-amber-50 dark:bg-amber-900/10 p-4 text-xs text-amber-800 dark:text-amber-300 leading-relaxed space-y-1">
               <p><strong>Disclaimer:</strong> Property details, pricing, approvals, and availability are provided by the owner/developer and may be subject to change. Please conduct independent legal, financial, and technical due diligence before making any payment or signing any document.</p>
               <p>Exact property location may be masked for privacy and anti-circumvention purposes. Verified location will be shared during authorized site visit coordination.</p>

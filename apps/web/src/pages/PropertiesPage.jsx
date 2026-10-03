@@ -1,11 +1,15 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Helmet } from 'react-helmet';
 import { motion } from 'framer-motion';
 import Header from '@/components/Header.jsx';
 import Footer from '@/components/Footer.jsx';
 import PropertyCard from '@/components/PropertyCard.jsx';
+import ProjectCard from '@/components/ProjectCard.jsx';
+import FestivalOfferTicker from '@/components/FestivalOfferTicker.jsx';
 import PropertyFilter from '@/components/PropertyFilter.jsx';
 import { useProperties } from '@/hooks/useProperties.js';
+import apiServerClient from '@/lib/apiServerClient.js';
 import { Search, SlidersHorizontal, Building2 } from 'lucide-react';
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
@@ -20,18 +24,51 @@ const PropertiesPage = () => {
     fetchProperties('approved,sold');
   }, [fetchProperties]);
 
+  // Projects aren't a separate section — they're woven into the same
+  // listing feed as properties (newest first), just tagged with a small
+  // "Project" badge so it's clear what you're looking at. Property-specific
+  // filters (BHK, size, price) don't apply to a multi-unit project, so these
+  // always show regardless of the sidebar filters.
+  const [projects, setProjects] = useState([]);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await apiServerClient.fetch('/projects?status=approved&limit=50');
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!cancelled) setProjects(Array.isArray(data.items) ? data.items : []);
+      } catch {
+        // Non-fatal — the property grid is the page's main content either way.
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  const [searchParams] = useSearchParams();
+
   const [filters, setFilters] = useState({
     location: 'all',
-    type: 'all',
+    type: searchParams.get('type') || 'all',
     plotType: 'all',
     bhk: 'all',
     maxPrice: 50000000,
-    verified: false
   });
 
   const filteredProperties = useMemo(() => {
     return filterProperties(filters);
   }, [filters, filterProperties]);
+
+  // Properties + projects merged into one chronological feed (newest first),
+  // each entry carrying its own kind so the grid below knows which card to render.
+  const feedItems = useMemo(() => {
+    const items = [
+      ...filteredProperties.map(property => ({ kind: 'property', key: `p-${property.id}`, data: property, createdAt: property.createdAt })),
+      ...projects.map(project => ({ kind: 'project', key: `j-${project._id}`, data: project, createdAt: project.createdAt })),
+    ];
+    items.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+    return items;
+  }, [filteredProperties, projects]);
 
   const handleFilterChange = (newFilters) => {
     setFilters(newFilters);
@@ -40,34 +77,19 @@ const PropertiesPage = () => {
   return (
     <>
       <Helmet>
-        <title>Browse Properties in Delhi NCR - Growperty.com</title>
-        <meta name="description" content="Explore our extensive collection of verified properties for sale in Noida, Greater Noida, and YEIDA. Filter by budget, BHK, and location." />
+        <title>Browse Properties in Greater Noida & YEIDA - Growperty.com</title>
+        <meta name="description" content="Explore our extensive collection of verified properties for sale in Greater Noida and YEIDA. Filter by budget, BHK, and location." />
       </Helmet>
 
       <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-background">
         <Header />
 
         <main className="flex-1">
-          <div className="bg-secondary text-secondary-foreground py-16 md:py-20 relative overflow-hidden">
-            <div className="absolute inset-0 opacity-5 bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-white via-transparent to-transparent"></div>
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5 }}
-                className="max-w-3xl"
-              >
-                <h1 className="text-4xl md:text-5xl font-extrabold mb-6 tracking-tight">
-                  Discover Premium Properties
-                </h1>
-                <p className="text-lg md:text-xl text-secondary-foreground/80 leading-relaxed font-medium">
-                  Browse our curated selection of verified real estate across Delhi-NCR. Use the filters to find exactly what you're looking for.
-                </p>
-              </motion.div>
-            </div>
-          </div>
+          {/* No visible banner — the page heading stays for SEO / screen readers only. */}
+          <h1 className="sr-only">Discover Properties You Want</h1>
+          <FestivalOfferTicker to={null} />
 
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
             <div className="flex flex-col lg:flex-row gap-8">
               {/* Desktop Sidebar */}
               <aside className="hidden lg:block w-80 flex-shrink-0">
@@ -96,7 +118,12 @@ const PropertiesPage = () => {
               <div className="flex-1">
                 <div className="flex items-center justify-between mb-8">
                   <h2 className="text-2xl font-extrabold text-foreground">
-                    {isLoading ? 'Loading Properties...' : `${filteredProperties.length} ${filteredProperties.length === 1 ? 'Property' : 'Properties'} Found`}
+                    {isLoading
+                      ? 'Loading Properties...'
+                      : `${filteredProperties.length} ${filteredProperties.length === 1 ? 'Property' : 'Properties'} Found`}
+                    {!isLoading && projects.length > 0 && (
+                      <span className="text-base font-semibold text-muted-foreground"> + {projects.length} {projects.length === 1 ? 'Project' : 'Projects'}</span>
+                    )}
                   </h2>
                 </div>
 
@@ -115,7 +142,7 @@ const PropertiesPage = () => {
                   <div className="text-center py-12 bg-destructive/10 rounded-2xl border border-destructive/20">
                     <p className="text-destructive font-medium">{error}</p>
                   </div>
-                ) : filteredProperties.length === 0 ? (
+                ) : feedItems.length === 0 ? (
                   <motion.div
                     initial={{ opacity: 0, scale: 0.95 }}
                     animate={{ opacity: 1, scale: 1 }}
@@ -127,10 +154,10 @@ const PropertiesPage = () => {
                     </div>
                     <h3 className="text-2xl font-bold text-foreground mb-3">No properties found</h3>
                     <p className="text-base text-muted-foreground mb-8 max-w-md mx-auto font-medium">
-                      We couldn't find any properties matching your current filters in Delhi-NCR. Try adjusting your budget or location.
+                      We couldn't find any properties matching your current filters. Try adjusting your budget or location.
                     </p>
                     <Button
-                      onClick={() => handleFilterChange({ location: 'all', type: 'all', plotType: 'all', bhk: 'all', maxPrice: 50000000, verified: false })}
+                      onClick={() => handleFilterChange({ location: 'all', type: 'all', plotType: 'all', bhk: 'all', maxPrice: 50000000 })}
                       className="h-12 px-8 rounded-xl font-bold shadow-md bg-primary hover:bg-primary/90"
                     >
                       Clear All Filters
@@ -138,14 +165,18 @@ const PropertiesPage = () => {
                   </motion.div>
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-2 gap-8">
-                    {filteredProperties.map((property, index) => (
+                    {feedItems.map((item, index) => (
                       <motion.div
-                        key={property.id}
+                        key={item.key}
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.4, delay: index * 0.05 }}
+                        transition={{ duration: 0.4, delay: Math.min(index, 8) * 0.05 }}
                       >
-                        <PropertyCard property={property} />
+                        {item.kind === 'project' ? (
+                          <ProjectCard project={item.data} index={index} />
+                        ) : (
+                          <PropertyCard property={item.data} />
+                        )}
                       </motion.div>
                     ))}
                   </div>

@@ -343,7 +343,7 @@ const BuyerDashboard = () => {
                 <Card className="rounded-2xl border-border/50 shadow-sm">
                   <CardHeader>
                     <CardTitle>Browse Properties</CardTitle>
-                    <CardDescription>Find your perfect property in Greater Noida, Noida & YEIDA.</CardDescription>
+                    <CardDescription>Find your perfect property in Greater Noida & YEIDA.</CardDescription>
                   </CardHeader>
                   <CardContent className="flex flex-col sm:flex-row gap-3">
                     <Button asChild className="rounded-xl font-bold flex-1">

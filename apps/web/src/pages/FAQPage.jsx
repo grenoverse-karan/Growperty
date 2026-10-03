@@ -16,7 +16,7 @@ import {
 const buyerFaqs = [
   {
     question: 'How do I search for properties?',
-    answer: 'You can use the search bar on our homepage or navigate to the Properties page. Filter listings by city (Noida, Greater Noida, YEIDA), property type, budget, and BHK configuration to find your perfect match.',
+    answer: 'You can use the search bar on our homepage or navigate to the Properties page. Filter listings by city (Greater Noida, YEIDA), property type, budget, and BHK configuration to find your perfect match.',
   },
   {
     question: 'How do I contact the owner?',
@@ -62,7 +62,7 @@ const sellerFaqs = [
 const generalFaqs = [
   {
     question: 'What areas does Growperty cover?',
-    answer: 'We currently specialize in premium real estate across Greater Noida, Noida, and the rapidly developing YEIDA (Yamuna Expressway) regions.',
+    answer: 'We currently specialize in premium real estate across Greater Noida and the rapidly developing YEIDA (Yamuna Expressway) region. Noida and the wider Delhi-NCR are coming soon.',
   },
   {
     question: 'Who is behind Growperty?',

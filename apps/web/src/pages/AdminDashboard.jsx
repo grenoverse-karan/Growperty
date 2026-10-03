@@ -25,6 +25,7 @@ const NAV = [
   { id: 'inv-overview',   label: 'Overview',       icon: '📊', href: '/admin/inventory' },
   { id: 'inv-list',       label: 'List Property',  icon: '➕', href: '/admin/list-property' },
   { id: 'inv-listings',   label: 'Listings',       icon: '🏘', href: '/admin/properties' },
+  { id: 'inv-projects',   label: 'Projects',       icon: '🏗', href: '/admin/projects' },
   { id: 'inv-fasttrack',  label: 'Fast Track',     icon: '⚡', href: '/admin/approvals' },
   { id: 'inv-analytics',  label: 'Analytics',      icon: '📈', href: '/admin/analytics' },
   { id: 'inv-txn',        label: 'Transactions',   icon: '💳', href: '/admin/transactions' },

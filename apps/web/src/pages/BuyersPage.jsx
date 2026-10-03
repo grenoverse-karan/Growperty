@@ -9,8 +9,9 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from '@/components/ui/sheet';
 import { MapPin, Phone, MessageCircle, SlidersHorizontal, Users, Search } from 'lucide-react';
 import apiServerClient from '@/lib/apiServerClient.js';
-import { PLATFORM_PHONE, PLATFORM_WHATSAPP } from '@/constants/contactInfo.js';
+import { PLATFORM_PHONE } from '@/constants/contactInfo.js';
 import { getActiveCpContact } from '@/lib/cpRef.js';
+import { openWhatsApp } from '@/lib/whatsappLink.js';
 
 const fmt = (n) => {
   if (!n) return null;
@@ -36,7 +37,7 @@ function timeAgo(dateStr) {
 }
 
 const PROP_TYPES = ['Flat / Apartment', 'Independent House', 'Villa', 'Plot', 'Industrial Plot', 'Commercial Space'];
-const CITIES     = ['Greater Noida', 'Noida', 'YEIDA'];
+const CITIES     = ['Greater Noida', 'YEIDA'];
 const BHK_OPTS   = ['1 BHK', '2 BHK', '3 BHK', '4 BHK', '5+ BHK'];
 
 function BuyerCard({ req, index }) {
@@ -44,9 +45,7 @@ function BuyerCard({ req, index }) {
     ? `${fmt(req.minBudget) || '—'} – ${fmt(req.maxBudget) || '—'}`
     : null;
 
-  const waText = encodeURIComponent(
-    `Hi Growperty, I have a property that matches a buyer requirement:\n• Type: ${req.propertyType || ''}${req.preferredBhk ? ` ${req.preferredBhk}` : ''}\n• City: ${req.city || ''}\n• Budget: ${budget || 'Not specified'}\n\nPlease connect me with the buyer.`
-  );
+  const waText = `Hi Growperty, I have a property that matches a buyer requirement:\n• Type: ${req.propertyType || ''}${req.preferredBhk ? ` ${req.preferredBhk}` : ''}\n• City: ${req.city || ''}\n• Budget: ${budget || 'Not specified'}\n\nPlease connect me with the buyer.`;
 
   return (
     <motion.div
@@ -162,11 +161,7 @@ function BuyerCard({ req, index }) {
               <Phone className="h-4 w-4 mr-1.5" /> Call Us
             </Button>
             <Button variant="outline" className="h-10 text-sm font-bold rounded-xl border-[#25D366]/20 text-[#25D366] hover:bg-[#25D366]/10"
-              onClick={() => {
-                const cp = getActiveCpContact();
-                const whatsapp = cp ? `91${cp.cpPhone.replace(/\D/g, '').slice(-10)}` : PLATFORM_WHATSAPP;
-                window.open(`https://wa.me/${whatsapp}?text=${waText}`, '_blank');
-              }}>
+              onClick={() => openWhatsApp(waText)}>
               <MessageCircle className="h-4 w-4 mr-1.5" /> WhatsApp
             </Button>
           </div>
@@ -283,32 +278,24 @@ export default function BuyersPage() {
   return (
     <>
       <Helmet>
-        <title>Active Buyers in Delhi NCR — Growperty.com</title>
-        <meta name="description" content="Browse verified buyers looking for properties in Noida, Greater Noida, and YEIDA. If you have a matching property, connect through Growperty." />
+        <title>Active Buyers in Greater Noida & YEIDA — Growperty.com</title>
+        <meta name="description" content="Browse verified buyers looking for properties in Greater Noida and YEIDA. If you have a matching property, connect through Growperty." />
       </Helmet>
 
       <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-background">
         <Header />
 
         <main className="flex-1">
-          {/* Hero */}
-          <div className="bg-secondary text-secondary-foreground py-16 md:py-20 relative overflow-hidden">
-            <div className="absolute inset-0 opacity-5 bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-white via-transparent to-transparent" />
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-                <h1 className="text-4xl md:text-5xl font-extrabold mb-4 tracking-tight">Active Buyers</h1>
-                <p className="text-lg md:text-xl text-secondary-foreground/80 leading-relaxed font-medium max-w-2xl">
-                  Verified buyers actively looking for properties across Delhi-NCR. Have a matching property? Connect through Growperty.
-                </p>
-                {!loading && (
-                  <div className="mt-6 inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm px-4 py-2 rounded-full text-sm font-semibold">
-                    <Users className="h-4 w-4" />
-                    {requirements.length} active buyer{requirements.length !== 1 ? 's' : ''} looking right now
-                  </div>
-                )}
-              </motion.div>
+          {/* No visible banner — the page heading stays for SEO / screen readers only. */}
+          <h1 className="sr-only">Active Buyers</h1>
+          {!loading && (
+            <div className="bg-secondary text-secondary-foreground">
+              <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center gap-2 text-sm font-semibold">
+                <Users className="h-4 w-4" />
+                {requirements.length} active buyer{requirements.length !== 1 ? 's' : ''} looking right now across Greater Noida and YEIDA
+              </div>
             </div>
-          </div>
+          )}
 
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
             <div className="flex flex-col lg:flex-row gap-8">

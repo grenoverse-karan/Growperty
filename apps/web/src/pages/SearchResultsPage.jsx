@@ -103,7 +103,10 @@ const SearchResultsPage = () => {
     <>
       <Helmet>
         <title>{searchTitle} | Growperty.com</title>
-        <meta name="description" content={`Browse verified ${propertyType || 'properties'} in ${city || 'Delhi NCR'}.`} />
+        <meta name="description" content={`Browse verified ${propertyType || 'properties'} in ${city || 'Greater Noida & YEIDA'}.`} />
+        {/* Filtered/paginated search results are near-duplicate content and
+            shouldn't compete with the main listing pages for ranking. */}
+        <meta name="robots" content="noindex, follow" />
       </Helmet>
 
       <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-background">

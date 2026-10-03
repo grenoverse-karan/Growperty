@@ -70,6 +70,9 @@ router.post('/', async (req, res) => {
       const property = await Property.findById(propertyId).lean();
       if (!property) {
         console.log('🔴 WhatsApp trigger error: property not found for id', propertyId);
+      } else if (property.whatsappAlerts === false) {
+        // Seller opted out of lead / site-visit alerts in the listing form.
+        logger.info('[WA] visit confirmation skipped — seller opted out', { propertyId });
       } else {
         const templateByType = {
           fixed: 'seller_fixedslot_visit_confirmation',

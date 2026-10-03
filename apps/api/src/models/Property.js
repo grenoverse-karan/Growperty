@@ -18,6 +18,7 @@ const propertySchema = new mongoose.Schema(
     areaType:        { type: String, required: true },
     email:           { type: String },
     mobileNumber:    { type: String },
+    whatsappAlerts:  { type: Boolean, default: true }, // seller opted in to lead / site-visit alerts
     ownerType:       { type: String, required: true },
     name:            { type: String },
     carParking:      { type: Number, default: 0 },
@@ -39,10 +40,22 @@ const propertySchema = new mongoose.Schema(
     currentAddress:  { type: String },
     possessionStatus:{ type: String },
     ownershipType:   { type: String },
+    reraApproved:    { type: Boolean }, // unset = not specified by the lister
     furnishingType:  { type: String },
     furnishingItems: { type: mongoose.Schema.Types.Mixed },
     amenities:       { type: [String], default: [] },
     nearbyAmenities: { type: [String], default: [] },
+    nearbyFamousPlace: { type: String },
+    // [{ type: metro|airport|highway|railway|school|hospital|mall, name, distance }]
+    connectivity: {
+      type: [{ _id: false, type: { type: String }, name: String, distance: String }],
+      default: [],
+    },
+    sectorGuide: { type: String },
+    offerTitle:      { type: String },   // e.g. "Diwali Offer"
+    offerDetails:    { type: String },   // e.g. "2% Off"
+    offerValidTill:  { type: Date },     // offer hidden on the listing after this day
+    bestFor:         { type: [String], default: [] },
     specialFeatures: { type: mongoose.Schema.Types.Mixed },
     plotType:        { type: String },
     openSide:        { type: String },

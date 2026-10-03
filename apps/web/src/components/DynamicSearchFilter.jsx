@@ -66,10 +66,8 @@ const DynamicSearchFilter = () => {
               <SelectValue placeholder="Select City" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="Noida">Noida</SelectItem>
               <SelectItem value="Greater Noida">Greater Noida</SelectItem>
               <SelectItem value="YEIDA">YEIDA</SelectItem>
-              <SelectItem value="Ecotech">Ecotech</SelectItem>
             </SelectContent>
           </Select>
         </div>

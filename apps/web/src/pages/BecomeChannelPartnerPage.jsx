@@ -384,7 +384,7 @@ export default function BecomeChannelPartnerPage() {
                 {/* City */}
                 <div>
                   <label style={lbl}>City *</label>
-                  <input type="text" value={formData.city} onChange={handleChange('city')} placeholder="e.g. Noida, Greater Noida" style={inp('city')} />
+                  <input type="text" value={formData.city} onChange={handleChange('city')} placeholder="e.g. Greater Noida" style={inp('city')} />
                   {err('city')}
                 </div>
 

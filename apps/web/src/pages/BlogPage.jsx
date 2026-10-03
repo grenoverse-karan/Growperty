@@ -63,7 +63,7 @@ const BlogPage = () => {
     <>
       <Helmet>
         <title>Blog & Market Insights | Growperty.com</title>
-        <meta name="description" content="Stay informed with the latest property tips, market trends, and real estate insights in Noida, Greater Noida, and YEIDA." />
+        <meta name="description" content="Stay informed with the latest property tips, market trends, and real estate insights in Greater Noida and YEIDA." />
       </Helmet>
 
       <div className="min-h-screen flex flex-col bg-background">

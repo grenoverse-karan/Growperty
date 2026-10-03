@@ -60,7 +60,6 @@ const sitemapData = [
     icon: MapPin,
     links: [
       { label: 'Greater Noida Guide', path: '/area-guide/greater-noida' },
-      { label: 'Noida Guide', path: '/area-guide/noida' },
       { label: 'YEIDA Guide', path: '/area-guide/yeida' },
     ]
   },
@@ -104,7 +103,7 @@ const SitemapPage = () => {
     <>
       <Helmet>
         <title>Sitemap - Growperty.com</title>
-        <meta name="description" content="Complete sitemap of Growperty.com. Find properties, projects, area guides, and more across Greater Noida, Noida, and YEIDA." />
+        <meta name="description" content="Complete sitemap of Growperty.com. Find properties, projects, area guides, and more across Greater Noida and YEIDA." />
       </Helmet>
 
       <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-[#0a0a0a]">

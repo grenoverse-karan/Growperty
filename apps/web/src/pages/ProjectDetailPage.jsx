@@ -2,12 +2,12 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Helmet } from 'react-helmet';
-import { motion } from 'framer-motion';
 import { toast } from 'sonner';
-import { 
-  MapPin, Home, Building2, Layers, Maximize2, Ruler, CheckCircle, 
-  Calendar, Flag, Train, Car, Plane, Heart, BookOpen, Phone, MessageCircle, 
-  ArrowRight, ShieldCheck, Zap, Waves, Trees, Dumbbell, Coffee, Shield, Loader2
+import {
+  MapPin, Building2, Layers, CheckCircle,
+  Calendar, Phone, MessageCircle, ArrowRight, ShieldCheck, Loader2,
+  Image as ImageIcon, FileText, Video, Sparkles, Clock,
+  LandPlot, Building, ArrowUpFromLine, Home, KeyRound, Trees,
 } from 'lucide-react';
 import Header from '@/components/Header.jsx';
 import Footer from '@/components/Footer.jsx';
@@ -17,79 +17,56 @@ import { Input } from '@/components/ui/input.jsx';
 import { Label } from '@/components/ui/label.jsx';
 import { Checkbox } from '@/components/ui/checkbox.jsx';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select.jsx';
+import { Skeleton } from '@/components/ui/skeleton.jsx';
+import apiServerClient, { API_SERVER_URL } from '@/lib/apiServerClient.js';
+import { formatIndianPrice } from '@/hooks/useProperties.js';
+import SectorMap from '@/components/SectorMap.jsx';
+import { getActiveOffer, getOfferPhrase } from '@/lib/offerUtils.js';
+import { flattenPricing } from '@/lib/projectPricing.js';
+import { PROJECT_DOCUMENT_TYPES } from '@/lib/listingOptions.js';
+import { isReraApproved } from '@/lib/projectDisplay.js';
+import ConnectivityList from '@/components/ConnectivityList.jsx';
+import { PLATFORM_PHONE } from '@/constants/contactInfo.js';
+import { openWhatsApp } from '@/lib/whatsappLink.js';
+import ImageLightbox from '@/components/ImageLightbox.jsx';
 
-const IMAGES = [
-  'https://images.unsplash.com/photo-1643732994186-6755311b4306',
-  'https://images.unsplash.com/photo-1515263487990-61b07816b324',
-  'https://images.unsplash.com/photo-1692830085898-802ee151c0b6',
-  'https://images.unsplash.com/photo-1543766303-014a5662f9e2',
-  'https://images.unsplash.com/photo-1539528408517-3e496473be3c'
-];
-
-const OVERVIEW_DETAILS = [
-  { icon: Home, label: 'Property Types', value: '2, 3 BHK Apartments' },
-  { icon: Building2, label: 'Total Units', value: '500+' },
-  { icon: Layers, label: 'Total Towers', value: '8' },
-  { icon: Maximize2, label: 'Total Floors', value: 'G+14' },
-  { icon: Ruler, label: 'Area Range', value: '950 — 1650 Sq.ft' },
-  { icon: CheckCircle, label: 'Possession', value: 'Ready to Move' },
-  { icon: Calendar, label: 'Launch Year', value: '2021' },
-  { icon: Flag, label: 'Completion Year', value: '2024' }
-];
-
-const CONFIGURATIONS = [
-  { type: '2 BHK', area: '950 — 1100 Sq.ft', price: '₹45 Lac — ₹55 Lac', status: 'Available', badgeColor: 'bg-emerald-500' },
-  { type: '3 BHK', area: '1350 — 1650 Sq.ft', price: '₹65 Lac — ₹85 Lac', status: 'Available', badgeColor: 'bg-emerald-500' },
-  { type: '3 BHK + Study', area: '1600 — 1800 Sq.ft', price: '₹80 Lac — ₹95 Lac', status: 'Limited Units', badgeColor: 'bg-amber-500' }
-];
-
-const AMENITIES = [
-  { category: 'LIFESTYLE', items: ['Clubhouse', 'Swimming Pool', 'Gymnasium', 'Jogging Track', 'Kids Play Area', 'Sports Court'] },
-  { category: 'SECURITY', items: ['24/7 Security', 'CCTV', 'Gated Entry', 'Intercom', 'Fire Fighting System'] },
-  { category: 'INFRASTRUCTURE', items: ['Power Backup', 'Lifts', 'Water Supply', 'EV Charging', 'Piped Gas', 'Rainwater Harvesting'] },
-  { category: 'CONVENIENCE', items: ['Visitor Parking', 'Maintenance Staff', 'Shopping Complex', 'Park', 'Wide Roads'] }
-];
-
-const LOCATION_POINTS = [
-  { icon: MapPin, text: 'Sector 1, Greater Noida' },
-  { icon: MapPin, text: 'Near: Pari Chowk, Knowledge Park' },
-  { icon: Train, text: 'Metro: Aqua Line — 2 km' },
-  { icon: Car, text: 'Highway: Yamuna Expressway — 5 km' },
-  { icon: Plane, text: 'Airport: Jewar International — 25 km' },
-  { icon: Heart, text: 'Hospital: Fortis — 3 km' },
-  { icon: BookOpen, text: 'School: DPS — 1 km' }
-];
-
-const SIMILAR_PROJECTS = [
-  { name: 'Skyline Avenue', builder: 'Definitive Homes', location: 'Sector 150, Noida', price: '₹85L - ₹1.5Cr', status: 'UNDER CONSTRUCTION', image: 'https://images.unsplash.com/photo-1580041065738-e72023775cdc' },
-  { name: 'Oasis Grand', builder: 'Prime Builders', location: 'Sector 4, Greater Noida', price: '₹55L - ₹95L', status: 'READY TO MOVE', image: 'https://images.unsplash.com/photo-1618404399394-123316e32859' },
-  { name: 'Eco Village', builder: 'Green Earth Devs', location: 'Sector 1, Greater Noida', price: '₹40L - ₹75L', status: 'NEW LAUNCH', image: 'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00' }
-];
 
 const ProjectDetailPage = () => {
-  const { projectName } = useParams();
-  const [mainImage, setMainImage] = useState(IMAGES[0]);
+  const { id } = useParams();
+  const [project, setProject] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  
+  const [activeImg, setActiveImg] = useState(0);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+
   const [formData, setFormData] = useState({
-    name: '',
-    mobile: '',
-    sameAsMobile: true,
-    config: '',
-    budget: '',
-    timeline: ''
+    name: '', mobile: '', sameAsMobile: true, config: '', timeline: '',
   });
   const [errors, setErrors] = useState({});
 
   useEffect(() => {
     window.scrollTo(0, 0);
-  }, [projectName]);
+    const fetchProject = async () => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        const res = await apiServerClient.fetch(`/projects/${id}`);
+        if (!res.ok) throw new Error(res.status === 404 ? 'Project not found' : `Server error: ${res.status}`);
+        const data = await res.json();
+        setProject(data);
+      } catch (err) {
+        setError(err.message);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    if (id) fetchProject();
+  }, [id]);
 
   const handleInputChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
-    if (errors[field]) {
-      setErrors(prev => ({ ...prev, [field]: null }));
-    }
+    if (errors[field]) setErrors(prev => ({ ...prev, [field]: null }));
   };
 
   const scrollToEnquiry = () => {
@@ -99,131 +76,196 @@ const ProjectDetailPage = () => {
   const handleEnquirySubmit = (e) => {
     e.preventDefault();
     const newErrors = {};
-    
     if (!formData.name.trim()) newErrors.name = 'Full Name is required';
     if (!formData.mobile.trim()) {
       newErrors.mobile = 'Mobile Number is required';
     } else if (!/^\d{10}$/.test(formData.mobile.replace(/\D/g, ''))) {
       newErrors.mobile = 'Mobile must be exactly 10 digits';
     }
-
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
       return;
     }
-
     setIsSubmitting(true);
-    
-    // Simulate API call
     setTimeout(() => {
       toast.success('Thank you! Your enquiry has been received. Our team will contact you within 24 hours.', {
         duration: 5000,
         icon: <CheckCircle className="w-5 h-5 text-emerald-500" />
       });
-      setFormData({
-        name: '',
-        mobile: '',
-        sameAsMobile: true,
-        config: '',
-        budget: '',
-        timeline: ''
-      });
+      setFormData({ name: '', mobile: '', sameAsMobile: true, config: '', timeline: '' });
       setIsSubmitting(false);
     }, 1000);
   };
 
-  const formattedProjectName = projectName ? projectName.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ') : 'Greenwood Heights';
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-background">
+        <Header />
+        <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 w-full space-y-6">
+          <Skeleton className="h-72 w-full rounded-2xl" />
+          <Skeleton className="h-40 w-full rounded-2xl" />
+          <Skeleton className="h-40 w-full rounded-2xl" />
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
+  if (error || !project) {
+    return (
+      <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-background">
+        <Header />
+        <main className="flex-1 flex flex-col items-center justify-center py-24 px-4 text-center">
+          <Building2 className="w-12 h-12 text-muted-foreground mb-4" />
+          <h1 className="text-2xl font-bold text-foreground mb-2">{error || 'Project not found'}</h1>
+          <Button asChild className="mt-4"><Link to="/projects">Browse Other Projects</Link></Button>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
+  const { rows: pricingRows, range } = flattenPricing(project.propertyTypePricing);
+  const galleryImages = Array.isArray(project.projectImages) ? project.projectImages : [];
+  const mainImage = galleryImages[activeImg] || galleryImages[0];
+  const activeOffer = getActiveOffer(project);
+  const listedAgo = (() => {
+    const dateStr = project.createdAt;
+    if (!dateStr) return null;
+    const diff  = Date.now() - new Date(dateStr).getTime();
+    const mins  = Math.floor(diff / 60000);
+    const hours = Math.floor(diff / 3600000);
+    const days  = Math.floor(diff / 86400000);
+    const weeks = Math.floor(days / 7);
+    if (mins < 60)   return `${mins || 1}m ago`;
+    if (hours < 24)  return `${hours}hr ago`;
+    if (days === 1)  return 'Yesterday';
+    if (days < 7)    return `${days} days ago`;
+    if (weeks === 1) return '1 week ago';
+    if (weeks < 5)   return `${weeks} weeks ago`;
+    return new Date(dateStr).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+  })();
+  const isDocApplied = (key) =>
+    key === 'reraCertificate' ? Boolean(project.reraApplied) : (project.documentsApplied || []).includes(key);
 
   return (
     <>
       <Helmet>
-        <title>{formattedProjectName} - Residential Project in Greater Noida | Growperty</title>
-        <meta name="description" content={`Discover ${formattedProjectName} by ABC Developers. 2 & 3 BHK premium apartments in Sector 1, Greater Noida. View floor plans, amenities, and price list.`} />
+        <title>{project.projectName} - {project.projectType} Project in {project.city} | Growperty</title>
+        <meta name="description" content={`${project.projectName} by ${project.builderName} in ${[project.sector, project.societyName, project.city].filter(Boolean).join(', ')}. View pricing, amenities, and configurations.`} />
       </Helmet>
 
       <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-background">
         <Header />
 
         <main className="flex-grow pb-20">
-          
+
           {/* SECTION 1 — IMAGE GALLERY */}
           <section className="bg-slate-900 w-full">
             <div className="max-w-7xl mx-auto">
-              <div className="aspect-[16/9] md:aspect-[21/9] lg:aspect-[2.5/1] overflow-hidden bg-black relative">
-                <motion.img 
-                  key={mainImage}
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ duration: 0.4 }}
-                  src={mainImage} 
-                  alt={formattedProjectName} 
-                  className="w-full h-full object-cover"
-                />
+              <div className="aspect-[16/9] md:aspect-[21/9] lg:aspect-[2.5/1] overflow-hidden bg-black relative flex items-center justify-center">
+                {mainImage ? (
+                  <img
+                    key={activeImg}
+                    src={mainImage}
+                    alt={`${project.projectName} - image ${activeImg + 1}`}
+                    className="w-full h-full object-cover cursor-zoom-in"
+                    onClick={() => setLightboxOpen(true)}
+                  />
+                ) : (
+                  <ImageIcon className="w-16 h-16 text-slate-700" />
+                )}
                 <div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 via-transparent to-transparent pointer-events-none" />
               </div>
-              
-              <div className="flex overflow-x-auto gap-2 p-4 bg-slate-900 scrollbar-hide snap-x">
-                {IMAGES.map((img, idx) => (
-                  <button 
-                    key={idx}
-                    onClick={() => setMainImage(img)}
-                    className={`relative shrink-0 w-24 h-16 sm:w-32 sm:h-24 rounded-lg overflow-hidden snap-center transition-all ${mainImage === img ? 'ring-2 ring-emerald-500 ring-offset-2 ring-offset-slate-900 opacity-100' : 'opacity-60 hover:opacity-100'}`}
-                  >
-                    <img src={img} alt={`Thumbnail ${idx + 1}`} className="w-full h-full object-cover" />
-                  </button>
-                ))}
-              </div>
+
+              <ImageLightbox
+                images={galleryImages}
+                index={activeImg}
+                onIndexChange={setActiveImg}
+                open={lightboxOpen}
+                onClose={() => setLightboxOpen(false)}
+                alt={project.projectName}
+              />
+
+              {galleryImages.length > 1 && (
+                <div className="flex overflow-x-auto gap-2 p-4 bg-slate-900 scrollbar-hide snap-x">
+                  {galleryImages.map((img, idx) => (
+                    <button
+                      type="button"
+                      key={idx}
+                      onClick={() => setActiveImg(idx)}
+                      className={`relative shrink-0 w-24 h-16 sm:w-32 sm:h-24 rounded-lg overflow-hidden snap-center border-2 transition-all ${idx === activeImg ? 'border-white' : 'border-transparent opacity-70 hover:opacity-100'}`}
+                    >
+                      <img src={img} alt={`${project.projectName} ${idx + 1}`} className="w-full h-full object-cover" />
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           </section>
 
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-8 relative z-10">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-              
-              {/* LEFT COLUMN: Main Content */}
+
+              {/* LEFT COLUMN */}
               <div className="lg:col-span-2 space-y-10">
-                
-                {/* SECTION 2 — PROJECT HEADER */}
+
+                {/* SECTION 2 — HEADER */}
                 <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl p-6 md:p-8 border border-border/50">
                   <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-4 mb-6">
                     <div>
-                      <div className="flex items-center gap-3 mb-2">
+                      <div className="flex items-center gap-3 mb-2 flex-wrap">
                         <h1 className="text-3xl md:text-4xl font-extrabold text-brand-blue dark:text-white tracking-tight">
-                          {formattedProjectName}
+                          {project.projectName}
                         </h1>
-                        <Badge className="bg-emerald-500 hover:bg-emerald-600 text-white font-bold tracking-wide border-none hidden sm:inline-flex">
-                          READY TO MOVE
-                        </Badge>
+                        {project.projectStatus && (
+                          <Badge className="bg-emerald-500 hover:bg-emerald-600 text-white font-bold tracking-wide border-none">
+                            {project.projectStatus.toUpperCase()}
+                          </Badge>
+                        )}
+                        {isReraApproved(project) && (
+                          <Badge className="bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 font-bold flex items-center gap-1.5">
+                            <ShieldCheck className="w-3.5 h-3.5" /> RERA Approved
+                          </Badge>
+                        )}
                       </div>
                       <p className="text-muted-foreground font-medium flex items-center gap-2 mb-2">
-                        By <span className="text-foreground font-bold">ABC Developers</span>
+                        By <span className="text-foreground font-bold">{project.builderName}</span>
                       </p>
-                      <p className="text-muted-foreground flex items-center gap-1.5 text-sm">
-                        <MapPin className="w-4 h-4 text-emerald-500 shrink-0" />
-                        Sector 1, Greater Noida, UP
-                      </p>
+                      {(project.sector || project.city) && (
+                        <p className="text-muted-foreground flex items-center gap-1.5 text-sm">
+                          <MapPin className="w-4 h-4 text-emerald-500 shrink-0" />
+                          {[project.sector, project.societyName, project.city].filter(Boolean).join(', ')}
+                        </p>
+                      )}
+                      {listedAgo && (
+                        <p className="text-muted-foreground flex items-center gap-1.5 text-sm mt-1.5">
+                          <Calendar className="w-4 h-4 text-emerald-500 shrink-0" />
+                          Listed {listedAgo}
+                        </p>
+                      )}
                     </div>
-                    <div className="text-left md:text-right">
-                      <Badge className="bg-emerald-500 hover:bg-emerald-600 text-white font-bold tracking-wide border-none sm:hidden mb-3">
-                        READY TO MOVE
-                      </Badge>
-                      <p className="text-xs text-muted-foreground font-medium mb-1 uppercase tracking-wider">Starting Price</p>
-                      <p className="text-2xl md:text-3xl font-extrabold text-emerald-600 dark:text-emerald-400">
-                        ₹45 Lac — ₹85 Lac
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-2">RERA: UP/RERA/PRJ/123456</p>
-                    </div>
+                    {range && (
+                      <div className="text-left md:text-right">
+                        <p className="text-xs text-muted-foreground font-medium mb-1 uppercase tracking-wider">Starting Price</p>
+                        <p className="text-2xl md:text-3xl font-extrabold text-emerald-600 dark:text-emerald-400">
+                          {formatIndianPrice(range.min)} – {formatIndianPrice(range.max)}
+                        </p>
+                        {project.reraNumber && <p className="text-xs text-muted-foreground mt-2">RERA: {project.reraNumber}</p>}
+                        {project.gstNumber && <p className="text-xs text-muted-foreground mt-0.5">GSTIN: {project.gstNumber}</p>}
+                      </div>
+                    )}
                   </div>
 
                   <div className="flex flex-col sm:flex-row gap-3 pt-6 border-t border-border/50">
-                    <Button className="flex-1 h-12 text-base font-bold bg-brand-blue hover:bg-brand-blue/90 text-white rounded-xl shadow-lg shadow-brand-blue/20">
-                      <Phone className="w-5 h-5 mr-2" />
-                      <a href="tel:+919891487876">Call Now</a>
+                    <Button asChild className="flex-1 h-12 text-base font-bold bg-brand-blue hover:bg-brand-blue/90 text-white rounded-xl shadow-lg shadow-brand-blue/20">
+                      <a href={`tel:${PLATFORM_PHONE}`}><Phone className="w-5 h-5 mr-2" />Call Now</a>
                     </Button>
-                    <Button className="flex-1 h-12 text-base font-bold bg-[#25D366] hover:bg-[#20bd5a] text-white rounded-xl shadow-lg shadow-[#25D366]/20">
-                      <MessageCircle className="w-5 h-5 mr-2" />
-                      <a href={`https://wa.me/919891487876?text=${encodeURIComponent(`Hi, I'm interested in ${formattedProjectName} project on Growperty.com`)}`} target="_blank" rel="noopener noreferrer">
-                        WhatsApp
-                      </a>
+                    <Button
+                      onClick={() => openWhatsApp(`Hi, I'm interested in ${project.projectName}: ${window.location.href.split('?')[0]}`)}
+                      className="flex-1 h-12 text-base font-bold bg-[#25D366] hover:bg-[#20bd5a] text-white rounded-xl shadow-lg shadow-[#25D366]/20"
+                    >
+                      <MessageCircle className="w-5 h-5 mr-2" />WhatsApp
                     </Button>
                     <Button onClick={scrollToEnquiry} variant="outline" className="flex-1 h-12 text-base font-bold border-2 border-emerald-500 text-emerald-600 hover:bg-emerald-50 rounded-xl dark:border-emerald-400 dark:text-emerald-400 dark:hover:bg-emerald-500/10">
                       Enquire
@@ -231,14 +273,25 @@ const ProjectDetailPage = () => {
                   </div>
                 </div>
 
-                {/* SECTION 3 — PROJECT OVERVIEW */}
+                {/* SECTION 3 — OVERVIEW */}
                 <div>
                   <h2 className="text-2xl font-bold text-brand-blue dark:text-white mb-6">Project Overview</h2>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    {OVERVIEW_DETAILS.map((item, idx) => {
+                    {[
+                      { icon: Building2, label: 'Property Types', value: project.propertyTypes?.join(', ') },
+                      { icon: Layers, label: 'Configurations', value: project.configurationAvailable?.join(', ') },
+                      { icon: CheckCircle, label: 'Possession', value: project.expectedPossession || project.projectStatus },
+                      { icon: Calendar, label: 'Launch Year', value: project.launchYear },
+                      { icon: LandPlot, label: 'Land Area', value: project.landArea ? `${project.landArea} ${project.landAreaUnit || 'Acres'}` : null },
+                      { icon: Building, label: 'Towers / Blocks', value: project.totalTowers },
+                      { icon: ArrowUpFromLine, label: 'Floors', value: project.totalFloors },
+                      { icon: Home, label: 'Total Units', value: project.totalUnits?.toLocaleString('en-IN') },
+                      { icon: KeyRound, label: 'Units Available', value: project.unitsAvailable?.toLocaleString('en-IN') },
+                      { icon: Trees, label: 'Open / Green Area', value: project.greenAreaPercent ? `${project.greenAreaPercent}%` : null },
+                    ].filter(item => item.value).map((item, idx) => {
                       const Icon = item.icon;
                       return (
-                        <div key={idx} className="bg-white dark:bg-slate-900 p-4 rounded-xl shadow-sm border border-border/50 text-center flex flex-col items-center justify-center hover:shadow-md transition-shadow">
+                        <div key={idx} className="bg-white dark:bg-slate-900 p-4 rounded-xl shadow-sm border border-border/50 text-center flex flex-col items-center justify-center">
                           <div className="w-10 h-10 rounded-full bg-emerald-50 dark:bg-emerald-500/10 flex items-center justify-center mb-3">
                             <Icon className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
                           </div>
@@ -250,110 +303,237 @@ const ProjectDetailPage = () => {
                   </div>
                 </div>
 
-                {/* SECTION 4 — ABOUT PROJECT */}
-                <div className="bg-white dark:bg-slate-900 p-6 md:p-8 rounded-2xl shadow-sm border border-border/50">
-                  <h2 className="text-2xl font-bold text-brand-blue dark:text-white mb-4">About {formattedProjectName}</h2>
-                  <p className="text-muted-foreground leading-relaxed text-balance">
-                    {formattedProjectName} is a premium residential project by ABC Developers located in the heart of Sector 1, Greater Noida. The project offers spacious 2 and 3 BHK apartments with modern amenities and excellent connectivity to Noida, Delhi, and Yamuna Expressway. Built with world-class construction standards and eco-friendly features, it is the perfect choice for families and investors looking for quality living. Experience a blend of nature and luxury with 70% open green spaces and state-of-the-art club facilities.
-                  </p>
-                </div>
+                {/* SECTION 4 — ABOUT (AI/written description; USP shown as highlights) */}
+                {(project.description || project.projectUSP) && (
+                  <div className="bg-white dark:bg-slate-900 p-6 md:p-8 rounded-2xl shadow-sm border border-border/50 space-y-3">
+                    <h2 className="text-2xl font-bold text-brand-blue dark:text-white mb-2">About {project.projectName}</h2>
+                    <p className="text-muted-foreground leading-relaxed whitespace-pre-line">{project.description || project.projectUSP}</p>
+                    {project.description && project.projectUSP && (
+                      <div className="pt-3 border-t border-border/50">
+                        <p className="text-xs font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 mb-1">Highlights</p>
+                        <p className="text-muted-foreground leading-relaxed whitespace-pre-line">{project.projectUSP}</p>
+                      </div>
+                    )}
+                  </div>
+                )}
 
-                {/* SECTION 5 — UNIT CONFIGURATIONS */}
-                <div>
-                  <h2 className="text-2xl font-bold text-brand-blue dark:text-white mb-6">Available Configurations</h2>
-                  <div className="space-y-4">
-                    {CONFIGURATIONS.map((config, idx) => (
-                      <div key={idx} className="bg-white dark:bg-slate-900 p-5 rounded-xl shadow-sm border border-border/50 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:-translate-y-1 hover:shadow-md transition-all">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-3 mb-2">
-                            <h3 className="text-lg font-bold text-foreground">{config.type}</h3>
-                            <Badge className={`${config.badgeColor} text-white border-none font-semibold text-xs`}>
-                              {config.status}
-                            </Badge>
-                          </div>
-                          <p className="text-muted-foreground font-medium flex items-center gap-1.5">
-                            <Ruler className="w-4 h-4" /> {config.area}
+                {/* SECTION 4A — FESTIVE OFFER (structured; hides itself after "valid till") */}
+                {activeOffer && (
+                  <div className="relative overflow-hidden rounded-2xl p-5 bg-gradient-to-r from-amber-500 via-orange-500 to-rose-500 text-white shadow-md">
+                    <div className="flex items-center gap-4">
+                      <div className="shrink-0 w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center text-2xl">
+                        {activeOffer.emoji}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-[11px] font-bold uppercase tracking-wider text-white/80">Special Offer</p>
+                        {activeOffer.title && <p className="text-lg font-extrabold leading-tight">{activeOffer.title}</p>}
+                        {activeOffer.details && <p className="text-sm font-semibold text-white/95">{getOfferPhrase(activeOffer.details)}</p>}
+                        {activeOffer.validTill && (
+                          <p className="text-xs font-semibold text-white/90 mt-1">
+                            Valid till {activeOffer.validTill.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
                           </p>
-                        </div>
-                        <div className="text-left md:text-right">
-                          <p className="text-xl font-extrabold text-emerald-600 dark:text-emerald-400">{config.price}</p>
-                        </div>
-                        <div className="w-full md:w-auto">
+                        )}
+                      </div>
+                    </div>
+                    <p className="absolute bottom-2 right-3 text-[10px] text-white/75">T&amp;C* apply</p>
+                  </div>
+                )}
+
+                {/* SECTION 4B — SPECIAL OFFER */}
+                {!activeOffer && project.hasSpecialOffer && project.specialOffers && (() => {
+                  const isComingSoon = project.specialOffers.trim().toLowerCase().startsWith('coming soon');
+                  const OfferIcon = isComingSoon ? Clock : Sparkles;
+                  const theme = isComingSoon
+                    ? {
+                        wrap: 'bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-900',
+                        icon: 'text-amber-500 dark:text-amber-400',
+                        label: 'text-amber-600 dark:text-amber-500',
+                        text: 'text-amber-700 dark:text-amber-400',
+                      }
+                    : {
+                        wrap: 'bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-950/40 dark:to-teal-950/40 border-emerald-200 dark:border-emerald-900',
+                        icon: 'text-emerald-600 dark:text-emerald-400',
+                        label: 'text-emerald-600 dark:text-emerald-400',
+                        text: 'text-emerald-700 dark:text-emerald-300',
+                      };
+                  return (
+                    <div className={`flex items-start gap-3 p-6 rounded-2xl border ${theme.wrap}`}>
+                      <OfferIcon className={`w-6 h-6 shrink-0 mt-0.5 ${theme.icon}`} />
+                      <div>
+                        <span className={`font-extrabold uppercase tracking-wide text-base block mb-1 ${theme.label}`}>Special Offer</span>
+                        <p className={`font-semibold whitespace-pre-line leading-relaxed ${theme.text}`}>{project.specialOffers}</p>
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {/* SECTION 5 — CONFIGURATIONS */}
+                {pricingRows.length > 0 && (
+                  <div>
+                    <h2 className="text-2xl font-bold text-brand-blue dark:text-white mb-6">Available Configurations</h2>
+                    <div className="space-y-4">
+                      {pricingRows.map((row, idx) => (
+                        <div key={idx} className="bg-white dark:bg-slate-900 p-5 rounded-xl shadow-sm border border-border/50 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                          <div className="flex-1">
+                            <h3 className="text-lg font-bold text-foreground mb-1">{row.label}</h3>
+                            {row.areaLabel && <p className="text-muted-foreground font-medium text-sm">{row.areaLabel}</p>}
+                          </div>
+                          <div className="text-left md:text-right">
+                            <p className="text-xl font-extrabold text-emerald-600 dark:text-emerald-400">{row.priceLabel}</p>
+                          </div>
                           <Button onClick={scrollToEnquiry} variant="outline" className="w-full md:w-auto border-brand-blue text-brand-blue hover:bg-brand-blue/5 dark:border-slate-700 dark:text-white dark:hover:bg-slate-800">
                             Request Details
                           </Button>
                         </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* SECTION 6 — AMENITIES */}
-                <div>
-                  <h2 className="text-2xl font-bold text-brand-blue dark:text-white mb-6">Project Amenities</h2>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {AMENITIES.map((section, idx) => (
-                      <div key={idx} className="bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-sm border border-border/50">
-                        <h3 className="text-sm font-bold text-brand-blue dark:text-slate-300 uppercase tracking-widest mb-4 flex items-center gap-2">
-                          {idx === 0 && <Coffee className="w-4 h-4 text-emerald-500" />}
-                          {idx === 1 && <ShieldCheck className="w-4 h-4 text-emerald-500" />}
-                          {idx === 2 && <Zap className="w-4 h-4 text-emerald-500" />}
-                          {idx === 3 && <Home className="w-4 h-4 text-emerald-500" />}
-                          {section.category}
-                        </h3>
-                        <div className="flex flex-wrap gap-2">
-                          {section.items.map((item, i) => (
-                            <span key={i} className="px-3 py-1.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-sm font-medium rounded-lg">
-                              {item}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* SECTION 7 — LOCATION & CONNECTIVITY */}
-                <div>
-                  <h2 className="text-2xl font-bold text-brand-blue dark:text-white mb-6">Location & Connectivity</h2>
-                  <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-sm border border-border/50 mb-6">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-6">
-                      {LOCATION_POINTS.map((point, idx) => {
-                        const Icon = point.icon;
-                        return (
-                          <div key={idx} className="flex items-start gap-3">
-                            <div className="mt-0.5 w-6 h-6 rounded-full bg-emerald-50 dark:bg-emerald-500/10 flex items-center justify-center shrink-0">
-                              <Icon className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                            </div>
-                            <span className="text-foreground font-medium text-sm leading-snug">{point.text}</span>
-                          </div>
-                        );
-                      })}
+                      ))}
                     </div>
                   </div>
-                  
-                  <div className="w-full h-80 rounded-2xl overflow-hidden shadow-sm border border-border/50 bg-slate-200 relative">
-                    <iframe 
-                      title="Project Location Map"
-                      src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d14031.545722421373!2d77.4988771!3d28.4534167!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x390cc02c8eb18bc5%3A0xc3f0b2f6ef536ec6!2sSector%201%2C%20Greater%20Noida%2C%20Uttar%20Pradesh!5e0!3m2!1sen!2sin!4v1700000000000!5m2!1sen!2sin" 
-                      width="100%" 
-                      height="100%" 
-                      style={{ border: 0 }} 
-                      allowFullScreen="" 
-                      loading="lazy" 
-                      referrerPolicy="no-referrer-when-downgrade"
-                      className="absolute inset-0"
-                    ></iframe>
+                )}
+
+                {/* SECTION 6 — AMENITIES */}
+                {project.amenities?.length > 0 && (
+                  <div>
+                    <h2 className="text-2xl font-bold text-brand-blue dark:text-white mb-6">Project Amenities</h2>
+                    <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-sm border border-border/50">
+                      <div className="flex flex-wrap gap-2">
+                        {project.amenities.map((item, i) => (
+                          <span key={i} className="px-3 py-1.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-sm font-medium rounded-lg">
+                            {item}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* SECTION 6B — BEST FOR */}
+                {project.bestFor?.length > 0 && (
+                  <div>
+                    <h2 className="text-2xl font-bold text-brand-blue dark:text-white mb-6">Best For</h2>
+                    <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-sm border border-border/50">
+                      <div className="flex flex-wrap gap-2">
+                        {project.bestFor.map((item, i) => (
+                          <span key={i} className="px-3 py-1.5 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 text-sm font-semibold rounded-lg border border-emerald-200 dark:border-emerald-800">
+                            {item}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* SECTION 7 — LOCATION (sector-level only, no invented distances) */}
+                <div>
+                  <h2 className="text-2xl font-bold text-brand-blue dark:text-white mb-6">Location</h2>
+                  <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-sm border border-border/50 space-y-4">
+                    <div className="flex items-start gap-3">
+                      <MapPin className="w-5 h-5 text-emerald-500 shrink-0 mt-0.5" />
+                      <span className="text-foreground font-medium">
+                        {[project.sector, project.societyName, project.landmark, project.city].filter(Boolean).join(', ')}
+                      </span>
+                    </div>
+                    {project.connectivity?.length > 0 && (
+                      <div>
+                        <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-3">Connectivity &amp; Nearby Facilities</p>
+                        <ConnectivityList rows={project.connectivity} />
+                      </div>
+                    )}
+                    {project.nearbyFamousPlace?.trim() && (
+                      <div>
+                        <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2">{project.connectivity?.length ? 'Other Nearby Places' : 'Nearby Places'}</p>
+                        <ul className="space-y-1.5">
+                          {project.nearbyFamousPlace.split('\n').map(l => l.trim()).filter(Boolean).map((line, i) => (
+                            <li key={i} className="text-sm font-medium text-foreground">{line}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    <SectorMap sector={project.sector} city={project.city} />
                   </div>
                 </div>
+
+                {/* Attachments */}
+                {/* Documents uploaded by the builder (or applied for) — RERA/GST
+                    cards also show the registration number itself, not just the certificate. */}
+                {(PROJECT_DOCUMENT_TYPES.some(({ key }) => project.documents?.[key] || isDocApplied(key))
+                  || project.reraNumber?.trim() || project.gstNumber?.trim()) && (
+                  <div>
+                    <h2 className="text-2xl font-bold text-brand-blue dark:text-white mb-6">Documents</h2>
+                    <div className="bg-white dark:bg-slate-900 p-4 md:p-6 rounded-2xl shadow-sm border border-border/50 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {PROJECT_DOCUMENT_TYPES.filter(({ key }) => !project.documents?.[key] && isDocApplied(key)).map(({ key, label }) => {
+                        const number = key === 'reraCertificate' ? project.reraNumber : key === 'gstCertificate' ? project.gstNumber : null;
+                        return (
+                        <div key={key} className="flex items-center gap-3 p-3 rounded-xl border border-amber-200 dark:border-amber-900 bg-amber-50/50 dark:bg-amber-950/20">
+                          <span className="w-9 h-9 rounded-lg bg-amber-100 dark:bg-amber-500/10 flex items-center justify-center shrink-0">
+                            <Clock className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                          </span>
+                          <span className="flex-1 min-w-0">
+                            <span className="block text-sm font-semibold text-foreground truncate">{label}</span>
+                            {number && <span className="block text-xs text-muted-foreground truncate">{number}</span>}
+                          </span>
+                          <span className="text-xs font-bold text-amber-700 dark:text-amber-400 shrink-0">Applied</span>
+                        </div>
+                        );
+                      })}
+                      {PROJECT_DOCUMENT_TYPES.filter(({ key }) => project.documents?.[key]).map(({ key, label }) => {
+                        const number = key === 'reraCertificate' ? project.reraNumber : key === 'gstCertificate' ? project.gstNumber : null;
+                        return (
+                        <a
+                          key={key}
+                          href={`${API_SERVER_URL}/projects/${id}/documents/${key}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-3 p-3 rounded-xl border border-border/60 hover:border-emerald-400 hover:bg-emerald-50/50 dark:hover:bg-emerald-900/20 transition-colors"
+                        >
+                          <span className="w-9 h-9 rounded-lg bg-emerald-50 dark:bg-emerald-500/10 flex items-center justify-center shrink-0">
+                            {key === 'reraCertificate' ? <ShieldCheck className="w-4 h-4 text-emerald-600 dark:text-emerald-400" /> : <FileText className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />}
+                          </span>
+                          <span className="flex-1 min-w-0">
+                            <span className="block text-sm font-semibold text-foreground truncate">{label}</span>
+                            {number && <span className="block text-xs text-muted-foreground truncate">{number}</span>}
+                          </span>
+                          <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 shrink-0">View</span>
+                        </a>
+                        );
+                      })}
+                      {[
+                        { key: 'reraCertificate', label: 'RERA Registration', number: project.reraNumber },
+                        { key: 'gstCertificate', label: 'GST Registration', number: project.gstNumber },
+                      ].filter(({ key, number }) => number?.trim() && !project.documents?.[key] && !isDocApplied(key)).map(({ key, label, number }) => (
+                        <div key={key} className="flex items-center gap-3 p-3 rounded-xl border border-border/60 bg-slate-50 dark:bg-slate-950">
+                          <span className="w-9 h-9 rounded-lg bg-white dark:bg-slate-900 border border-border/60 flex items-center justify-center shrink-0">
+                            {key === 'reraCertificate' ? <ShieldCheck className="w-4 h-4 text-muted-foreground" /> : <FileText className="w-4 h-4 text-muted-foreground" />}
+                          </span>
+                          <span className="flex-1 min-w-0">
+                            <span className="block text-sm font-semibold text-foreground truncate">{label}</span>
+                            <span className="block text-xs text-muted-foreground truncate">{number}</span>
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {(project.brochure || project.projectVideo) && (
+                  <div className="flex flex-wrap gap-3">
+                    {project.brochure && (
+                      <Button asChild variant="outline" className="font-bold">
+                        <a href={`${API_SERVER_URL}/projects/${id}/brochure`} target="_blank" rel="noopener noreferrer"><FileText className="w-4 h-4 mr-2" />Download Brochure</a>
+                      </Button>
+                    )}
+                    {project.projectVideo && (
+                      <Button asChild variant="outline" className="font-bold">
+                        <a href={project.projectVideo} target="_blank" rel="noopener noreferrer"><Video className="w-4 h-4 mr-2" />Watch Video</a>
+                      </Button>
+                    )}
+                  </div>
+                )}
 
               </div>
 
-              {/* RIGHT COLUMN: Sticky Form Sidebar */}
+              {/* RIGHT COLUMN: Sticky Enquiry Form */}
               <div className="lg:col-span-1">
                 <div className="sticky top-28 space-y-6">
-                  
-                  {/* SECTION 8 — ENQUIRY FORM */}
                   <div id="enquiry-form" className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl p-6 md:p-8 border border-border/50 scroll-mt-28">
                     <h3 className="text-2xl font-extrabold text-brand-blue dark:text-white mb-2">Interested in this Project?</h3>
                     <p className="text-sm text-muted-foreground mb-8 font-medium">Leave your details and our expert team will contact you within 24 hours.</p>
@@ -361,8 +541,8 @@ const ProjectDetailPage = () => {
                     <form onSubmit={handleEnquirySubmit} className="space-y-5">
                       <div className="space-y-2">
                         <Label htmlFor="name" className="font-semibold">Full Name <span className="text-destructive">*</span></Label>
-                        <Input 
-                          id="name" 
+                        <Input
+                          id="name"
                           placeholder="Rajesh Kumar"
                           className={`h-12 rounded-xl bg-slate-50 dark:bg-slate-950 ${errors.name ? 'border-destructive ring-destructive' : ''}`}
                           value={formData.name}
@@ -377,8 +557,8 @@ const ProjectDetailPage = () => {
                           <div className="flex items-center justify-center bg-muted border border-r-0 border-input rounded-l-xl px-4 text-muted-foreground font-medium">
                             +91
                           </div>
-                          <Input 
-                            id="mobile" 
+                          <Input
+                            id="mobile"
                             type="tel"
                             maxLength={10}
                             placeholder="9876543210"
@@ -391,28 +571,28 @@ const ProjectDetailPage = () => {
                       </div>
 
                       <div className="flex items-center space-x-2 pt-1 pb-2">
-                        <Checkbox 
-                          id="sameAsMobile" 
+                        <Checkbox
+                          id="sameAsMobile"
                           checked={formData.sameAsMobile}
                           onCheckedChange={(checked) => handleInputChange('sameAsMobile', checked)}
                         />
                         <Label htmlFor="sameAsMobile" className="cursor-pointer font-medium text-sm text-muted-foreground">WhatsApp is same as mobile number</Label>
                       </div>
 
-                      <div className="space-y-2">
-                        <Label className="font-semibold">Configuration interested in</Label>
-                        <Select value={formData.config} onValueChange={(val) => handleInputChange('config', val)}>
-                          <SelectTrigger className="h-12 rounded-xl bg-slate-50 dark:bg-slate-950">
-                            <SelectValue placeholder="Select Configuration" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="2bhk">2 BHK</SelectItem>
-                            <SelectItem value="3bhk">3 BHK</SelectItem>
-                            <SelectItem value="3bhk-study">3 BHK + Study</SelectItem>
-                            <SelectItem value="not-sure">Not Sure</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
+                      {project.configurationAvailable?.length > 0 && (
+                        <div className="space-y-2">
+                          <Label className="font-semibold">Configuration interested in</Label>
+                          <Select value={formData.config} onValueChange={(val) => handleInputChange('config', val)}>
+                            <SelectTrigger className="h-12 rounded-xl bg-slate-50 dark:bg-slate-950">
+                              <SelectValue placeholder="Select Configuration" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {project.configurationAvailable.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                              <SelectItem value="not-sure">Not Sure</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      )}
 
                       <div className="space-y-2">
                         <Label className="font-semibold">When do you want to buy?</Label>
@@ -430,8 +610,8 @@ const ProjectDetailPage = () => {
                         </Select>
                       </div>
 
-                      <Button 
-                        type="submit" 
+                      <Button
+                        type="submit"
                         disabled={isSubmitting}
                         className="w-full h-14 text-lg font-bold bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl shadow-lg shadow-emerald-500/20 mt-4 transition-all active:scale-[0.98]"
                       >
@@ -447,89 +627,37 @@ const ProjectDetailPage = () => {
                       <p className="text-sm font-bold text-foreground mb-4">Or contact us directly:</p>
                       <div className="flex flex-col gap-3">
                         <Button asChild variant="outline" className="w-full h-12 font-bold border-brand-blue text-brand-blue hover:bg-brand-blue/5 dark:border-slate-700 dark:text-white rounded-xl">
-                          <a href="tel:+919891487876">
+                          <a href={`tel:${PLATFORM_PHONE}`}>
                             <Phone className="w-4 h-4 mr-2" />
-                            Call +91 9891487876
+                            Call +91 {PLATFORM_PHONE}
                           </a>
                         </Button>
-                        <Button asChild className="w-full h-12 font-bold bg-[#25D366] hover:bg-[#20bd5a] text-white rounded-xl shadow-md">
-                          <a href="https://wa.me/919891487876" target="_blank" rel="noopener noreferrer">
-                            <MessageCircle className="w-4 h-4 mr-2" />
-                            WhatsApp +91 9891487876
-                          </a>
+                        <Button
+                          onClick={() => openWhatsApp(`Hi, I'm interested in ${project.projectName}: ${window.location.href.split('?')[0]}`)}
+                          className="w-full h-12 font-bold bg-[#25D366] hover:bg-[#20bd5a] text-white rounded-xl shadow-md"
+                        >
+                          <MessageCircle className="w-4 h-4 mr-2" />
+                          WhatsApp
                         </Button>
                       </div>
                       <div className="mt-6 flex items-start gap-2 text-left bg-slate-50 dark:bg-slate-950 p-3 rounded-lg border border-border/50">
-                        <Shield className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
+                        <ShieldCheck className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
                         <p className="text-xs text-muted-foreground font-medium leading-relaxed">
-                          Builder/owner contact is not shared publicly. All enquiries are securely handled by the trusted Growperty team.
+                          Builder contact is not shared publicly. All enquiries are securely handled by the trusted Growperty team.
                         </p>
                       </div>
                     </div>
                   </div>
-
                 </div>
               </div>
             </div>
 
-            {/* SECTION 9 — SIMILAR PROJECTS */}
-            <div className="mt-20 pt-16 border-t border-border/50">
-              <div className="flex items-center justify-between mb-8">
-                <h2 className="text-2xl md:text-3xl font-extrabold text-brand-blue dark:text-white">Similar Projects You May Like</h2>
-                <Link gap-2 to="/projects" className="hidden sm:flex items-center text-sm font-bold text-emerald-600 hover:text-emerald-700">
-                  View All <ArrowRight className="w-4 h-4 ml-1" />
-                </Link>
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8">
-                {SIMILAR_PROJECTS.map((project, idx) => (
-                  <motion.div
-                    key={idx}
-                    initial={{ opacity: 0, y: 20 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true }}
-                    transition={{ delay: idx * 0.1 }}
-                    className="group bg-white dark:bg-slate-900 rounded-2xl overflow-hidden shadow-sm hover:shadow-xl border border-border/50 transition-all duration-300 flex flex-col h-full"
-                  >
-                    <div className="relative aspect-[4/3] overflow-hidden">
-                      <img 
-                        src={project.image} 
-                        alt={project.name}
-                        className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-                      />
-                      <div className="absolute top-4 right-4">
-                        <Badge className={`px-3 py-1.5 font-bold text-[10px] uppercase shadow-md border-none ${project.status === 'READY TO MOVE' ? 'bg-emerald-500' : project.status === 'UNDER CONSTRUCTION' ? 'bg-amber-500' : 'bg-blue-500'} text-white`}>
-                          {project.status}
-                        </Badge>
-                      </div>
-                      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-slate-900/90 to-transparent p-5 pt-12">
-                        <h3 className="text-xl font-bold text-white mb-1">{project.name}</h3>
-                        <p className="text-slate-300 text-xs font-medium">by {project.builder}</p>
-                      </div>
-                    </div>
-                    <div className="p-5 flex flex-col flex-grow">
-                      <div className="flex items-start gap-2 text-muted-foreground mb-4">
-                        <MapPin className="w-4 h-4 shrink-0 text-emerald-500 mt-0.5" />
-                        <span className="font-medium text-sm">{project.location}</span>
-                      </div>
-                      <p className="text-xl font-extrabold text-emerald-600 dark:text-emerald-400 mb-6">{project.price}</p>
-                      
-                      <div className="mt-auto">
-                        <Button asChild variant="outline" className="w-full border-border hover:bg-slate-50 dark:hover:bg-slate-800 font-bold rounded-xl">
-                          <Link to={`/projects/${project.name.toLowerCase().replace(/\s+/g, '-')}`}>
-                            View Project
-                          </Link>
-                        </Button>
-                      </div>
-                    </div>
-                  </motion.div>
-                ))}
-              </div>
-              <div className="mt-6 text-center sm:hidden">
-                <Button asChild variant="ghost" className="font-bold text-emerald-600">
-                  <Link to="/projects">View All Projects <ArrowRight className="w-4 h-4 ml-2" /></Link>
-                </Button>
-              </div>
+            {/* Explore more */}
+            <div className="mt-20 pt-16 border-t border-border/50 text-center">
+              <h2 className="text-2xl md:text-3xl font-extrabold text-brand-blue dark:text-white mb-4">Looking for more options?</h2>
+              <Button asChild variant="outline" className="font-bold rounded-xl">
+                <Link to="/projects">Browse All Projects <ArrowRight className="w-4 h-4 ml-2" /></Link>
+              </Button>
             </div>
 
           </div>

@@ -3,13 +3,15 @@ import { Link } from 'react-router-dom';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Bed, MapPin, Bath, Phone, MessageCircle, Heart, Share2, Building2, TreePine, Store, Home, DoorOpen } from 'lucide-react';
+import { Bed, MapPin, Bath, Phone, MessageCircle, Heart, Share2, Building2, TreePine, Store, Home, DoorOpen, Sparkles, ShieldCheck } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatIndianPrice } from '@/hooks/useProperties.js';
 import { getFilteredAddress } from '@/lib/contentFilteringUtils.js';
-import { PLATFORM_PHONE, PLATFORM_WHATSAPP } from '@/constants/contactInfo.js';
+import { PLATFORM_PHONE } from '@/constants/contactInfo.js';
 import { isWishlisted as checkWishlisted, toggleWishlist as toggleWishlistStorage } from '@/lib/wishlist.js';
 import { getActiveCpContact } from '@/lib/cpRef.js';
+import { openWhatsApp } from '@/lib/whatsappLink.js';
+import { getActiveOffer, getOfferPricing, getOfferBenefitLabel, getOfferSummary } from '@/lib/offerUtils.js';
 
 const TYPE_PLACEHOLDER = {
   'Flat/Apartment':     { gradient: 'from-blue-600 to-teal-500',   Icon: Building2 },
@@ -38,7 +40,16 @@ function timeAgo(dateStr) {
 }
 
 const PropertyCard = ({ property }) => {
-  const formattedPrice = formatIndianPrice(property.totalPrice || property.price);
+  const originalPrice = Number(property.totalPrice || property.price);
+  const offer = getActiveOffer(property);
+  const offerPricing = getOfferPricing(offer, originalPrice);
+  const offerBenefit = getOfferBenefitLabel(offer);
+  // A % offer lowers the shown price; the original is struck through beside it.
+  const price = offerPricing ? offerPricing.finalPrice : originalPrice;
+  const formattedPrice = formatIndianPrice(price);
+  const area = Number(property.totalArea);
+  const pricePerUnit = price > 0 && area > 0 ? Math.round(price / area) : null;
+  const unitLabel = property.areaUnit === 'Sq.yd' ? 'sq.yd' : property.areaUnit === 'Sq.m' ? 'sq.m' : 'sq.ft';
   const displayAddress = getFilteredAddress(property);
   const roomsPrefix = !property.bhk && property.rooms > 0
     ? `${property.rooms} Room${property.rooms > 1 ? 's' : ''} `
@@ -57,6 +68,7 @@ const PropertyCard = ({ property }) => {
 
   const ph = TYPE_PLACEHOLDER[property.propertyType] || DEFAULT_PLACEHOLDER;
   const isSold = property.status === 'sold';
+  const isCornerPlot = Array.isArray(property.facingType) && property.facingType.includes('Corner (Two Side Open)');
 
   const [isWishlisted, setIsWishlisted] = useState(false);
 
@@ -97,11 +109,23 @@ const PropertyCard = ({ property }) => {
             decoding="async"
           />
         ) : (
-          <div className={`w-full h-full bg-gradient-to-br ${ph.gradient} flex items-center justify-center transition-transform duration-700 group-hover:scale-110 ${isSold ? 'grayscale' : ''}`}>
-            <ph.Icon className="h-16 w-16 text-white/30" strokeWidth={1} />
+          <div className={`w-full h-full bg-gradient-to-br ${ph.gradient} flex flex-col items-center justify-center gap-2 transition-transform duration-700 group-hover:scale-110 ${isSold ? 'grayscale' : ''}`}>
+            <ph.Icon className="h-14 w-14 text-white/30" strokeWidth={1} />
+            <span className="text-white/80 text-xs font-semibold">Image uploading soon...</span>
           </div>
         )}
         <div className="absolute inset-0 bg-gradient-to-t from-slate-950/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+
+        {/* Festive offer strip across the bottom of the photo */}
+        {offer && (
+          <div className="shine-badge absolute inset-x-0 bottom-0 flex items-center justify-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-amber-500 via-orange-500 to-rose-500 text-white shadow-[0_-4px_12px_rgba(0,0,0,0.15)]">
+            <span className="text-sm leading-none animate-bounce">{offer.emoji}</span>
+            <span className="text-xs font-extrabold tracking-wide truncate">
+              {getOfferSummary(offer)}
+            </span>
+            <span className="text-sm leading-none animate-bounce [animation-delay:150ms]">{offer.emoji}</span>
+          </div>
+        )}
 
         {isSold ? (
           <div className="absolute top-0 left-0 w-32 h-32 overflow-hidden pointer-events-none">
@@ -110,10 +134,15 @@ const PropertyCard = ({ property }) => {
             </div>
           </div>
         ) : (
-          <div className="absolute top-4 left-4 flex flex-col gap-2">
+          <div className="absolute top-4 left-4 flex flex-col gap-2 items-start">
             {timeAgo(property.createdAt) && (
               <Badge className="bg-black/60 backdrop-blur-sm text-white shadow-md font-semibold px-3 py-1 text-xs border-0">
                 {timeAgo(property.createdAt)}
+              </Badge>
+            )}
+            {isCornerPlot && (
+              <Badge className="bg-gradient-to-r from-[#FDE68A] via-[#F4C430] to-[#B8860B] text-black shadow-md font-bold px-3 py-1 text-xs border-0 flex items-center gap-1">
+                <Sparkles className="h-3 w-3" /> Corner Plot
               </Badge>
             )}
           </div>
@@ -144,15 +173,49 @@ const PropertyCard = ({ property }) => {
           <MapPin className="h-4 w-4 mr-1.5 text-primary flex-shrink-0" />
           <span className="font-medium truncate">{displayAddress}</span>
         </div>
-        
+
+        {property.reraApproved === true && (
+          <span className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-200 dark:border-emerald-800 px-2.5 py-1 rounded-full mb-2">
+            <ShieldCheck className="w-3.5 h-3.5" /> RERA Approved
+          </span>
+        )}
+
         <h3 className="text-xl font-bold text-foreground mb-2 leading-snug line-clamp-2" style={{ textWrap: 'balance' }}>
           {title}
         </h3>
         
-        <div className="flex items-baseline gap-2 mb-6">
-          <p className="text-3xl indian-price text-primary font-extrabold">
-            {formattedPrice}
-          </p>
+        <div className="mb-6">
+          <div className="flex items-baseline gap-2 flex-wrap">
+            <p className="text-3xl indian-price text-primary font-extrabold">
+              {formattedPrice}
+            </p>
+            {offerPricing && (
+              <p className="text-sm text-muted-foreground line-through">{formatIndianPrice(originalPrice)}</p>
+            )}
+          </div>
+          {(offerPricing || offerBenefit) && (
+            <span className="inline-flex items-center mt-1.5 max-w-full text-xs font-extrabold text-white bg-gradient-to-b from-[#FB5C74] to-[#FA233B] shadow-sm shadow-[#FA233B]/30 px-2.5 py-1 rounded-full">
+              <span className="truncate">
+                {offerPricing
+                  ? `Save ₹${offerPricing.saving.toLocaleString('en-IN')} (${offerPricing.pct}% Off)`
+                  : offerBenefit}
+              </span>
+            </span>
+          )}
+          {(property.totalArea && property.areaUnit) || pricePerUnit ? (
+            <div className="flex items-center justify-between mt-2">
+              {property.totalArea && property.areaUnit ? (
+                <span className="inline-flex items-center text-xs text-slate-600 dark:text-slate-300 font-semibold bg-slate-200 dark:bg-slate-700 px-2.5 py-1 rounded-full">
+                  Size {property.totalArea} {property.areaUnit}
+                </span>
+              ) : <span />}
+              {pricePerUnit && (
+                <p className="text-xs text-muted-foreground font-medium">
+                  ₹{pricePerUnit.toLocaleString('en-IN')} / {unitLabel}
+                </p>
+              )}
+            </div>
+          ) : null}
         </div>
 
         <div className="grid grid-cols-2 gap-4 py-4 border-t border-border/60">
@@ -220,9 +283,8 @@ const PropertyCard = ({ property }) => {
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                const cp = getActiveCpContact();
-                const whatsapp = cp ? `91${cp.cpPhone.replace(/\D/g, '').slice(-10)}` : PLATFORM_WHATSAPP;
-                window.open(`https://wa.me/${whatsapp}`, '_blank');
+                const url = `${window.location.origin}/property/${property.id || property._id}`;
+                openWhatsApp(`Hi, I'm interested in this property: ${url}`);
               }}
             >
               <MessageCircle className="h-4 w-4 mr-1.5" /> WhatsApp

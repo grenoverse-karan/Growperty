@@ -121,7 +121,7 @@ const SetupProfilePage = () => {
                     <Input 
                       id="city" 
                       type="text" 
-                      placeholder="e.g. Noida, Greater Noida" 
+                      placeholder="e.g. Greater Noida" 
                       required 
                       value={city}
                       onChange={(e) => setCity(e.target.value)}

@@ -4,10 +4,13 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
 import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
+import { TagMultiSelect } from '@/components/ui/combobox.jsx';
 import { SlidersHorizontal, X } from 'lucide-react';
 import { formatIndianPrice } from '@/hooks/useProperties.js';
+import { ZONE_SECTORS } from '@/lib/sectorZones.js';
+
+const ALL_SECTORS = [...new Set(Object.values(ZONE_SECTORS).flat())].sort();
 
 const PropertyFilter = ({ onFilter }) => {
   const [localFilters, setLocalFilters] = useState({
@@ -15,18 +18,23 @@ const PropertyFilter = ({ onFilter }) => {
     type: 'all',
     plotType: 'all',
     bhk: 'all',
+    sectors: [],
     minSize: '',
     maxSize: '',
+    sizeUnit: 'Sq.ft',
     maxPrice: 500000000, // 50 Cr default max
-    verified: false
   });
 
+  const sectorOptions = localFilters.location === 'all'
+    ? ALL_SECTORS
+    : (ZONE_SECTORS[localFilters.location] || []);
+
   const isPlotType = ['Residential Plot', 'Industrial Plot', 'Agricultural Land'].includes(localFilters.type);
+  const sizeUnits = ['Sq.ft', 'Sq.yd', 'Sq.m'];
 
   const locations = [
     { id: 'all', label: 'All Locations' },
     { id: 'Greater Noida', label: 'Greater Noida' },
-    { id: 'Noida', label: 'Noida' },
     { id: 'YEIDA', label: 'YEIDA' }
   ];
 
@@ -36,8 +44,8 @@ const PropertyFilter = ({ onFilter }) => {
     { id: 'Villa', label: 'Villa / House' },
     { id: 'Residential Plot', label: 'Residential Plot' },
     { id: 'Industrial Plot', label: 'Industrial Plot' },
-    { id: 'Agricultural Land', label: 'Land' },
-    { id: 'Commercial', label: 'Commercial Space' }
+    { id: 'Commercial', label: 'Commercial Space' },
+    { id: 'Agricultural Land', label: 'Agricultural Land' }
   ];
 
   const plotTypes = [
@@ -66,10 +74,11 @@ const PropertyFilter = ({ onFilter }) => {
       type: 'all',
       plotType: 'all',
       bhk: 'all',
+      sectors: [],
       minSize: '',
       maxSize: '',
+      sizeUnit: 'Sq.ft',
       maxPrice: 500000000,
-      verified: false
     };
     setLocalFilters(resetState);
     onFilter(resetState);
@@ -89,7 +98,7 @@ const PropertyFilter = ({ onFilter }) => {
           <Label className="text-sm font-semibold text-foreground">City</Label>
           <Select
             value={localFilters.location}
-            onValueChange={(value) => setLocalFilters({ ...localFilters, location: value })}
+            onValueChange={(value) => setLocalFilters({ ...localFilters, location: value, sectors: [] })}
           >
             <SelectTrigger className="h-12 rounded-xl bg-slate-50 dark:bg-slate-800/50 border-border/50 focus-visible:ring-primary">
               <SelectValue placeholder="Select City" />
@@ -102,6 +111,16 @@ const PropertyFilter = ({ onFilter }) => {
               ))}
             </SelectContent>
           </Select>
+        </div>
+
+        <div className="space-y-3">
+          <Label className="text-sm font-semibold text-foreground">Sector/Village/Area</Label>
+          <TagMultiSelect
+            options={sectorOptions}
+            value={localFilters.sectors}
+            onChange={(sectors) => setLocalFilters({ ...localFilters, sectors })}
+            placeholder="Search & select sectors"
+          />
         </div>
 
         <div className="space-y-3">
@@ -144,36 +163,12 @@ const PropertyFilter = ({ onFilter }) => {
           </div>
         )}
 
-        {isPlotType ? (
-          <div className="space-y-3">
-            <Label className="text-sm font-semibold text-foreground">Size (Min-Max)</Label>
-            <div className="flex items-center gap-3">
-              <Input
-                type="number"
-                min="0"
-                placeholder="Min"
-                value={localFilters.minSize}
-                onChange={(e) => setLocalFilters({ ...localFilters, minSize: e.target.value })}
-                className="h-12 rounded-xl bg-slate-50 dark:bg-slate-800/50 border-border/50 focus-visible:ring-primary"
-              />
-              <span className="text-muted-foreground text-sm font-medium">–</span>
-              <Input
-                type="number"
-                min="0"
-                placeholder="Max"
-                value={localFilters.maxSize}
-                onChange={(e) => setLocalFilters({ ...localFilters, maxSize: e.target.value })}
-                className="h-12 rounded-xl bg-slate-50 dark:bg-slate-800/50 border-border/50 focus-visible:ring-primary"
-              />
-            </div>
-          </div>
-        ) : (
+        {!isPlotType && localFilters.type !== 'Commercial' && (
           <div className="space-y-3">
             <Label className="text-sm font-semibold text-foreground">BHK</Label>
             <Select
               value={localFilters.bhk}
               onValueChange={(value) => setLocalFilters({ ...localFilters, bhk: value })}
-              disabled={localFilters.type === 'Commercial'}
             >
               <SelectTrigger className="h-12 rounded-xl bg-slate-50 dark:bg-slate-800/50 border-border/50 focus-visible:ring-primary">
                 <SelectValue placeholder="Select BHK" />
@@ -188,6 +183,45 @@ const PropertyFilter = ({ onFilter }) => {
             </Select>
           </div>
         )}
+
+        <div className="space-y-3">
+          <Label className="text-sm font-semibold text-foreground">Size (Min-Max)</Label>
+          <div className="flex rounded-xl overflow-hidden border border-border/50">
+            {sizeUnits.map((unit) => (
+              <button
+                key={unit}
+                type="button"
+                onClick={() => setLocalFilters({ ...localFilters, sizeUnit: unit })}
+                className={`flex-1 h-10 text-sm font-bold transition-colors ${
+                  localFilters.sizeUnit === unit
+                    ? 'bg-primary text-primary-foreground'
+                    : 'bg-slate-50 dark:bg-slate-800/50 text-muted-foreground hover:bg-slate-100 dark:hover:bg-slate-800'
+                }`}
+              >
+                {unit}
+              </button>
+            ))}
+          </div>
+          <div className="flex items-center gap-3">
+            <Input
+              type="number"
+              min="0"
+              placeholder="Min"
+              value={localFilters.minSize}
+              onChange={(e) => setLocalFilters({ ...localFilters, minSize: e.target.value })}
+              className="h-12 rounded-xl bg-slate-50 dark:bg-slate-800/50 border-border/50 focus-visible:ring-primary"
+            />
+            <span className="text-muted-foreground text-sm font-medium">–</span>
+            <Input
+              type="number"
+              min="0"
+              placeholder="Max"
+              value={localFilters.maxSize}
+              onChange={(e) => setLocalFilters({ ...localFilters, maxSize: e.target.value })}
+              className="h-12 rounded-xl bg-slate-50 dark:bg-slate-800/50 border-border/50 focus-visible:ring-primary"
+            />
+          </div>
+        </div>
 
         <div className="space-y-4">
           <div className="flex items-center justify-between">
@@ -210,17 +244,6 @@ const PropertyFilter = ({ onFilter }) => {
           </div>
         </div>
 
-        <div className="flex items-center space-x-3 bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl border border-border/50">
-          <Checkbox 
-            id="verified" 
-            checked={localFilters.verified}
-            onCheckedChange={(checked) => setLocalFilters({ ...localFilters, verified: checked })}
-            className="data-[state=checked]:bg-primary data-[state=checked]:border-primary"
-          />
-          <Label htmlFor="verified" className="text-sm font-bold cursor-pointer">
-            Verified Properties Only
-          </Label>
-        </div>
 
         <div className="pt-4 flex flex-col gap-3">
           <Button 

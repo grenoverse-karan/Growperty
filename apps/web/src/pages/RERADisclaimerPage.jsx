@@ -48,7 +48,7 @@ const RERADisclaimerPage = () => (
               </div>
 
               <p>
-                Growperty may feature or facilitate discovery of properties, projects, resale opportunities, plots, rentals, or related real estate opportunities in Greater Noida, Noida, YEIDA, NCR, and other locations. Users are advised that <strong>not every property, project, or transaction displayed on the Platform may fall within the same regulatory category</strong>, and separate legal checks may be required depending on the nature of the asset and the applicable law.
+                Growperty may feature or facilitate discovery of properties, projects, resale opportunities, plots, rentals, or related real estate opportunities in Greater Noida, YEIDA, and other locations. Users are advised that <strong>not every property, project, or transaction displayed on the Platform may fall within the same regulatory category</strong>, and separate legal checks may be required depending on the nature of the asset and the applicable law.
               </p>
 
               <p>

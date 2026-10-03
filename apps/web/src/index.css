@@ -157,4 +157,48 @@
   .form-section-container {
     @apply bg-white dark:bg-slate-900 rounded-2xl p-6 md:p-8 shadow-sm border border-border/50;
   }
+
+  /* Animated shine sweep — used for promo badges (e.g. "FREE" ribbon).
+     No `position` here on purpose: the element already sets its own
+     (usually `absolute`) via a Tailwind utility class, and declaring
+     `position: relative` here can win the cascade and silently override it. */
+  .shine-badge {
+    overflow: hidden;
+  }
+  .shine-badge::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(120deg, transparent 30%, rgba(255, 255, 255, 0.75) 50%, transparent 70%);
+    transform: translateX(-100%);
+    animation: shine-sweep 2.2s ease-in-out infinite;
+  }
+  @keyframes shine-sweep {
+    0% { transform: translateX(-100%); }
+    50% { transform: translateX(100%); }
+    100% { transform: translateX(100%); }
+  }
+
+  /* Flowing multicolor gradient background — used by the AI-generation overlay */
+  @keyframes gradientShift {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+  }
+
+  /* Endless right-to-left ticker ("train") — the track holds the message
+     twice, so sliding it by exactly half loops seamlessly. */
+  @keyframes ticker-scroll {
+    from { transform: translateX(0); }
+    to   { transform: translateX(-50%); }
+  }
+  .ticker-track {
+    animation: ticker-scroll 28s linear infinite;
+  }
+  .ticker-track:hover {
+    animation-play-state: paused;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .ticker-track { animation: none; }
+  }
 }
