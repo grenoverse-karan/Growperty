@@ -1,13 +1,19 @@
 {
-  "cleanUrls": true,
   "rewrites": [
-    {
-      "source": "/api/auth/:path*",
-      "destination": "https://growperty-api.vercel.app/api/auth/:path*"
-    },
-    {
-      "source": "/(.*)",
-      "destination": "/index.html"
-    }
+    { "source": "/api/auth/:path*", "destination": "https://growperty-api.vercel.app/api/auth/:path*" },
+    { "source": "/about", "destination": "/about.html" },
+    { "source": "/how-it-works", "destination": "/how-it-works.html" },
+    { "source": "/fast-track", "destination": "/fast-track.html" },
+    { "source": "/faq", "destination": "/faq.html" },
+    { "source": "/contact", "destination": "/contact.html" },
+    { "source": "/privacy", "destination": "/privacy.html" },
+    { "source": "/terms-and-conditions", "destination": "/terms-and-conditions.html" },
+    { "source": "/disclaimer", "destination": "/disclaimer.html" },
+    { "source": "/flats-in-greater-noida", "destination": "/flats-in-greater-noida.html" },
+    { "source": "/freehold-plots-greater-noida", "destination": "/freehold-plots-greater-noida.html" },
+    { "source": "/commercial-property-greater-noida", "destination": "/commercial-property-greater-noida.html" },
+    { "source": "/plots-near-yamuna-expressway", "destination": "/plots-near-yamuna-expressway.html" },
+    { "source": "/property-near-noida-international-airport", "destination": "/property-near-noida-international-airport.html" },
+    { "source": "/(.*)", "destination": "/index.html" }
   ]
 }
