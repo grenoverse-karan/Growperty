@@ -29,6 +29,18 @@ const PROPERTY_TYPES = [
   'Studio', 'Plot/Land', 'Shop', 'Office', 'Store', 'Others'
 ];
 
+// Autosaved draft for the NEW-listing flow only — never for editing an
+// existing project (editId present), where overlaying a stale draft onto
+// freshly-fetched initialData would be actively wrong. A laptop going to
+// sleep mid-fill can cause the tab to get discarded and reloaded by the
+// browser (independent of anything this app does), wiping all in-memory
+// React state; this makes that recoverable instead of destructive. File
+// inputs (images/floor plans/brochure/documents) can't be restored this
+// way — browsers never allow re-populating a <input type="file"> from
+// script for security reasons — so only the text/selection fields persist.
+const PROJECT_DRAFT_KEY = 'growperty_project_draft_v1';
+const PROJECT_DRAFT_SAVE_DEBOUNCE_MS = 800;
+
 const PROJECT_STATUSES = ['Upcoming', 'New Launch', 'Under Construction', 'Nearing Possession', 'Ready to Move', 'Completed'];
 // Statuses where the builder already has a possession timeline to share.
 const POSSESSION_REQUIRED_STATUSES = ['Under Construction', 'Nearing Possession'];
@@ -263,6 +275,38 @@ const ProjectListingForm = ({ isAdmin = false, initialData = null }) => {
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialData]);
+
+  // Restore an autosaved draft once on mount — new-listing flow only (see
+  // PROJECT_DRAFT_KEY comment above).
+  useEffect(() => {
+    if (editId) return;
+    try {
+      const saved = localStorage.getItem(PROJECT_DRAFT_KEY);
+      if (!saved) return;
+      const draft = JSON.parse(saved);
+      setFormData(prev => ({ ...prev, ...draft }));
+      toast.info('Draft restored — pick up where you left off. Please re-attach any photos or documents.');
+    } catch {
+      localStorage.removeItem(PROJECT_DRAFT_KEY); // corrupted draft — don't keep retrying it
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Autosave the draft (debounced) as the user types — text/selection
+  // fields only, see PROJECT_DRAFT_KEY comment. Stops once editing an
+  // existing project or after a successful new-listing submit.
+  useEffect(() => {
+    if (editId || isSuccess) return;
+    const timer = setTimeout(() => {
+      try {
+        localStorage.setItem(PROJECT_DRAFT_KEY, JSON.stringify(formData));
+      } catch {
+        // localStorage full or unavailable (e.g. private browsing) — skip
+        // this save; not fatal, the in-memory form still works normally.
+      }
+    }, PROJECT_DRAFT_SAVE_DEBOUNCE_MS);
+    return () => clearTimeout(timer);
+  }, [formData, editId, isSuccess]);
 
   const handleInputChange = (field, value) => {
     setFormData(prev => {
@@ -740,6 +784,7 @@ const ProjectListingForm = ({ isAdmin = false, initialData = null }) => {
         return;
       }
 
+      localStorage.removeItem(PROJECT_DRAFT_KEY);
       setIsSuccess(true);
       window.scrollTo(0, 0);
     } catch (error) {
