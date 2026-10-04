@@ -543,7 +543,7 @@ const ProjectDetailPage = () => {
                         <Label htmlFor="name" className="font-semibold">Full Name <span className="text-destructive">*</span></Label>
                         <Input
                           id="name"
-                          placeholder="Rajesh Kumar"
+                          placeholder="Enter name"
                           className={`h-12 rounded-xl bg-slate-50 dark:bg-slate-950 ${errors.name ? 'border-destructive ring-destructive' : ''}`}
                           value={formData.name}
                           onChange={(e) => handleInputChange('name', e.target.value)}
@@ -561,7 +561,7 @@ const ProjectDetailPage = () => {
                             id="mobile"
                             type="tel"
                             maxLength={10}
-                            placeholder="9876543210"
+                            placeholder="Enter mobile number"
                             className={`h-12 rounded-l-none rounded-r-xl bg-slate-50 dark:bg-slate-950 ${errors.mobile ? 'border-destructive ring-destructive z-10' : ''}`}
                             value={formData.mobile}
                             onChange={(e) => handleInputChange('mobile', e.target.value)}
