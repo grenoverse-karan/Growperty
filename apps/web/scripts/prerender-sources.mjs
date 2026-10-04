@@ -11,10 +11,10 @@ const LOCALITY_SHARED = [
   'src/components/RequestVisitModal.jsx',
 ];
 
-// Routes that render a live /properties listings grid — generate-
-// prerendered.mjs blocks that request during capture on these so a
-// snapshot never bakes in a point-in-time price/availability (see the
-// comment at the top of that script).
+// Routes that render a live /properties (and, on '/', /projects too)
+// listings grid — generate-prerendered.mjs blocks those requests during
+// capture on these so a snapshot never bakes in a point-in-time
+// price/availability (see the comment at the top of that script).
 export const ROUTES_WITH_LISTINGS = new Set(['/', '/flats-in-greater-noida', '/freehold-plots-greater-noida', '/commercial-property-greater-noida', '/plots-near-yamuna-expressway', '/property-near-noida-international-airport']);
 
 export const PAGES = {

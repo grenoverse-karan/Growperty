@@ -79,13 +79,14 @@ async function main() {
   const page = await browser.newPage();
 
   // Deliberately never continue/abort/respond matching requests — they
-  // hang forever, so useProperties' fetch() never settles and the
-  // component stays in its loading state for the whole capture. Toggled
-  // per-route below since it only applies to ROUTES_WITH_LISTINGS.
+  // hang forever, so useProperties' fetch() (and the home page's own
+  // /api/projects fetch) never settles and the component stays in its
+  // loading state for the whole capture. Toggled per-route below since it
+  // only applies to ROUTES_WITH_LISTINGS.
   let blockListings = false;
   await page.setRequestInterception(true);
   page.on('request', (req) => {
-    if (blockListings && /\/api\/properties(\?|$)/.test(req.url())) return; // left hanging on purpose
+    if (blockListings && /\/api\/(properties|projects)(\?|$)/.test(req.url())) return; // left hanging on purpose
     req.continue();
   });
 
