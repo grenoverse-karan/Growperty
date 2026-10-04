@@ -1,15 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Helmet } from 'react-helmet';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import Header from '@/components/Header.jsx';
 import Footer from '@/components/Footer.jsx';
 import PropertyCard from '@/components/PropertyCard.jsx';
+import ProjectCard from '@/components/ProjectCard.jsx';
 import DynamicSearchFilter from '@/components/DynamicSearchFilter.jsx';
 import WhyChooseGrowperty from '@/components/WhyChooseGrowperty.jsx';
 import EMICalculator from '@/components/EMICalculator.jsx';
 import FestivalOfferTicker from '@/components/FestivalOfferTicker.jsx';
 import { useProperties } from '@/hooks/useProperties.js';
+import apiServerClient from '@/lib/apiServerClient.js';
 import { Button } from '@/components/ui/button.jsx';
 import { Skeleton } from '@/components/ui/skeleton.jsx';
 import { ArrowRight, AlertCircle, Home, RefreshCw, MapPin, Building2, Zap, BookOpen, HelpCircle, FileText, ArrowUpRight, Search, SlidersHorizontal, IndianRupee, ChevronRight, ShieldCheck, Users } from 'lucide-react';
@@ -74,7 +76,33 @@ const HomePage = () => {
   useEffect(() => {
     fetchProperties('approved,sold');
   }, [fetchProperties]);
-  const featuredProperties = properties;
+
+  // Same project-mixing pattern as PropertiesPage.jsx — projects woven
+  // into the featured feed (newest first), each card knowing its own kind.
+  const [projects, setProjects] = useState([]);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await apiServerClient.fetch('/projects?status=approved&limit=6');
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!cancelled) setProjects(Array.isArray(data.items) ? data.items : []);
+      } catch {
+        // Non-fatal — the property grid is the section's main content either way.
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  const featuredItems = useMemo(() => {
+    const items = [
+      ...properties.map(property => ({ kind: 'property', key: `p-${property.id}`, data: property, createdAt: property.createdAt })),
+      ...projects.map(project => ({ kind: 'project', key: `j-${project._id}`, data: project, createdAt: project.createdAt })),
+    ];
+    items.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+    return items.slice(0, 6);
+  }, [properties, projects]);
   return <>
       <Helmet>
         <title>Growperty.com - Buy & Sell Properties in Greater Noida & YEIDA</title>
@@ -283,9 +311,9 @@ const HomePage = () => {
                     <RefreshCw className="mr-2 h-5 w-5" />
                     Retry Fetching
                   </Button>
-                </div> : featuredProperties.length > 0 ? <>
+                </div> : featuredItems.length > 0 ? <>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
-                    {featuredProperties.map((property, index) => <motion.div key={property.id} initial={{
+                    {featuredItems.map((item, index) => <motion.div key={item.key} initial={{
                   opacity: 0,
                   y: 30
                 }} whileInView={{
@@ -297,7 +325,7 @@ const HomePage = () => {
                   duration: 0.5,
                   delay: Math.min(index, 5) * 0.1
                 }}>
-                        <PropertyCard property={property} />
+                        {item.kind === 'project' ? <ProjectCard project={item.data} index={index} /> : <PropertyCard property={item.data} />}
                       </motion.div>)}
                   </div>
                 </> : <div className="flex flex-col items-center justify-center py-20 px-4 bg-white dark:bg-slate-900/50 rounded-2xl border border-border/50 text-center shadow-sm">
