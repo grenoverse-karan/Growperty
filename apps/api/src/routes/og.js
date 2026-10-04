@@ -2,6 +2,7 @@ import express from 'express';
 import mongoose from 'mongoose';
 import sharp from 'sharp';
 import Property from '../models/Property.js';
+import Project from '../models/Project.js';
 import logger from '../utils/logger.js';
 
 // Link-preview support for WhatsApp / Facebook / Twitter crawlers. The web
@@ -74,6 +75,70 @@ router.get('/property/:id/image.jpg', async (req, res) => {
   } catch (err) {
     logger.error('GET /api/og/property/:id/image.jpg error', { message: err.message });
     return res.status(500).end();
+  }
+});
+
+// Min/max across the nested per-type/per-BHK pricing blob — same source
+// data as apps/web/src/lib/projectPricing.js's flattenPricing, trimmed to
+// just the range a preview card needs.
+function projectPriceRange(propertyTypePricing) {
+  let min = null;
+  let max = null;
+  for (const byBhk of Object.values(propertyTypePricing || {})) {
+    for (const p of Object.values(byBhk || {})) {
+      const nums = p.priceMode === 'fixed' ? [Number(p.price)] : [Number(p.minPrice), Number(p.maxPrice)];
+      for (const n of nums) {
+        if (!n) continue;
+        if (min === null || n < min) min = n;
+        if (max === null || n > max) max = n;
+      }
+    }
+  }
+  return min && max ? { min, max } : null;
+}
+
+// Cloudinary URLs (project images) support on-the-fly transforms via the
+// URL itself — no proxy/crop route needed the way property's base64 images
+// require. Inserts a 1200×630 face/subject-aware crop right after /upload/.
+function cloudinaryOgCrop(url) {
+  if (!url) return null;
+  return url.replace('/upload/', `/upload/c_fill,w_${OG_WIDTH},h_${OG_HEIGHT},g_auto,q_auto,f_jpg/`);
+}
+
+// GET /og/project/:id — mirrors /og/property/:id above. Project images are
+// already public Cloudinary URLs (unlike Property's base64 blobs), so the
+// image itself is just a cropped Cloudinary URL, not a separate endpoint.
+router.get('/project/:id', async (req, res) => {
+  try {
+    if (!isValidId(req.params.id)) return res.status(404).json({ success: false });
+    const p = await Project.findById(req.params.id, {
+      projectName: 1, builderName: 1, projectType: 1, propertyTypes: 1, configurationAvailable: 1,
+      sector: 1, city: 1, landmark: 1, societyName: 1, projectStatus: 1, status: 1,
+      propertyTypePricing: 1, projectImages: 1, updatedAt: 1,
+    }).lean();
+    if (!p) return res.status(404).json({ success: false });
+    const range = projectPriceRange(p.propertyTypePricing);
+    res.set('Cache-Control', 'public, max-age=0, s-maxage=300');
+    return res.status(200).json({
+      projectName: p.projectName,
+      builderName: p.builderName,
+      projectType: p.projectType,
+      propertyTypes: p.propertyTypes,
+      configurationAvailable: p.configurationAvailable,
+      sector: p.sector,
+      city: p.city,
+      landmark: p.landmark,
+      societyName: p.societyName,
+      projectStatus: p.projectStatus,
+      status: p.status,
+      priceMin: range?.min ?? null,
+      priceMax: range?.max ?? null,
+      image: cloudinaryOgCrop(p.projectImages?.[0]),
+      updatedAt: p.updatedAt,
+    });
+  } catch (err) {
+    logger.error('GET /api/og/project/:id error', { message: err.message });
+    return res.status(500).json({ success: false });
   }
 });
 

@@ -6,15 +6,19 @@
 //    Phase 2 build-time prerendering (apps/web/prerendered/) already gives
 //    them the same real, indexable HTML everyone else gets.
 //
-// 2. /property/:id — real listing data, server-rendered for EVERY
-//    requester (not bot-gated at all), since it's DB-backed and changes
-//    constantly — Phase 2's build-time approach can't apply here. Reuses
-//    the current deployment's own index.html for its <head> boilerplate
-//    (script/link tags), so it never hand-tracks hashed asset filenames,
-//    and splices in listing-specific title/meta/JSON-LD plus an initial
-//    #root render. Never includes owner phone, house number, or exact
-//    address — only sector/city. Sold listings get noindex; gone/removed
-//    listings get 410. Short (5 min) edge cache.
+// 2. /property/:id and /project/:id — real listing data, server-rendered
+//    for EVERY requester (not bot-gated at all), since it's DB-backed and
+//    changes constantly — Phase 2's build-time approach can't apply here.
+//    Reuses the current deployment's own index.html for its <head>
+//    boilerplate (script/link tags), so it never hand-tracks hashed asset
+//    filenames, and splices in listing-specific title/meta/JSON-LD plus an
+//    initial #root render. Property pages never include owner phone, house
+//    number, or exact address — only sector/city. Sold/gone listings get
+//    noindex/410. Short (5 min) edge cache. This is also what fixes
+//    WhatsApp/social link previews showing the generic Growperty logo
+//    instead of the listing's own photo — that generic image only came
+//    from the SPA's default index.html meta tags, which is exactly what
+//    these two routes bypass.
 import { SITE_URL } from './src/lib/siteUrl.js';
 
 const BOT_UA = /WhatsApp|facebookexternalhit|Facebot|Twitterbot|LinkedInBot|TelegramBot|Slackbot|Discordbot|Pinterest|Iframely/i;
@@ -101,6 +105,34 @@ ${imageIsReal ? `<meta property="og:image:type" content="image/jpeg" />
 // need to open this exact URL before it's approved.
 const GONE_STATUSES = new Set(['rejected', 'suspended', 'unlisted']);
 
+// Statuses that mean "this project listing is permanently gone" — project's
+// status enum has no 'suspended'/'sold' the way Property does (see
+// apps/api/src/models/Project.js). 'pending' is handled the same as
+// property: not gone, just not yet public.
+const PROJECT_GONE_STATUSES = new Set(['rejected', 'unlisted']);
+
+// Shared by both buildPropertyPageHtml and buildProjectPageHtml — reuses
+// the CURRENT deployment's own index.html for its <head> boilerplate
+// (script/link tags), so it never hand-tracks hashed asset filenames, then
+// strips the shell's own title/description/OG/twitter/canonical/JSON-LD
+// (it's itself a prerendered page — Phase 2 — with its own tags) since HTML
+// only honors the FIRST <title> in <head>, which would otherwise silently
+// win over the listing-specific one spliced in after.
+async function getStrippedShellHead(request) {
+  const shellRes = await fetch(new URL('/', request.url), { headers: { 'User-Agent': 'Growperty-Internal-Shell-Fetch/1.0' } });
+  if (!shellRes.ok) return null;
+  const shellHtml = await shellRes.text();
+  const headEndIdx = shellHtml.indexOf('</head>');
+  if (headEndIdx === -1) return null;
+  return shellHtml.slice(0, headEndIdx)
+    .replace(/<title>[\s\S]*?<\/title>/i, '')
+    .replace(/<meta\s+name="description"[^>]*>/gi, '')
+    .replace(/<meta\s+property="og:[^"]*"[^>]*>/gi, '')
+    .replace(/<meta\s+name="twitter:[^"]*"[^>]*>/gi, '')
+    .replace(/<link\s+rel="canonical"[^>]*>/gi, '')
+    .replace(/<script\s+type="application\/ld\+json">[\s\S]*?<\/script>/gi, '');
+}
+
 async function buildPropertyPageHtml(id, request) {
   const res = await fetch(`${API}/api/og/property/${id}`, {
     headers: { 'User-Agent': 'Growperty-Internal-Render/1.0' },
@@ -151,26 +183,8 @@ async function buildPropertyPageHtml(id, request) {
     ...(p.totalArea && { floorSize: { '@type': 'QuantitativeValue', value: p.totalArea, unitText: p.areaUnit || 'Sq.ft' } }),
   };
 
-  // Reuse the CURRENT deployment's own index.html for its <head>
-  // boilerplate (script/link tags) — never hand-track hashed asset
-  // filenames here; whatever the live build actually ships is what loads.
-  const shellRes = await fetch(new URL('/', request.url), { headers: { 'User-Agent': 'Growperty-Internal-Shell-Fetch/1.0' } });
-  if (!shellRes.ok) return null;
-  const shellHtml = await shellRes.text();
-  const headEndIdx = shellHtml.indexOf('</head>');
-  if (headEndIdx === -1) return null;
-  // / is itself a prerendered page (Phase 2) with its own title/description/
-  // OG/canonical/JSON-LD — strip those out so only generic boilerplate
-  // (charset, viewport, favicon, font preloads, script/link tags) survives;
-  // otherwise this page's tags would just duplicate, and HTML only honors
-  // the FIRST <title> in <head>, silently discarding the one set below.
-  const headHtml = shellHtml.slice(0, headEndIdx)
-    .replace(/<title>[\s\S]*?<\/title>/i, '')
-    .replace(/<meta\s+name="description"[^>]*>/gi, '')
-    .replace(/<meta\s+property="og:[^"]*"[^>]*>/gi, '')
-    .replace(/<meta\s+name="twitter:[^"]*"[^>]*>/gi, '')
-    .replace(/<link\s+rel="canonical"[^>]*>/gi, '')
-    .replace(/<script\s+type="application\/ld\+json">[\s\S]*?<\/script>/gi, '');
+  const headHtml = await getStrippedShellHead(request);
+  if (!headHtml) return null;
 
   const specs = [
     p.bhk || (p.rooms > 0 ? `${p.rooms} Room${p.rooms > 1 ? 's' : ''}` : ''),
@@ -209,14 +223,86 @@ ${isSold ? '<meta name="robots" content="noindex, follow" />\n' : ''}<link rel="
   return { status: 200, html };
 }
 
+async function buildProjectPageHtml(id, request) {
+  const res = await fetch(`${API}/api/og/project/${id}`, {
+    headers: { 'User-Agent': 'Growperty-Internal-Render/1.0' },
+    signal: AbortSignal.timeout(API_TIMEOUT_MS),
+  });
+  if (res.status === 404) return { status: 410 };
+  if (!res.ok) return null; // transient API error — fall through to SPA, don't 410 a real listing
+  const p = await res.json();
+  if (!p || !p.status) return { status: 410 };
+  if (PROJECT_GONE_STATUSES.has(p.status)) return { status: 410 };
+  if (p.status === 'pending') return null; // not yet public — let the SPA's own auth/role logic decide who can see it
+
+  // "2, 3 BHK Flat/Apartment" style summary — same logic as
+  // apps/web/src/lib/projectDisplay.js's projectTypeLabel.
+  const configs = (p.configurationAvailable || []).map((c) => c.replace(' BHK', '')).join(', ');
+  const typeLabel = [configs && `${configs} BHK`, (p.propertyTypes || []).join(', ')].filter(Boolean).join(' · ') || p.projectType || 'Project';
+  const location = [p.sector, p.city].filter(Boolean).join(', ');
+  const priceStr = p.priceMin && p.priceMax
+    ? (p.priceMin === p.priceMax ? fmtPrice(p.priceMin) : `${fmtPrice(p.priceMin)} – ${fmtPrice(p.priceMax)}`)
+    : '';
+  const title = [p.projectName, location && `in ${location}`, priceStr].filter(Boolean).join(' ');
+  const description = [p.builderName && `by ${p.builderName}`, typeLabel, priceStr, p.projectStatus].filter(Boolean).join(' · ');
+  const canonical = `${SITE}/project/${id}`;
+  const ogImage = p.image || FALLBACK_IMAGE;
+
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'ApartmentComplex',
+    name: p.projectName,
+    description,
+    url: canonical,
+    ...(p.image && { image: [p.image] }),
+    address: { '@type': 'PostalAddress', addressLocality: p.sector || undefined, addressRegion: p.city || undefined, addressCountry: 'IN' },
+  };
+
+  const headHtml = await getStrippedShellHead(request);
+  if (!headHtml) return null;
+
+  const specs = [p.builderName && `by ${p.builderName}`, typeLabel, p.projectStatus].filter(Boolean);
+
+  const bodyHtml = `<div style="max-width:960px;margin:0 auto;padding:24px;font-family:sans-serif">
+<h1>${esc(p.projectName)}</h1>
+${priceStr ? `<p><strong>${esc(priceStr)}</strong></p>` : ''}
+<p>${esc(location)}</p>
+<ul>${specs.map((s) => `<li>${esc(s)}</li>`).join('')}</ul>
+${p.image ? `<img src="${esc(p.image)}" alt="${esc(p.projectName)}" loading="eager" style="max-width:100%;height:auto" />` : ''}
+</div>`;
+
+  const html = `${headHtml}<title>${esc(title)} | Growperty</title>
+<meta name="description" content="${esc(description)}" />
+<link rel="canonical" href="${esc(canonical)}" />
+<meta property="og:site_name" content="Growperty.com" />
+<meta property="og:type" content="website" />
+<meta property="og:url" content="${esc(canonical)}" />
+<meta property="og:title" content="${esc(title)}" />
+<meta property="og:description" content="${esc(description)}" />
+<meta property="og:image" content="${esc(ogImage)}" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="${esc(title)}" />
+<meta name="twitter:description" content="${esc(description)}" />
+<meta name="twitter:image" content="${esc(ogImage)}" />
+<script type="application/ld+json">${JSON.stringify(jsonLd)}</script>
+</head>
+<body><div id="root">${bodyHtml}</div></body>
+</html>`;
+
+  return { status: 200, html };
+}
+
 export default async function middleware(request) {
   const url = new URL(request.url);
 
-  // /property/:id — every requester, not just bots (see header comment).
+  // /property/:id and /project/:id — every requester, not just bots (see header comment).
   const propIdMatch = url.pathname.match(/^\/property\/([a-f0-9]{24})\/?$/i);
-  if (propIdMatch) {
+  const projectIdMatch = !propIdMatch && url.pathname.match(/^\/project\/([a-f0-9]{24})\/?$/i);
+  if (propIdMatch || projectIdMatch) {
     try {
-      const result = await buildPropertyPageHtml(propIdMatch[1], request);
+      const result = propIdMatch
+        ? await buildPropertyPageHtml(propIdMatch[1], request)
+        : await buildProjectPageHtml(projectIdMatch[1], request);
       if (!result) return; // fall through to the normal SPA
       if (result.status === 410) {
         return new Response('Gone', { status: 410, headers: { 'Content-Type': 'text/plain' } });
@@ -256,6 +342,7 @@ export default async function middleware(request) {
 export const config = {
   matcher: [
     '/property/:id*',
+    '/project/:id*',
     '/flats-in-greater-noida',
     '/freehold-plots-greater-noida',
     '/commercial-property-greater-noida',
