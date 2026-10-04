@@ -1,12 +1,14 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { MapPin, Building2, ArrowRight, ShieldCheck } from 'lucide-react';
+import { toast } from 'sonner';
+import { MapPin, Building2, ArrowRight, ShieldCheck, Heart, Share2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge.jsx';
 import { Button } from '@/components/ui/button.jsx';
 import { flattenPricing } from '@/lib/projectPricing.js';
 import { getStatusColor, PROJECT_CITY_LABELS, shortPrice, projectTypeLabel, isReraApproved } from '@/lib/projectDisplay.js';
 import { getActiveOffer, getOfferSummary } from '@/lib/offerUtils.js';
+import { isProjectWishlisted, toggleProjectWishlist } from '@/lib/projectWishlist.js';
 
 // Shared project card — used on the Projects grid and as a "Featured
 // Projects" teaser on the Properties page. `index` only drives the
@@ -15,6 +17,28 @@ const ProjectCard = ({ project, index = 0 }) => {
   const { range } = flattenPricing(project.propertyTypePricing);
   const offer = getActiveOffer(project);
   const image = project.projectImages?.[0];
+
+  const [isWishlisted, setIsWishlisted] = useState(() => isProjectWishlisted(project._id));
+
+  const toggleWishlist = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const nowWishlisted = toggleProjectWishlist(project._id);
+    setIsWishlisted(nowWishlisted);
+    toast.success(nowWishlisted ? 'Added to wishlist' : 'Removed from wishlist');
+  };
+
+  const handleShare = async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const url = `${window.location.origin}/project/${project._id}`;
+    if (navigator.share) {
+      try { await navigator.share({ title: project.projectName, url }); } catch { /* user cancelled */ }
+    } else {
+      await navigator.clipboard.writeText(url);
+      toast.success('Link copied to clipboard');
+    }
+  };
 
   return (
     <motion.div
@@ -37,18 +61,35 @@ const ProjectCard = ({ project, index = 0 }) => {
             <Building2 className="w-14 h-14 text-white/30" strokeWidth={1} />
           </div>
         )}
-        <div className="absolute top-4 left-4">
+        <div className="absolute top-4 left-4 flex flex-col gap-2 items-start">
           <Badge className="px-2.5 py-1 font-bold text-[10px] uppercase tracking-wider shadow-md border-none bg-slate-900/80 text-white backdrop-blur-sm flex items-center gap-1">
             <Building2 className="w-3 h-3" /> Project
           </Badge>
-        </div>
-        {project.projectStatus && (
-          <div className="absolute top-4 right-4">
+          {project.projectStatus && (
             <Badge className={`px-3 py-1.5 font-bold text-xs uppercase shadow-md border-none ${getStatusColor(project.projectStatus)}`}>
               {project.projectStatus}
             </Badge>
-          </div>
-        )}
+          )}
+        </div>
+
+        <div className="absolute top-4 right-4 flex items-center gap-2">
+          <button
+            type="button"
+            onClick={toggleWishlist}
+            aria-label="Add to wishlist"
+            className="h-9 w-9 rounded-full bg-white/90 backdrop-blur-sm shadow-md flex items-center justify-center hover:bg-white transition-colors"
+          >
+            <Heart className={`h-4 w-4 ${isWishlisted ? 'fill-red-500 text-red-500' : 'text-slate-700'}`} />
+          </button>
+          <button
+            type="button"
+            onClick={handleShare}
+            aria-label="Share project"
+            className="h-9 w-9 rounded-full bg-white/90 backdrop-blur-sm shadow-md flex items-center justify-center hover:bg-white transition-colors"
+          >
+            <Share2 className="h-4 w-4 text-slate-700" />
+          </button>
+        </div>
         <div className={`absolute left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-6 pt-12 ${offer ? 'bottom-7' : 'bottom-0'}`}>
           <h3 className="text-2xl font-bold text-white mb-1 leading-tight line-clamp-2">
             {project.projectName}
