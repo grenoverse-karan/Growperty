@@ -5,12 +5,16 @@ import { MessageCircle } from 'lucide-react';
 import apiServerClient from '@/lib/apiServerClient';
 
 const LANGUAGES = ['Hindi', 'English'];
+const WORKING_IN = [
+  'Independent House', 'Villas', 'Highrise Apartments', 'Lowrise Apartments', 'Leasehold Properties',
+  'Freehold Properties', 'Commercial', 'Industrial', 'Freehold Plots', 'Lands',
+];
 
 export default function BecomeChannelPartnerPage() {
   const [formData, setFormData] = useState({
     name: '', email: '', phone: '', companyName: '', city: '',
     age: '', gender: '', experienceYrs: '', hasOwnOffice: '', officeAddress: '', houseAddress: '',
-    workType: '', education: '', languages: [],
+    workType: '', education: '', languages: [], workingIn: [],
   });
   const [errors, setErrors]       = useState({});
   const [submitting, setSubmitting] = useState(false);
@@ -80,6 +84,15 @@ export default function BecomeChannelPartnerPage() {
       languages: prev.languages.includes(lang)
         ? prev.languages.filter(l => l !== lang)
         : [...prev.languages, lang],
+    }));
+  };
+
+  const handleWorkingInToggle = (item) => {
+    setFormData(prev => ({
+      ...prev,
+      workingIn: prev.workingIn.includes(item)
+        ? prev.workingIn.filter(w => w !== item)
+        : [...prev.workingIn, item],
     }));
   };
 
@@ -350,6 +363,32 @@ export default function BecomeChannelPartnerPage() {
                       <option>Freelance</option>
                     </select>
                     {err('workType')}
+                  </div>
+                </div>
+
+                {/* Working in */}
+                <div>
+                  <label style={lbl}>Working in</label>
+                  <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 2 }}>
+                    {WORKING_IN.map(item => {
+                      const selected = formData.workingIn.includes(item);
+                      return (
+                        <button
+                          key={item}
+                          type="button"
+                          aria-pressed={selected}
+                          onClick={() => handleWorkingInToggle(item)}
+                          style={{
+                            padding: '8px 16px', borderRadius: 999, fontSize: 14, fontWeight: 500, cursor: 'pointer',
+                            border: `1.5px solid ${selected ? '#10b981' : '#d1d5db'}`,
+                            background: selected ? '#f0fdf4' : '#fff',
+                            color: selected ? '#047857' : '#374151',
+                          }}
+                        >
+                          {selected ? '✓ ' : ''}{item}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
 

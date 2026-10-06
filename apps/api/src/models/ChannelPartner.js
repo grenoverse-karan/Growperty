@@ -25,6 +25,7 @@ const channelPartnerSchema = new mongoose.Schema(
     workType:     { type: String, enum: ['Full Time', 'Part Time', 'Freelance'] },
     education:    { type: String, trim: true },
     languages:    { type: [String], default: [] },
+    workingIn:    { type: [String], default: [] },
     status:       { type: String, default: 'pending', enum: ['pending', 'approved', 'rejected', 'banned'] },
     bannedUntil:  { type: Date },
     access: {
