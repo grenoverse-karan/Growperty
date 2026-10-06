@@ -10,7 +10,7 @@ export const FEATURES = [
 ];
 
 export const STATS = [
-  { icon: Building2, title: '10,000+', sub: 'Properties to Access' },
+  { icon: Building2, title: '100+', sub: 'Properties to Access' },
   { icon: Users, title: 'Genuine', sub: 'Buyer Requirements' },
   { icon: IndianRupee, title: 'Better', sub: 'Earning Opportunities' },
   { icon: TrendingUp, title: 'Dedicated Support', sub: 'for Channel Partners' },
