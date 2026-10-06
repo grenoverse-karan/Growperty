@@ -1,7 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Helmet } from 'react-helmet';
 import { Link } from 'react-router-dom';
-import { MessageCircle } from 'lucide-react';
+import { MessageCircle, Handshake, CheckCircle2, ArrowRight } from 'lucide-react';
+import { SKY_BG, FEATURES, STATS, WHY, CP_PORTAL_CSS } from '@/components/cpPortalShared.jsx';
 import apiServerClient from '@/lib/apiServerClient';
 
 const LANGUAGES = ['Hindi', 'English'];
@@ -223,19 +224,92 @@ export default function BecomeChannelPartnerPage() {
     );
   }
 
+  const scrollToForm = () => {
+    const el = document.getElementById('apply');
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
   return (
     <>
       <Helmet><title>Become a Channel Partner — Growperty</title></Helmet>
-      <div style={{ minHeight: '100vh', background: '#f8fafc', padding: '48px 24px' }}>
-        <div style={{ maxWidth: 620, margin: '0 auto' }}>
+      <style>{CP_PORTAL_CSS}</style>
+      <div className="cpl-root">
+        <section className="cpl-hero">
+          <div className="cpl-sky" style={{ backgroundImage: `url('${SKY_BG}')` }} />
+          <div className="cpl-wash" />
+          <div className="cpl-inner" style={{ minHeight: 560 }}>
+            <div className="cpl-top">
+              <Link to="/"><img className="cpl-logo" src="/growperty-logo.png" alt="Growperty" /></Link>
+              <div className="cpl-apply-top">
+                Already a partner?<Link to="/cp/login">Sign in →</Link>
+              </div>
+            </div>
 
-          <div style={{ textAlign: 'center', marginBottom: 32 }}>
-            <Link to="/" style={{ color: '#10b981', fontWeight: 600, fontSize: 13, textDecoration: 'none' }}>← Back to Growperty</Link>
-            <h1 style={{ fontSize: 28, fontWeight: 800, color: '#111', marginTop: 12, marginBottom: 8 }}>Become a Channel Partner</h1>
-            <p style={{ color: '#6b7280', fontSize: 15 }}>Partner with Growperty to grow your real estate business.</p>
+            <div className="cpl-left">
+              <div className="cpl-badge"><Handshake size={18} /> CHANNEL PARTNER PROGRAM</div>
+              <h1 className="cpl-h1">Partner with Growperty.<br /><span>Grow your business.</span></h1>
+              <p className="cpl-lead">Join Greater Noida's growing network of real estate partners — verified listings, genuine buyer leads and powerful tools, all in one platform.</p>
+              <div className="cpl-feats">
+                {FEATURES.map(({ icon: Icon, label, bg }) => (
+                  <div className="cpl-feat" key={label}>
+                    <i style={{ background: bg }}><Icon size={26} /></i>
+                    {label}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="cpl-right">
+              <div className="cpl-card">
+                <img className="cpl-card-logo" src="/growperty-logo.png" alt="Growperty" />
+                <h2>Become a Partner</h2>
+                <p className="sub">Apply in a few minutes — our team reviews every application and gets back to you soon.</p>
+                <ul className="cpl-perks">
+                  {['Access verified listings & buyer leads', 'List properties and share links', 'Dedicated partner support'].map(t => (
+                    <li key={t}><CheckCircle2 size={20} /> {t}</li>
+                  ))}
+                </ul>
+                <button type="button" className="cpl-apply-btn" onClick={scrollToForm}>
+                  Apply Now <ArrowRight size={22} />
+                </button>
+                <div className="cpl-foot">
+                  Already a partner? <Link to="/cp/login">Sign in →</Link>
+                </div>
+              </div>
+            </div>
           </div>
+        </section>
 
-          <div style={{ background: '#fff', borderRadius: 16, padding: '36px 32px', boxShadow: '0 4px 24px rgba(0,0,0,0.08)' }}>
+        <div className="cpl-stats">
+          <div className="cpl-stats-in">
+            {STATS.map(({ icon: Icon, title, sub }) => (
+              <div className="cpl-stat" key={title}>
+                <Icon strokeWidth={1.6} />
+                <div><b>{title}</b><small>{sub}</small></div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <section className="cpl-why">
+          <h3>Why <span>Grow with Growperty?</span></h3>
+          <div className="bar" />
+          <div className="cpl-why-grid">
+            {WHY.map(({ icon: Icon, bg, color, title, text }) => (
+              <div className="cpl-why-card" key={title}>
+                <i style={{ background: bg, color }}><Icon size={28} /></i>
+                <h4>{title}</h4>
+                <p>{text}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <div id="apply" className="cpl-apply-section" style={{ paddingTop: 24 }}>
+          <h3>Apply to become a Channel Partner</h3>
+          <p className="lead2">Fill in your details below and verify your WhatsApp number to submit.</p>
+
+          <div className="cpl-form-card" style={{ background: '#fff', borderRadius: 16, boxShadow: '0 4px 24px rgba(0,0,0,0.08)' }}>
             <form onSubmit={handleSubmit} noValidate>
               {errors.form && (
                 <div style={{ background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: 8, padding: '10px 14px', marginBottom: 20, color: '#dc2626', fontSize: 14 }}>
