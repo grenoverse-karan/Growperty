@@ -368,7 +368,7 @@ export default function BecomeChannelPartnerPage() {
 
                 {/* Working in */}
                 <div>
-                  <label style={lbl}>Working in</label>
+                  <label style={lbl}>Working in <span style={{ fontWeight: 400, color: '#6b7280' }}>(you can select multiple)</span></label>
                   <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 2 }}>
                     {WORKING_IN.map(item => {
                       const selected = formData.workingIn.includes(item);
