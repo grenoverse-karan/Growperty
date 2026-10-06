@@ -115,7 +115,8 @@ export const sanitizePropertyFormData = (formData, propertyType) => {
   const errors = [];
   const sanitized = {};
 
-  const isAdminListing = formData.ownerType === 'Admin';
+  // Admin and CP listings show as "Listed by Growperty" — no owner name/mobile to collect.
+  const isAdminListing = formData.ownerType === 'Admin' || formData.ownerType === 'CP';
 
   // Required fields validation
   const requiredFields = [

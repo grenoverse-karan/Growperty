@@ -560,8 +560,8 @@ const PropertyListingForm = ({ isAdmin = false, initialData = null, cpMode = fal
     { label: 'Location',       done: !!formData.city && !!formData.sector && !!formData.houseNo },
     { label: 'Status & Type',  done: !!formData.possessionStatus && OWNERSHIP_TYPE.includes(formData.ownershipType) && !!formData.directionFacing },
     { label: 'Visit Time',     done: !!formData.visitTimeType },
-    ...(!isAdmin ? [{ label: 'Contact', done: !!formData.name?.trim() && !!formData.mobileNumber?.trim() }] : []),
-  ], [formData, showBhk, isAdmin]);
+    ...(!isAdmin && !cpMode ? [{ label: 'Contact', done: !!formData.name?.trim() && !!formData.mobileNumber?.trim() }] : []),
+  ], [formData, showBhk, isAdmin, cpMode]);
 
   const completedSections = progressSections.filter(s => s.done).length;
   const totalSections = progressSections.length;
