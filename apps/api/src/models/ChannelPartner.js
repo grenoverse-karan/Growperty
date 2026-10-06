@@ -20,6 +20,8 @@ const channelPartnerSchema = new mongoose.Schema(
     gender:       { type: String, enum: ['Male', 'Female', 'Other'] },
     experienceYrs:{ type: Number },
     hasOwnOffice: { type: Boolean },
+    officeAddress:{ type: String, trim: true },
+    houseAddress: { type: String, trim: true },
     workType:     { type: String, enum: ['Full Time', 'Part Time', 'Freelance'] },
     education:    { type: String, trim: true },
     languages:    { type: [String], default: [] },

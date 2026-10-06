@@ -478,6 +478,7 @@ export default function AdminChannelPartnersPage() {
                   ['Work Type',  detail.cp?.workType || '—'],
                   ['Experience', detail.cp?.experienceYrs != null ? `${detail.cp.experienceYrs} yrs` : '—'],
                   ['Own Office', detail.cp?.hasOwnOffice ? 'Yes' : 'No'],
+                  [detail.cp?.hasOwnOffice ? 'Office Address' : 'House Address', (detail.cp?.hasOwnOffice ? detail.cp?.officeAddress : detail.cp?.houseAddress) || '—'],
                   ['Education',  detail.cp?.education || '—'],
                   ['Languages',  detail.cp?.languages?.join(', ') || '—'],
                   ['Applied',    fmt(detail.cp?.createdAt)],

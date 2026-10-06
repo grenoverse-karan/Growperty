@@ -9,7 +9,7 @@ const LANGUAGES = ['Hindi', 'English'];
 export default function BecomeChannelPartnerPage() {
   const [formData, setFormData] = useState({
     name: '', email: '', phone: '', companyName: '', city: '',
-    age: '', gender: '', experienceYrs: '', hasOwnOffice: '',
+    age: '', gender: '', experienceYrs: '', hasOwnOffice: '', officeAddress: '', houseAddress: '',
     workType: '', education: '', languages: [],
   });
   const [errors, setErrors]       = useState({});
@@ -55,6 +55,8 @@ export default function BecomeChannelPartnerPage() {
     if (!formData.gender)              e.gender       = 'Gender is required';
     if (formData.experienceYrs === '') e.experienceYrs = 'Experience is required';
     if (formData.hasOwnOffice === '')  e.hasOwnOffice  = 'Please select an option';
+    if (formData.hasOwnOffice === 'yes' && !formData.officeAddress.trim()) e.officeAddress = 'Office address is required';
+    if (formData.hasOwnOffice === 'no'  && !formData.houseAddress.trim())  e.houseAddress  = 'House address is required';
     if (!formData.workType)            e.workType     = 'Work type is required';
     if (!agreedToTerms)                e.terms        = 'You must accept the Channel Partner Terms & Conditions';
     if (!agreedToWhatsapp)             e.whatsapp     = 'You must agree to receive WhatsApp alerts';
@@ -162,6 +164,8 @@ export default function BecomeChannelPartnerPage() {
         age: Number(formData.age),
         experienceYrs: Number(formData.experienceYrs),
         hasOwnOffice: formData.hasOwnOffice === 'yes',
+        officeAddress: formData.hasOwnOffice === 'yes' ? formData.officeAddress.trim() : '',
+        houseAddress:  formData.hasOwnOffice === 'no'  ? formData.houseAddress.trim()  : '',
         verifiedToken,
       };
       const res  = await apiServerClient.fetch('/cp/register', {
@@ -368,6 +372,22 @@ export default function BecomeChannelPartnerPage() {
                   </div>
                   {err('hasOwnOffice')}
                 </div>
+
+                {/* Address — office or house depending on the answer above */}
+                {formData.hasOwnOffice === 'yes' && (
+                  <div>
+                    <label style={lbl}>Office Address *</label>
+                    <textarea rows={3} value={formData.officeAddress} onChange={handleChange('officeAddress')} placeholder="Shop/Office no., building, sector, city" style={{ ...inp('officeAddress'), resize: 'vertical', fontFamily: 'inherit' }} />
+                    {err('officeAddress')}
+                  </div>
+                )}
+                {formData.hasOwnOffice === 'no' && (
+                  <div>
+                    <label style={lbl}>House Address *</label>
+                    <textarea rows={3} value={formData.houseAddress} onChange={handleChange('houseAddress')} placeholder="House no., street, sector, city" style={{ ...inp('houseAddress'), resize: 'vertical', fontFamily: 'inherit' }} />
+                    {err('houseAddress')}
+                  </div>
+                )}
 
                 {/* Education + Company */}
                 <div style={row2}>
