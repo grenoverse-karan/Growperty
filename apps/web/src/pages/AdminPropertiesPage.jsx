@@ -175,6 +175,14 @@ const PropertyCard = ({ property, onAction, onEdit, onView, actionLoading }) => 
             </span>
           </div>
 
+          {property.aiReviewReason && (
+            <div title={property.aiReviewReason} style={{ marginTop: 7, display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: C.sub, minWidth: 0 }}>
+              <span style={{ flexShrink: 0, fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 20, background: 'rgba(124,58,237,0.2)', color: '#a78bfa' }}>AI review</span>
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>{property.aiReviewReason}</span>
+              {property.aiReviewedAt && <span style={{ flexShrink: 0, color: C.muted }}>{formatDateTime(property.aiReviewedAt)}</span>}
+            </div>
+          )}
+
           <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
             {property.totalPrice && (
               <span style={{ fontWeight: 700, fontSize: 18, color: C.green }}>

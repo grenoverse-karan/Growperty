@@ -234,6 +234,7 @@ const AdminPropertyDetailsPage = () => {
                     <Field label="CP Name" value={cp?.name} />
                     <Field label="CP ID" value={cp?.shareToken || p.cpId} />
                     <Field label="Current Address" value={p.currentAddress} />
+                    <Field label="AI Photo Review" value={p.aiReviewReason ? `${p.aiReviewReason}${p.aiReviewedAt ? ` (${fmtDateTime(p.aiReviewedAt)})` : ''}` : ''} />
                     <Field label="WhatsApp Alerts" value={p.whatsappAlerts === undefined ? '' : (p.whatsappAlerts ? 'On' : 'Off')} />
                   </CardContent>
                 </Card>

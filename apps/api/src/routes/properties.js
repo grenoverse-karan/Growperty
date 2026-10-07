@@ -10,6 +10,7 @@ import { notifyMatchingBuyers } from '../utils/matchBuyers.js';
 import { generateThumbnail } from '../utils/imageThumbnail.js';
 import { moderateFreeTextFields } from '../utils/contactModeration.js';
 import { sanitizeConnectivity } from '../utils/connectivity.js';
+import { scheduleAiReview } from '../utils/aiListingReview.js';
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 2 * 1024 * 1024, files: 20 } });
 
@@ -90,6 +91,8 @@ router.post('/', requireAuth, async (req, res) => {
 
     const saved = await property.save();
     logger.info('Property created', { id: saved._id });
+    // The web forms upload photos in a second request (reviewed there); this covers clients that send them inline.
+    if (!req.isAdmin && saved.status === 'pending' && saved.images?.length) scheduleAiReview(saved._id.toString());
 
     // Notify lister based on status
     if (saved.mobileNumber) {
@@ -136,6 +139,7 @@ const LIST_AGG_PROJECT = {
   visitTimeType: 1, visitFixedSlots: 1, visitFlexibleSlots: 1,
   offerTitle: 1, offerDetails: 1, offerValidTill: 1,
   createdAt: 1, updatedAt: 1, liveAt: 1,
+  aiReviewReason: 1, aiReviewedAt: 1,
   thumbnail: 1,
   // Fallback for properties uploaded before thumbnails existed — dropped
   // once every doc has been backfilled (see scripts/backfillThumbnails.js).
@@ -424,8 +428,12 @@ router.post('/:id/images', requireAuth, upload.array('images', 20), async (req, 
       return `data:${f.mimetype};base64,${b64}`;
     });
 
-    const existing = await Property.findById(req.params.id, { images: 1 }).lean();
+    const existing = await Property.findById(req.params.id, { images: 1, owner_id: 1 }).lean();
     if (!existing) return res.status(404).json({ success: false, message: 'Property not found' });
+    // Same rule as /images/arrange — also keeps strangers from triggering AI reviews on listings that aren't theirs.
+    if (!req.isAdmin && existing.owner_id !== req.userId) {
+      return res.status(403).json({ success: false, message: 'Not allowed to edit this property' });
+    }
     const isFirstUpload = !existing.images?.length;
 
     const update = { $push: { images: { $each: base64Images } } };
@@ -438,6 +446,9 @@ router.post('/:id/images', requireAuth, upload.array('images', 20), async (req, 
     if (!updated) return res.status(404).json({ success: false, message: 'Property not found' });
 
     logger.info('Images uploaded', { id: req.params.id, count: base64Images.length });
+    // Photos arrive after the listing is created, so this is where they can be reviewed.
+    // Admin uploads are trusted and skipped.
+    if (!req.isAdmin) scheduleAiReview(req.params.id);
     return res.status(200).json({ success: true, imageCount: updated.images.length });
   } catch (err) {
     logger.error('POST /api/properties/:id/images error', { message: err.message });
