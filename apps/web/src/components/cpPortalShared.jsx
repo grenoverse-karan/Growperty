@@ -1,6 +1,13 @@
 import { Home, Users, TrendingUp, Settings, Building2, IndianRupee, Search, Headphones, UserCheck } from 'lucide-react';
 
 // Shared by the Channel Partner portal pages (login + become-a-partner).
+
+// Option lists used by the apply form and the CP profile editor.
+export const CP_LANGUAGES = ['Hindi', 'English'];
+export const CP_WORKING_IN = [
+  'Independent House', 'Villas', 'Highrise Apartments', 'Lowrise Apartments', 'Leasehold Properties',
+  'Freehold Properties', 'Commercial', 'Industrial', 'Freehold Plots', 'Lands',
+];
 export const SKY_BG = 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?q=80&w=2070&auto=format&fit=crop';
 export const FEATURES = [
   { icon: Home, label: 'Verified\nListings', bg: '#16a34a' },

@@ -2,14 +2,11 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Helmet } from 'react-helmet';
 import { Link } from 'react-router-dom';
 import { MessageCircle, Handshake, CheckCircle2, ArrowRight } from 'lucide-react';
-import { SKY_BG, FEATURES, STATS, WHY, CP_PORTAL_CSS } from '@/components/cpPortalShared.jsx';
+import { SKY_BG, FEATURES, STATS, WHY, CP_PORTAL_CSS, CP_LANGUAGES, CP_WORKING_IN } from '@/components/cpPortalShared.jsx';
 import apiServerClient from '@/lib/apiServerClient';
 
-const LANGUAGES = ['Hindi', 'English'];
-const WORKING_IN = [
-  'Independent House', 'Villas', 'Highrise Apartments', 'Lowrise Apartments', 'Leasehold Properties',
-  'Freehold Properties', 'Commercial', 'Industrial', 'Freehold Plots', 'Lands',
-];
+const LANGUAGES = CP_LANGUAGES;
+const WORKING_IN = CP_WORKING_IN;
 
 export default function BecomeChannelPartnerPage() {
   const [formData, setFormData] = useState({

@@ -91,8 +91,20 @@ export const CpAuthProvider = ({ children }) => {
     setIsCpAuthenticated(true);
   };
 
+  // Merge fresh profile data into the cached login object (and its localStorage copy).
+  const updateCp = (partial) => {
+    setCurrentCp(prev => {
+      const next = { ...(prev || {}), ...partial };
+      localStorage.setItem('cpData', JSON.stringify(next));
+      localStorage.setItem('cpName', next.name || '');
+      localStorage.setItem('cpPhone', next.phone || '');
+      return next;
+    });
+  };
+
   const value = {
     currentCp,
+    updateCp,
     token,
     isCpAuthenticated,
     isLoading,

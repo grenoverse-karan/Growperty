@@ -513,16 +513,98 @@ router.get('/validate-ref/:cpPublicId/:refToken', async (req, res) => {
 
 // =====================
 // PATCH /cp/profile — Update own profile (protected)
+// Every field from the application form is editable except email (the login
+// identifier). Changing the phone needs a fresh OTP: verify via
+// /cp/send-otp + /cp/verify-otp for the NEW number and pass the resulting
+// verifiedToken here.
 // =====================
+const CP_GENDERS = ['Male', 'Female', 'Other'];
+const CP_WORK_TYPES = ['Full Time', 'Part Time', 'Freelance'];
+const CP_LANGUAGES = ['Hindi', 'English'];
+const CP_WORKING_IN = [
+  'Independent House', 'Villas', 'Highrise Apartments', 'Lowrise Apartments', 'Leasehold Properties',
+  'Freehold Properties', 'Commercial', 'Industrial', 'Freehold Plots', 'Lands',
+];
+
 router.patch('/profile', verifyCpToken, async (req, res) => {
   try {
     await connectMongoDB();
-    const { name, phone, companyName, city } = req.body || {};
+    const b = req.body || {};
     const updates = {};
-    if (name)        updates.name        = name.trim();
-    if (phone)       updates.phone       = phone;
-    if (companyName !== undefined) updates.companyName = companyName?.trim() || '';
-    if (city)        updates.city        = city.trim();
+    const bad = (error) => res.status(400).json({ error });
+
+    if (b.name !== undefined) {
+      if (!String(b.name).trim()) return bad('Name cannot be empty');
+      updates.name = String(b.name).trim();
+    }
+    if (b.city !== undefined) {
+      if (!String(b.city).trim()) return bad('City cannot be empty');
+      updates.city = String(b.city).trim();
+    }
+    if (b.companyName !== undefined) updates.companyName = String(b.companyName || '').trim();
+    if (b.education !== undefined)   updates.education   = String(b.education || '').trim();
+
+    if (b.age !== undefined && b.age !== '') {
+      const age = Number(b.age);
+      if (!Number.isFinite(age) || age < 18 || age > 100) return bad('Enter a valid age');
+      updates.age = age;
+    }
+    if (b.experienceYrs !== undefined && b.experienceYrs !== '') {
+      const exp = Number(b.experienceYrs);
+      if (!Number.isFinite(exp) || exp < 0 || exp > 60) return bad('Enter valid experience in years');
+      updates.experienceYrs = exp;
+    }
+    if (b.gender !== undefined && b.gender !== '') {
+      if (!CP_GENDERS.includes(b.gender)) return bad('Invalid gender');
+      updates.gender = b.gender;
+    }
+    if (b.workType !== undefined && b.workType !== '') {
+      if (!CP_WORK_TYPES.includes(b.workType)) return bad('Invalid work type');
+      updates.workType = b.workType;
+    }
+    if (b.languages !== undefined) {
+      if (!Array.isArray(b.languages) || b.languages.some(l => !CP_LANGUAGES.includes(l))) return bad('Invalid languages');
+      updates.languages = b.languages;
+    }
+    if (b.workingIn !== undefined) {
+      if (!Array.isArray(b.workingIn) || b.workingIn.some(w => !CP_WORKING_IN.includes(w))) return bad('Invalid "Working in" selection');
+      updates.workingIn = b.workingIn;
+    }
+    if (b.hasOwnOffice !== undefined) {
+      updates.hasOwnOffice = Boolean(b.hasOwnOffice);
+      // Same rule as the apply form: keep only the address that matches the answer.
+      if (updates.hasOwnOffice) {
+        if (b.officeAddress !== undefined) updates.officeAddress = String(b.officeAddress || '').trim();
+        updates.houseAddress = '';
+      } else {
+        if (b.houseAddress !== undefined) updates.houseAddress = String(b.houseAddress || '').trim();
+        updates.officeAddress = '';
+      }
+    }
+
+    if (b.phone !== undefined) {
+      const current = await ChannelPartner.findById(req.cp.sub).select('phone').lean();
+      if (!current) return res.status(404).json({ error: 'CP not found' });
+      const last10 = (v) => String(v || '').replace(/\D/g, '').slice(-10);
+      const newPhone = last10(b.phone);
+      if (newPhone.length !== 10) return bad('Enter a valid 10-digit phone number');
+
+      if (newPhone !== last10(current.phone)) {
+        // OTP-verify the NEW number before it replaces the one used to log in.
+        if (!b.verifiedToken) return bad('Verify the new phone number with an OTP first');
+        try {
+          const decoded = jwt.verify(b.verifiedToken, JWT_SECRET);
+          if (decoded.purpose !== 'cp_registration' || String(decoded.phone).replace(/\D/g, '').slice(-10) !== newPhone) {
+            return bad('Phone verification mismatch. Please verify again.');
+          }
+        } catch {
+          return bad('Phone verification expired. Please verify again.');
+        }
+        const taken = await ChannelPartner.findOne({ phone: { $in: [newPhone, `91${newPhone}`, `+91${newPhone}`] }, _id: { $ne: req.cp.sub } }).lean();
+        if (taken) return res.status(409).json({ error: 'This phone number is already used by another partner' });
+        updates.phone = newPhone;
+      }
+    }
 
     const updated = await ChannelPartner.findByIdAndUpdate(
       req.cp.sub,
