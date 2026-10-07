@@ -19,6 +19,8 @@ export default function CpProfilePage() {
   const [editing, setEditing] = useState(false);
   const [saving, setSaving]   = useState(false);
   const [shareToken, setShareToken] = useState('');
+  // currentCp comes from login and only has basic fields; /cp/me has the full record (experience etc.).
+  const [me, setMe] = useState(null);
   const [refLink, setRefLink] = useState('');
   const [copied, setCopied] = useState('');
   const [refCopied, setRefCopied] = useState(false);
@@ -35,6 +37,7 @@ export default function CpProfilePage() {
     apiServerClient.fetch('/cp/me', { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.ok ? r.json() : null)
       .then(data => {
+        if (data?.cp) setMe(data.cp);
         if (data?.cp?.shareToken) setShareToken(data.cp.shareToken);
         if (data?.cp?.refLink) setRefLink(data.cp.refLink);
       })
@@ -181,7 +184,7 @@ export default function CpProfilePage() {
           <Field label="Phone"        value={currentCp?.phone}       field="phone"       />
           <Field label="Company Name" value={currentCp?.companyName} field="companyName" />
           <Field label="City"         value={currentCp?.city}        field="city"        />
-          <Field label="Experience"   value={currentCp?.experienceYrs != null ? `${currentCp.experienceYrs} yr${currentCp.experienceYrs !== 1 ? 's' : ''}` : null} readOnly />
+          <Field label="Experience"   value={(me ?? currentCp)?.experienceYrs != null ? `${(me ?? currentCp).experienceYrs} yr${(me ?? currentCp).experienceYrs !== 1 ? 's' : ''}` : null} readOnly />
         </div>
 
         {/* Action buttons */}
