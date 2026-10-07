@@ -138,7 +138,12 @@ const LIST_AGG_PROJECT = {
   thumbnail: 1,
   // Fallback for properties uploaded before thumbnails existed — dropped
   // once every doc has been backfilled (see scripts/backfillThumbnails.js).
-  images: { $slice: ['$images', 1] },
+  // Only read the full-size first image for old docs that have no thumbnail.
+  // Always slicing it shipped ~10MB of full-size photos per list call (they
+  // were then discarded in favour of the thumbnail) and took ~2.5s.
+  images: { $cond: [{ $gt: [{ $strLenCP: { $ifNull: ['$thumbnail', ''] } }, 0] }, '$$REMOVE', { $slice: ['$images', 1] }] },
+  // Lets the admin list lazy-load the gallery via GET /:id/images/:index.
+  imageCount: { $size: { $ifNull: ['$images', []] } },
 };
 
 router.get('/', async (req, res) => {

@@ -9,7 +9,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import apiServerClient from '@/lib/apiServerClient.js';
+import apiServerClient, { API_SERVER_URL } from '@/lib/apiServerClient.js';
 import { useAdminAuth } from '@/contexts/AdminAuthContext.jsx';
 import { formatIndianPrice } from '@/hooks/useProperties.js';
 
@@ -210,10 +210,10 @@ const PropertyCard = ({ property, onAction, onEdit, onView, actionLoading }) => 
             {property.ownerType && <span>Owner: <b style={{ color: C.text }}>{property.ownerType}</b></span>}
             {property.email && <span>Email: <b style={{ color: C.text }}>{property.email}</b></span>}
           </div>
-          {property.images?.length > 0 && (
+          {property.imageCount > 0 && (
             <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
-              {property.images.slice(0, 6).map((img, i) => (
-                <img key={i} src={img} alt="" style={{ width: 80, height: 60, objectFit: 'cover', borderRadius: 6, border: `1px solid ${C.border}` }} />
+              {Array.from({ length: Math.min(property.imageCount, 6) }, (_, i) => (
+                <img key={i} src={`${API_SERVER_URL}/properties/${id}/images/${i}`} alt="" loading="lazy" style={{ width: 80, height: 60, objectFit: 'cover', borderRadius: 6, border: `1px solid ${C.border}` }} />
               ))}
             </div>
           )}
@@ -291,7 +291,7 @@ const AdminPropertiesPage = () => {
   const fetchAll = useCallback(async () => {
     setIsLoading(true);
     try {
-      const res = await apiServerClient.fetch('/properties?limit=200&withImages=true', { headers: authHeaders });
+      const res = await apiServerClient.fetch('/properties?limit=200', { headers: authHeaders });
       if (!res.ok) throw new Error();
       const data = await res.json();
       const all = data.items || [];
