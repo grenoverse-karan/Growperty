@@ -419,6 +419,46 @@ router.put('/channel-partners/:id/access', verifyAdminToken, async (req, res) =>
 });
 
 // =====================
+// POST /admin/channel-partners/:id/dashboard-token — Open a CP's dashboard as admin (protected)
+// Same token shape as POST /cp/login, short-lived and tagged impersonatedBy.
+// =====================
+router.post('/channel-partners/:id/dashboard-token', verifyAdminToken, async (req, res) => {
+  try {
+    await connectMongoDB();
+    const cp = await ChannelPartner.findById(req.params.id).select('-passwordHash -activities').lean();
+    if (!cp) return res.status(404).json({ error: 'Channel partner not found' });
+    if (cp.status !== 'approved') {
+      return res.status(403).json({ error: 'Only approved channel partners have a dashboard' });
+    }
+
+    // Must match the secret verifyCpToken / POST /cp/login use.
+    const cpSecret = process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-this-in-production';
+    const token = jwt.sign(
+      { sub: cp._id.toString(), role: 'cp', impersonatedBy: 'admin' },
+      cpSecret,
+      { expiresIn: '12h' }
+    );
+
+    logger.info('[Admin] CP dashboard opened as admin', { cpId: cp._id.toString(), admin: req.admin?.email });
+    return res.status(200).json({
+      token,
+      cp: {
+        id: cp._id.toString(),
+        name: cp.name,
+        email: cp.email,
+        phone: cp.phone,
+        companyName: cp.companyName,
+        city: cp.city,
+        shareToken: cp.shareToken,
+      },
+    });
+  } catch (err) {
+    logger.error('[Admin] CP dashboard-token error', { error: err.message });
+    return res.status(500).json({ error: 'Failed to open CP dashboard' });
+  }
+});
+
+// =====================
 // DELETE /admin/channel-partners/:id — Delete CP (protected)
 // =====================
 router.delete('/channel-partners/:id', verifyAdminToken, async (req, res) => {

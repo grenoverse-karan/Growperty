@@ -181,6 +181,24 @@ export default function AdminChannelPartnersPage() {
   };
 
   /* ── Edit ── */
+  // Opens this CP's dashboard in a new tab as the CP (writes the same
+  // localStorage keys CP login does — replaces any CP session in this browser).
+  const openCpDashboard = async (cp) => {
+    try {
+      const res  = await apiServerClient.fetch(`/admin/channel-partners/${cp.id}/dashboard-token`, { method: 'POST', headers: authH });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to open dashboard');
+      localStorage.setItem('cpToken', data.token);
+      localStorage.setItem('cpData', JSON.stringify(data.cp));
+      localStorage.setItem('cpRef', data.cp.shareToken || '');
+      localStorage.setItem('cpName', data.cp.name || '');
+      localStorage.setItem('cpPhone', data.cp.phone || '');
+      window.open('/cp/dashboard', '_blank');
+    } catch (err) {
+      toast.error(err.message);
+    }
+  };
+
   const openEdit = (cp) => { setEditTarget(cp); setEditForm({ name: cp.name, email: cp.email, phone: cp.phone, companyName: cp.companyName || '', city: cp.city }); };
   const handleEdit = async () => {
     try {
@@ -342,6 +360,9 @@ export default function AdminChannelPartnersPage() {
                   )}
                   {cp.status === 'banned' && (
                     <Btn onClick={() => handleUnban(cp)} color={C.blue}>Unban</Btn>
+                  )}
+                  {cp.status === 'approved' && (
+                    <Btn onClick={() => openCpDashboard(cp)} color={C.blue}>Dashboard</Btn>
                   )}
                   {cp.status === 'approved' && (
                     <Btn onClick={() => openAccess(cp)} outline color={C.sub}>Access</Btn>

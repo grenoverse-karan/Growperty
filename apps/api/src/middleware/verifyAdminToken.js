@@ -28,6 +28,11 @@ export default function verifyAdminToken(req, res, next) {
 
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
+    // User and CP tokens share this secret — only the admin login issues role: 'admin'.
+    if (decoded.role !== 'admin') {
+      logger.warn('Non-admin token used on admin route', { role: decoded.role });
+      return res.status(403).json({ error: 'Access denied: admin only' });
+    }
     req.admin = decoded;
     logger.info(`Token verified for admin: ${decoded.email}`);
     next();
