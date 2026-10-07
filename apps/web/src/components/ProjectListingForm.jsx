@@ -26,8 +26,12 @@ import { Badge } from '@/components/ui/badge.jsx';
 
 const PROPERTY_TYPES = [
   'Flat/Apartment', 'Independent House/Villa', 'Penthouse',
-  'Studio', 'Plot/Land', 'Shop', 'Office', 'Store', 'Others'
+  'Studio', 'Plot/Land', 'Shop', 'Office', 'Store',
+  'Food Court', 'Gaming Zone', 'Kids Play Area', 'Entertainment Zone', 'Others'
 ];
+
+// Types that only make sense for commercial projects (hidden for Residential).
+const COMMERCIAL_ONLY_TYPES = ['Shop', 'Office', 'Store', 'Food Court', 'Gaming Zone', 'Kids Play Area', 'Entertainment Zone'];
 
 // Autosaved draft for the NEW-listing flow only — never for editing an
 // existing project (editId present), where overlaying a stale draft onto
@@ -61,6 +65,10 @@ const PROPERTY_TYPE_CONFIG = {
   'Plot/Land':               { unit: 'Sq.m',  units: ['Sq.m', 'Sq.yd', 'Sq.ft'], showAreaTypes: false },
   'Shop':                    { unit: 'Sq.ft', units: ['Sq.ft', 'Sq.yd', 'Sq.m'], showAreaTypes: true },
   'Office':                  { unit: 'Sq.ft', units: ['Sq.ft', 'Sq.yd', 'Sq.m'], showAreaTypes: true },
+  'Food Court':              { unit: 'Sq.ft', units: ['Sq.ft', 'Sq.yd', 'Sq.m'], showAreaTypes: true },
+  'Gaming Zone':             { unit: 'Sq.ft', units: ['Sq.ft', 'Sq.yd', 'Sq.m'], showAreaTypes: true },
+  'Kids Play Area':          { unit: 'Sq.ft', units: ['Sq.ft', 'Sq.yd', 'Sq.m'], showAreaTypes: true },
+  'Entertainment Zone':      { unit: 'Sq.ft', units: ['Sq.ft', 'Sq.yd', 'Sq.m'], showAreaTypes: true },
   'Others':                  { unit: 'Sq.ft', units: ['Sq.ft', 'Sq.yd', 'Sq.m'], showAreaTypes: false },
 };
 
@@ -106,6 +114,26 @@ const calcPricePerSqft = (p, showAreaTypes) => {
   return {
     min: (minPrice && minArea) ? Math.round(minPrice / minArea) : null,
     max: (maxPrice && maxArea) ? Math.round(maxPrice / maxArea) : null,
+  };
+};
+
+// Alternative to typing the total price: the builder enters a per-unit rate
+// (priceBasis 'perUnit') and the total is derived as rate × area, so every
+// downstream consumer keeps reading the same minPrice/maxPrice/price fields.
+// Uses Super Built-up Area when present, else the next available area type.
+const areaBasis = (p, showAreaTypes, key) => {
+  const pick = (src) => { const n = Number(src?.[key]); return n > 0 ? n : null; };
+  if (!showAreaTypes) return pick(p);
+  return pick(p.areaByType?.['Super Built-up Area']) || pick(p.areaByType?.['Built-up Area']) || pick(p.areaByType?.['Carpet Area']);
+};
+const calcTotalsFromRate = (p, showAreaTypes) => {
+  const mul = (rate, area) => (Number(rate) > 0 && area) ? Math.round(Number(rate) * area) : null;
+  if ((p.priceMode || 'range') === 'fixed') {
+    return { price: mul(p.rate, areaBasis(p, showAreaTypes, 'area')) };
+  }
+  return {
+    min: mul(p.minRate, areaBasis(p, showAreaTypes, 'minArea')),
+    max: mul(p.maxRate, areaBasis(p, showAreaTypes, 'maxArea')),
   };
 };
 
@@ -157,6 +185,13 @@ const ProjectListingForm = ({ isAdmin = false, initialData = null }) => {
     totalUnits: '',
     unitsAvailable: '',
     greenAreaPercent: '',
+    overviewMinPrice: '',
+    overviewMaxPrice: '',
+    overviewMinSize: '',
+    overviewMaxSize: '',
+    overviewSizeUnit: 'Sq.ft',
+    overviewMinRate: '',
+    overviewMaxRate: '',
 
     propertyTypePricing: {},
     paymentPlans: [],
@@ -235,6 +270,13 @@ const ProjectListingForm = ({ isAdmin = false, initialData = null }) => {
       totalUnits: d.totalUnits ?? '',
       unitsAvailable: d.unitsAvailable ?? '',
       greenAreaPercent: d.greenAreaPercent ?? '',
+      overviewMinPrice: d.overviewMinPrice ?? '',
+      overviewMaxPrice: d.overviewMaxPrice ?? '',
+      overviewMinSize: d.overviewMinSize ?? '',
+      overviewMaxSize: d.overviewMaxSize ?? '',
+      overviewSizeUnit: d.overviewSizeUnit || 'Sq.ft',
+      overviewMinRate: d.overviewMinRate ?? '',
+      overviewMaxRate: d.overviewMaxRate ?? '',
       propertyTypePricing: d.propertyTypePricing || {},
       paymentPlans: d.paymentPlans || [],
       projectStatus: d.projectStatus || '',
@@ -313,7 +355,7 @@ const ProjectListingForm = ({ isAdmin = false, initialData = null }) => {
       const next = { ...prev, [field]: value };
       if (field === 'city' && value !== prev.city) next.sector = '';
       if (field === 'projectType' && value === 'Residential') {
-        next.propertyTypes = prev.propertyTypes.filter(t => !['Shop', 'Office', 'Store'].includes(t));
+        next.propertyTypes = prev.propertyTypes.filter(t => !COMMERCIAL_ONLY_TYPES.includes(t));
       }
       if (field === 'projectType' && value === 'Commercial') {
         next.propertyTypes = prev.propertyTypes.filter(t => !['Flat/Apartment', 'Independent House/Villa', 'Penthouse', 'Studio', 'Others'].includes(t));
@@ -601,7 +643,23 @@ const ProjectListingForm = ({ isAdmin = false, initialData = null }) => {
       bhkKeys.forEach(bhkKey => {
         const p = formData.propertyTypePricing[type]?.[bhkKey] || {};
         const errKey = bhkKeys.length > 1 ? `${type}_${bhkKey}` : type;
-        if ((p.priceMode || 'range') === 'fixed') {
+        if (p.plcMode === 'fixed' && !(Number(p.plcValue) > 0)) newErrors[`plc_${errKey}`] = 'Enter the PLC amount';
+        if (p.plcMode === 'percent' && !(Number(p.plcValue) > 0 && Number(p.plcValue) <= 100)) newErrors[`plc_${errKey}`] = 'Enter a PLC percentage between 0 and 100';
+        if (p.plcMode === 'manual' && !p.plcNote?.trim()) newErrors[`plc_${errKey}`] = 'Describe the PLC charges';
+        const showAreaTypes = PROPERTY_TYPE_CONFIG[type]?.showAreaTypes;
+        if (p.priceBasis === 'perUnit') {
+          const t = calcTotalsFromRate(p, showAreaTypes);
+          if ((p.priceMode || 'range') === 'fixed') {
+            if (!p.rate) newErrors[`price_${errKey}`] = 'Price per unit is required';
+            else if (!t.price) newErrors[`price_${errKey}`] = 'Enter the Area below so the total price can be calculated';
+          } else {
+            if (!p.minRate) newErrors[`minPrice_${errKey}`] = 'Min rate is required';
+            else if (!t.min) newErrors[`minPrice_${errKey}`] = 'Enter Min Area below so the total price can be calculated';
+            if (!p.maxRate) newErrors[`maxPrice_${errKey}`] = 'Max rate is required';
+            else if (!t.max) newErrors[`maxPrice_${errKey}`] = 'Enter Max Area below so the total price can be calculated';
+            if (t.min && t.max && t.min > t.max) newErrors[`maxPrice_${errKey}`] = 'Max Price must be ≥ Min Price';
+          }
+        } else if ((p.priceMode || 'range') === 'fixed') {
           if (!p.price) newErrors[`price_${errKey}`] = 'Price is required';
         } else {
           if (!p.minPrice) newErrors[`minPrice_${errKey}`] = 'Min Price is required';
@@ -617,6 +675,15 @@ const ProjectListingForm = ({ isAdmin = false, initialData = null }) => {
     if (!formData.totalUnits || Number(formData.totalUnits) <= 0) newErrors.totalUnits = 'Total Units is required';
     if (formData.unitsAvailable && formData.totalUnits && Number(formData.unitsAvailable) > Number(formData.totalUnits)) {
       newErrors.unitsAvailable = 'Units Available cannot exceed Total Units';
+    }
+    if (formData.overviewMinPrice && formData.overviewMaxPrice && Number(formData.overviewMinPrice) > Number(formData.overviewMaxPrice)) {
+      newErrors.overviewMaxPrice = 'Max Price must be ≥ Min Price';
+    }
+    if (formData.overviewMinRate && formData.overviewMaxRate && Number(formData.overviewMinRate) > Number(formData.overviewMaxRate)) {
+      newErrors.overviewMaxRate = 'Max Price per unit must be ≥ Min';
+    }
+    if (formData.overviewMinSize && formData.overviewMaxSize && Number(formData.overviewMinSize) > Number(formData.overviewMaxSize)) {
+      newErrors.overviewMaxSize = 'Max Size must be ≥ Min Size';
     }
     if (formData.greenAreaPercent && (Number(formData.greenAreaPercent) < 0 || Number(formData.greenAreaPercent) > 100)) {
       newErrors.greenAreaPercent = 'Enter a percentage between 0 and 100';
@@ -689,6 +756,8 @@ const ProjectListingForm = ({ isAdmin = false, initialData = null }) => {
       formPayload.append('totalUnits', formData.totalUnits);
       formPayload.append('unitsAvailable', formData.unitsAvailable);
       formPayload.append('greenAreaPercent', formData.greenAreaPercent);
+      ['overviewMinPrice', 'overviewMaxPrice', 'overviewMinSize', 'overviewMaxSize', 'overviewSizeUnit', 'overviewMinRate', 'overviewMaxRate']
+        .forEach(k => formPayload.append(k, formData[k]));
       formPayload.append('launchYear', formData.launchYear);
       formPayload.append('expectedPossession', formData.expectedPossession);
       formPayload.append('reraNumber', formData.reraNumber);
@@ -733,7 +802,17 @@ const ProjectListingForm = ({ isAdmin = false, initialData = null }) => {
           const entries = activeBhkKeys
             .filter(bhkKey => byBhk[bhkKey])
             .map(bhkKey => {
-              const p = byBhk[bhkKey];
+              let p = byBhk[bhkKey];
+              if (p.priceBasis === 'perUnit') {
+                const t = calcTotalsFromRate(p, cfg.showAreaTypes);
+                const typed = (p.priceMode || 'range') === 'fixed'
+                  ? { value: Number(p.rate) }
+                  : { min: Number(p.minRate), max: Number(p.maxRate) };
+                p = (p.priceMode || 'range') === 'fixed'
+                  ? { ...p, price: String(t.price ?? '') }
+                  : { ...p, minPrice: String(t.min ?? ''), maxPrice: String(t.max ?? '') };
+                return [bhkKey, { ...p, pricePerUnit: typed }];
+              }
               const pps = calcPricePerSqft(p, cfg.showAreaTypes);
               return [bhkKey, { ...p, pricePerUnit: pps }];
             });
@@ -913,7 +992,7 @@ const ProjectListingForm = ({ isAdmin = false, initialData = null }) => {
                     <Label className="form-label">Property Types <span className="text-destructive">*</span></Label>
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 mt-2">
                       {PROPERTY_TYPES.filter(t => {
-                        if (formData.projectType === 'Residential') return !['Shop', 'Office', 'Store'].includes(t);
+                        if (formData.projectType === 'Residential') return !COMMERCIAL_ONLY_TYPES.includes(t);
                         if (formData.projectType === 'Commercial') return !['Flat/Apartment', 'Independent House/Villa', 'Penthouse', 'Studio', 'Others'].includes(t);
                         return true;
                       }).map(type => (
@@ -1042,6 +1121,59 @@ const ProjectListingForm = ({ isAdmin = false, initialData = null }) => {
                     />
                     {errors.greenAreaPercent && <p className="text-xs text-destructive mt-1 font-medium">{errors.greenAreaPercent}</p>}
                   </div>
+
+                  <div>
+                    <Label className="form-label">Min Price (₹) <span className="text-xs font-normal text-muted-foreground">(Optional)</span></Label>
+                    <Input type="number" min="0" placeholder="e.g. 4500000" className="form-input"
+                      value={formData.overviewMinPrice}
+                      onChange={(e) => handleInputChange('overviewMinPrice', e.target.value)} />
+                  </div>
+                  <div>
+                    <Label className="form-label">Max Price (₹) <span className="text-xs font-normal text-muted-foreground">(Optional)</span></Label>
+                    <Input type="number" min="0" placeholder="e.g. 8500000"
+                      className={`form-input ${errors.overviewMaxPrice ? 'border-destructive' : ''}`}
+                      value={formData.overviewMaxPrice}
+                      onChange={(e) => handleInputChange('overviewMaxPrice', e.target.value)} />
+                    {errors.overviewMaxPrice && <p className="text-xs text-destructive mt-1 font-medium">{errors.overviewMaxPrice}</p>}
+                  </div>
+
+                  <div className="md:col-span-2">
+                    <Label className="form-label">Unit Size Range <span className="text-xs font-normal text-muted-foreground">(Optional)</span></Label>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-1.5">
+                      <Input type="number" min="0" placeholder={`Min Size (${formData.overviewSizeUnit})`} className="form-input"
+                        value={formData.overviewMinSize}
+                        onChange={(e) => handleInputChange('overviewMinSize', e.target.value)} />
+                      <Input type="number" min="0" placeholder={`Max Size (${formData.overviewSizeUnit})`}
+                        className={`form-input ${errors.overviewMaxSize ? 'border-destructive' : ''}`}
+                        value={formData.overviewMaxSize}
+                        onChange={(e) => handleInputChange('overviewMaxSize', e.target.value)} />
+                      <div className="flex rounded-xl overflow-hidden border border-border">
+                        {['Sq.ft', 'Sq.yd', 'Sq.m'].map(unit => (
+                          <div key={unit} onClick={() => handleInputChange('overviewSizeUnit', unit)}
+                            className={`flex-1 flex items-center justify-center text-sm font-bold cursor-pointer py-2.5 transition-colors ${formData.overviewSizeUnit === unit ? 'bg-primary text-primary-foreground' : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'}`}
+                          >
+                            {unit}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    {errors.overviewMaxSize && <p className="text-xs text-destructive mt-1 font-medium">{errors.overviewMaxSize}</p>}
+                  </div>
+
+                  <div>
+                    <Label className="form-label">Min Price per {formData.overviewSizeUnit} (₹) <span className="text-xs font-normal text-muted-foreground">(Optional)</span></Label>
+                    <Input type="number" min="0" placeholder="e.g. 6500" className="form-input"
+                      value={formData.overviewMinRate}
+                      onChange={(e) => handleInputChange('overviewMinRate', e.target.value)} />
+                  </div>
+                  <div>
+                    <Label className="form-label">Max Price per {formData.overviewSizeUnit} (₹) <span className="text-xs font-normal text-muted-foreground">(Optional)</span></Label>
+                    <Input type="number" min="0" placeholder="e.g. 9500"
+                      className={`form-input ${errors.overviewMaxRate ? 'border-destructive' : ''}`}
+                      value={formData.overviewMaxRate}
+                      onChange={(e) => handleInputChange('overviewMaxRate', e.target.value)} />
+                    {errors.overviewMaxRate && <p className="text-xs text-destructive mt-1 font-medium">{errors.overviewMaxRate}</p>}
+                  </div>
                 </div>
               </div>
 
@@ -1092,7 +1224,56 @@ const ProjectListingForm = ({ isAdmin = false, initialData = null }) => {
                                     </div>
                                   </div>
 
-                                  {(p.priceMode || 'range') === 'range' ? (
+                                  <div>
+                                    <Label className="form-label">Enter Price As</Label>
+                                    <div className="flex mt-1.5 rounded-xl overflow-hidden border border-border w-fit">
+                                      {[{ id: 'total', label: 'Total Price' }, { id: 'perUnit', label: `Price per ${p.areaUnit || cfg.unit}` }].map(basis => (
+                                        <button
+                                          key={basis.id}
+                                          type="button"
+                                          onClick={() => handleTypePrice(type, bhkKey, 'priceBasis', basis.id)}
+                                          className={`px-4 py-2 text-xs font-bold transition-colors ${(p.priceBasis || 'total') === basis.id ? 'bg-primary text-primary-foreground' : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'}`}
+                                        >
+                                          {basis.label}
+                                        </button>
+                                      ))}
+                                    </div>
+                                  </div>
+
+                                  {p.priceBasis === 'perUnit' ? (
+                                    (p.priceMode || 'range') === 'range' ? (
+                                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div>
+                                          <Label className="form-label">Min Price per {p.areaUnit || cfg.unit} (₹) <span className="text-destructive">*</span></Label>
+                                          <Input type="number" placeholder="e.g. 6500"
+                                            className={`form-input ${errors[`minPrice_${errKey}`] ? 'border-destructive' : ''}`}
+                                            value={p.minRate || ''}
+                                            onChange={(e) => handleTypePrice(type, bhkKey, 'minRate', e.target.value)}
+                                          />
+                                          {errors[`minPrice_${errKey}`] && <p className="text-xs text-destructive mt-1 font-medium">{errors[`minPrice_${errKey}`]}</p>}
+                                        </div>
+                                        <div>
+                                          <Label className="form-label">Max Price per {p.areaUnit || cfg.unit} (₹) <span className="text-destructive">*</span></Label>
+                                          <Input type="number" placeholder="e.g. 9500"
+                                            className={`form-input ${errors[`maxPrice_${errKey}`] ? 'border-destructive' : ''}`}
+                                            value={p.maxRate || ''}
+                                            onChange={(e) => handleTypePrice(type, bhkKey, 'maxRate', e.target.value)}
+                                          />
+                                          {errors[`maxPrice_${errKey}`] && <p className="text-xs text-destructive mt-1 font-medium">{errors[`maxPrice_${errKey}`]}</p>}
+                                        </div>
+                                      </div>
+                                    ) : (
+                                      <div>
+                                        <Label className="form-label">Price per {p.areaUnit || cfg.unit} (₹) <span className="text-destructive">*</span></Label>
+                                        <Input type="number" placeholder="e.g. 7500"
+                                          className={`form-input ${errors[`price_${errKey}`] ? 'border-destructive' : ''}`}
+                                          value={p.rate || ''}
+                                          onChange={(e) => handleTypePrice(type, bhkKey, 'rate', e.target.value)}
+                                        />
+                                        {errors[`price_${errKey}`] && <p className="text-xs text-destructive mt-1 font-medium">{errors[`price_${errKey}`]}</p>}
+                                      </div>
+                                    )
+                                  ) : (p.priceMode || 'range') === 'range' ? (
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                       <div>
                                         <Label className="form-label">Min Price (₹) <span className="text-destructive">*</span></Label>
@@ -1186,7 +1367,21 @@ const ProjectListingForm = ({ isAdmin = false, initialData = null }) => {
                                     </div>
                                   )}
 
-                                  {(() => {
+                                  {p.priceBasis === 'perUnit' ? (() => {
+                                    const t = calcTotalsFromRate(p, cfg.showAreaTypes);
+                                    const fmt = (n) => `₹${n.toLocaleString('en-IN')}`;
+                                    const display = (p.priceMode || 'range') === 'fixed'
+                                      ? (t.price ? fmt(t.price) : null)
+                                      : (t.min && t.max ? `${fmt(t.min)} – ${fmt(t.max)}` : null);
+                                    return (
+                                      <div>
+                                        <Label className="form-label">Total Price <span className="text-muted-foreground font-normal">(Auto-calculated = rate × area)</span></Label>
+                                        <div className="form-input flex items-center bg-slate-100 dark:bg-slate-900 text-foreground font-bold cursor-not-allowed select-none">
+                                          {display || <span className="text-muted-foreground font-normal">Enter price per {p.areaUnit || cfg.unit} & Area to calculate</span>}
+                                        </div>
+                                      </div>
+                                    );
+                                  })() : (() => {
                                     const pps = calcPricePerSqft(p, cfg.showAreaTypes);
                                     const fmt = (n) => `₹${n.toLocaleString('en-IN')}`;
                                     const display = (p.priceMode || 'range') === 'fixed'
@@ -1201,6 +1396,46 @@ const ProjectListingForm = ({ isAdmin = false, initialData = null }) => {
                                       </div>
                                     );
                                   })()}
+
+                                  <div>
+                                    <Label className="form-label">PLC — Preferential Location Charges <span className="text-xs font-normal text-muted-foreground">(Optional)</span></Label>
+                                    <div className="flex mt-1.5 rounded-xl overflow-hidden border border-border w-fit">
+                                      {[{ id: '', label: 'None' }, { id: 'fixed', label: 'Fixed (₹)' }, { id: 'percent', label: 'Percentage (%)' }, { id: 'manual', label: 'Manual' }].map(m => (
+                                        <button
+                                          key={m.id || 'none'}
+                                          type="button"
+                                          onClick={() => handleTypePrice(type, bhkKey, 'plcMode', m.id)}
+                                          className={`px-4 py-2 text-xs font-bold transition-colors ${(p.plcMode || '') === m.id ? 'bg-primary text-primary-foreground' : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'}`}
+                                        >
+                                          {m.label}
+                                        </button>
+                                      ))}
+                                    </div>
+                                    {p.plcMode === 'fixed' && (
+                                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3">
+                                        <Input type="number" placeholder="e.g. 250" className="form-input"
+                                          value={p.plcValue || ''} onChange={(e) => handleTypePrice(type, bhkKey, 'plcValue', e.target.value)} />
+                                        <div className="flex rounded-xl overflow-hidden border border-border">
+                                          {[{ id: 'perUnit', label: `Per ${p.areaUnit || cfg.unit}` }, { id: 'total', label: 'Lump sum' }].map(b => (
+                                            <div key={b.id} onClick={() => handleTypePrice(type, bhkKey, 'plcFixedBasis', b.id)}
+                                              className={`flex-1 flex items-center justify-center text-xs font-bold cursor-pointer py-2.5 transition-colors ${(p.plcFixedBasis || 'perUnit') === b.id ? 'bg-primary text-primary-foreground' : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'}`}
+                                            >
+                                              {b.label}
+                                            </div>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    )}
+                                    {p.plcMode === 'percent' && (
+                                      <Input type="number" placeholder="e.g. 10 (% of price)" className="form-input mt-3"
+                                        value={p.plcValue || ''} onChange={(e) => handleTypePrice(type, bhkKey, 'plcValue', e.target.value)} />
+                                    )}
+                                    {p.plcMode === 'manual' && (
+                                      <Input type="text" placeholder="e.g. 10% for park facing, 5% for corner unit" className="form-input mt-3"
+                                        value={p.plcNote || ''} onChange={(e) => handleTypePrice(type, bhkKey, 'plcNote', e.target.value)} />
+                                    )}
+                                    {errors[`plc_${errKey}`] && <p className="text-xs text-destructive mt-1 font-medium">{errors[`plc_${errKey}`]}</p>}
+                                  </div>
 
                                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                     <div>

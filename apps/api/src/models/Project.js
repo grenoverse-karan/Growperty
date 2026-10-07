@@ -16,6 +16,15 @@ const projectSchema = new mongoose.Schema(
     totalUnits: { type: Number },
     unitsAvailable: { type: Number },
     greenAreaPercent: { type: Number },
+    // Headline price / size range for the whole project, typed by the builder
+    // (separate from the per property-type pricing blob below).
+    overviewMinPrice: { type: Number },
+    overviewMaxPrice: { type: Number },
+    overviewMinSize: { type: Number },
+    overviewMaxSize: { type: Number },
+    overviewSizeUnit: { type: String },  // Sq.ft | Sq.yd | Sq.m
+    overviewMinRate: { type: Number },   // ₹ per overviewSizeUnit
+    overviewMaxRate: { type: Number },
 
     // Nested per property-type, per-BHK pricing/area/unit blob — shape is
     // defined client-side (see ProjectListingForm.jsx), not enforced here.

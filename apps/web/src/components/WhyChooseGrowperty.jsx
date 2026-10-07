@@ -1,9 +1,7 @@
 
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Link } from 'react-router-dom';
 import { Shield, Tag, Users, Phone, Calendar, HeartHandshake as Handshake } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 
 const features = [
   {
@@ -110,40 +108,6 @@ const WhyChooseGrowperty = () => {
                 </p>
               </motion.div>
             ))}
-          </motion.div>
-        </div>
-      </section>
-
-      {/* Section 2: Trust Banner */}
-      <section className="relative py-20 overflow-hidden bg-brand-blue dark:bg-slate-950 border-y border-brand-blue/20 dark:border-slate-800">
-        {/* Abstract Background Element */}
-        <div className="absolute inset-0 opacity-10">
-          <div className="absolute -top-24 -right-24 w-96 h-96 rounded-full bg-white blur-3xl" />
-          <div className="absolute -bottom-24 -left-24 w-96 h-96 rounded-full bg-emerald-400 blur-3xl" />
-        </div>
-
-        <div className="relative z-10 max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            whileInView={{ opacity: 1, scale: 1 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.5 }}
-          >
-            <h2 className="text-3xl md:text-5xl font-extrabold text-white mb-6 tracking-tight text-balance">
-              No Broker. No Bypass. Just Trust.
-            </h2>
-            <p className="text-lg md:text-xl text-blue-100 dark:text-slate-300 mb-10 font-medium max-w-2xl mx-auto leading-relaxed text-balance">
-              Growperty ensures every deal is transparent, structured, and secure.
-            </p>
-            <Button 
-              asChild 
-              size="lg" 
-              className="h-14 px-8 text-lg font-bold bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl shadow-lg shadow-emerald-500/25 transition-all active:scale-[0.98]"
-            >
-              <Link to="/list-property">
-                List Your Property Free
-              </Link>
-            </Button>
           </motion.div>
         </div>
       </section>

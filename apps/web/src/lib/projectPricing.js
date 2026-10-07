@@ -16,6 +16,18 @@ const resolveAreaFields = (p) => {
   return p; // types without a breakdown keep their area fields directly on p
 };
 
+// PLC (Preferential Location Charges) the builder entered for a pricing block:
+// a fixed ₹ amount (per area unit or lump sum), a % of price, or free text.
+export const formatPlc = (p) => {
+  if (p.plcMode === 'fixed' && Number(p.plcValue) > 0) {
+    const amount = `₹${Number(p.plcValue).toLocaleString('en-IN')}`;
+    return p.plcFixedBasis === 'total' ? `${amount} (lump sum)` : `${amount} per ${p.areaUnit || 'Sq.ft'}`;
+  }
+  if (p.plcMode === 'percent' && Number(p.plcValue) > 0) return `${Number(p.plcValue)}% of price`;
+  if (p.plcMode === 'manual' && p.plcNote?.trim()) return p.plcNote.trim();
+  return null;
+};
+
 // Scans the nested per-type/per-BHK pricing blob into flat rows and an
 // overall min/max — same shape ProjectListingForm.jsx saves it in.
 export const flattenPricing = (propertyTypePricing) => {
@@ -41,7 +53,7 @@ export const flattenPricing = (propertyTypePricing) => {
       // Skip entries with no price at all — e.g. a leftover 'default' block
       // from before the form was split into per-BHK pricing.
       if (!priceLabel) continue;
-      rows.push({ label: bhkKey === 'default' ? type : `${type} · ${bhkKey}`, priceLabel, areaLabel });
+      rows.push({ label: bhkKey === 'default' ? type : `${type} · ${bhkKey}`, priceLabel, areaLabel, plcLabel: formatPlc(p) });
     }
   }
   return { rows, range: min && max ? { min, max } : null };

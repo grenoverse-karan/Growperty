@@ -88,6 +88,13 @@ router.post('/', uploadFields, async (req, res) => {
       totalUnits: parseNumber(data.totalUnits),
       unitsAvailable: parseNumber(data.unitsAvailable),
       greenAreaPercent: parseNumber(data.greenAreaPercent),
+      overviewMinPrice: parseNumber(data.overviewMinPrice),
+      overviewMaxPrice: parseNumber(data.overviewMaxPrice),
+      overviewMinSize: parseNumber(data.overviewMinSize),
+      overviewMaxSize: parseNumber(data.overviewMaxSize),
+      overviewSizeUnit: data.overviewSizeUnit || undefined,
+      overviewMinRate: parseNumber(data.overviewMinRate),
+      overviewMaxRate: parseNumber(data.overviewMaxRate),
       propertyTypePricing: parseJson(data.propertyTypePricing, {}),
       configurationAvailable: parseJson(data.configurationAvailable, []),
       paymentPlans: parseJson(data.paymentPlans, []),
@@ -306,7 +313,7 @@ router.put('/:id', uploadFields, async (req, res) => {
       data.reraApplied = data.reraApplied === 'true' || data.reraApplied === true;
       data.confirmationCheckbox1 = data.confirmationCheckbox1 === 'true' || data.confirmationCheckbox1 === true;
       data.confirmationCheckbox2 = data.confirmationCheckbox2 === 'true' || data.confirmationCheckbox2 === true;
-      for (const key of ['landArea', 'totalTowers', 'totalUnits', 'unitsAvailable', 'greenAreaPercent']) {
+      for (const key of ['landArea', 'totalTowers', 'totalUnits', 'unitsAvailable', 'greenAreaPercent', 'overviewMinPrice', 'overviewMaxPrice', 'overviewMinSize', 'overviewMaxSize', 'overviewMinRate', 'overviewMaxRate']) {
         data[key] = parseNumber(data[key]);
       }
       if (!data.offerValidTill) delete data.offerValidTill;

@@ -7,7 +7,7 @@ import {
   MapPin, Building2, Layers, CheckCircle,
   Calendar, Phone, MessageCircle, ArrowRight, ShieldCheck, Loader2,
   Image as ImageIcon, FileText, Video, Sparkles, Clock,
-  LandPlot, Building, ArrowUpFromLine, Home, KeyRound, Trees,
+  LandPlot, Building, ArrowUpFromLine, Home, KeyRound, Trees, IndianRupee, Ruler,
 } from 'lucide-react';
 import Header from '@/components/Header.jsx';
 import Footer from '@/components/Footer.jsx';
@@ -283,6 +283,9 @@ const ProjectDetailPage = () => {
                       { icon: CheckCircle, label: 'Possession', value: project.expectedPossession || project.projectStatus },
                       { icon: Calendar, label: 'Launch Year', value: project.launchYear },
                       { icon: LandPlot, label: 'Land Area', value: project.landArea ? `${project.landArea} ${project.landAreaUnit || 'Acres'}` : null },
+                      { icon: IndianRupee, label: 'Price Range', value: (project.overviewMinPrice && project.overviewMaxPrice) ? `${formatIndianPrice(project.overviewMinPrice)} – ${formatIndianPrice(project.overviewMaxPrice)}` : null },
+                      { icon: Ruler, label: 'Unit Size', value: (project.overviewMinSize && project.overviewMaxSize) ? `${project.overviewMinSize} – ${project.overviewMaxSize} ${project.overviewSizeUnit || 'Sq.ft'}` : null },
+                      { icon: IndianRupee, label: `Price per ${project.overviewSizeUnit || 'Sq.ft'}`, value: (project.overviewMinRate && project.overviewMaxRate) ? `₹${project.overviewMinRate.toLocaleString('en-IN')} – ₹${project.overviewMaxRate.toLocaleString('en-IN')}` : null },
                       { icon: Building, label: 'Towers / Blocks', value: project.totalTowers },
                       { icon: ArrowUpFromLine, label: 'Floors', value: project.totalFloors },
                       { icon: Home, label: 'Total Units', value: project.totalUnits?.toLocaleString('en-IN') },
@@ -377,6 +380,7 @@ const ProjectDetailPage = () => {
                           <div className="flex-1">
                             <h3 className="text-lg font-bold text-foreground mb-1">{row.label}</h3>
                             {row.areaLabel && <p className="text-muted-foreground font-medium text-sm">{row.areaLabel}</p>}
+                            {row.plcLabel && <p className="text-muted-foreground font-medium text-sm">PLC: {row.plcLabel}</p>}
                           </div>
                           <div className="text-left md:text-right">
                             <p className="text-xl font-extrabold text-emerald-600 dark:text-emerald-400">{row.priceLabel}</p>
