@@ -73,6 +73,24 @@ const STATUS_UPDATE = {
 };
 
 const formatDate = (d) => d ? new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
+const formatDateTime = (d) => d
+  ? `${formatDate(d)}, ${new Date(d).toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit', hour12: true })}`
+  : '—';
+
+// Who created the listing: Admin / CP / Builder / Seller (everyone else —
+// Individual, NRI, partnership firm… — is a seller).
+const LISTED_BY_STYLES = {
+  Admin:   { bg: 'rgba(24,95,165,0.2)',  color: '#4a9fd5' },
+  CP:      { bg: 'rgba(124,58,237,0.2)', color: '#a78bfa' },
+  Builder: { bg: 'rgba(217,119,6,0.2)',  color: '#fbbf24' },
+  Seller:  { bg: 'rgba(16,185,129,0.18)', color: '#34d399' },
+};
+const getListedBy = (p) => {
+  if (p.listedBy === 'admin' || p.ownerType === 'Admin') return 'Admin';
+  if (p.listedBy === 'cp' || p.ownerType === 'CP') return 'CP';
+  if (/builder/i.test(p.ownerType || '')) return 'Builder';
+  return 'Seller';
+};
 
 function groupByDate(items) {
   const map = {};
@@ -124,12 +142,16 @@ const PropertyCard = ({ property, onAction, onEdit, actionLoading }) => {
               fontSize: 11, fontWeight: 700, padding: '2px 10px',
               borderRadius: 20, background: meta.bg, color: meta.color,
             }}>{meta.label}</span>
-            {property.listedBy === 'admin' && (
-              <span style={{
-                fontSize: 10, fontWeight: 600, padding: '2px 8px',
-                borderRadius: 20, background: 'rgba(24,95,165,0.2)', color: '#4a9fd5',
-              }}>Admin Listed</span>
-            )}
+            {(() => {
+              const by = getListedBy(property);
+              const st = LISTED_BY_STYLES[by];
+              return (
+                <span title="Listed by" style={{
+                  fontSize: 10, fontWeight: 700, padding: '2px 8px',
+                  borderRadius: 20, background: st.bg, color: st.color,
+                }}>Listed by {by}</span>
+              );
+            })()}
           </div>
 
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px 16px', fontSize: 12, color: C.sub }}>
@@ -149,7 +171,7 @@ const PropertyCard = ({ property, onAction, onEdit, actionLoading }) => {
               </span>
             )}
             <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-              <Calendar size={12} /> {formatDate(property.createdAt)}
+              <Calendar size={12} /> {formatDateTime(property.createdAt)}
             </span>
           </div>
 
