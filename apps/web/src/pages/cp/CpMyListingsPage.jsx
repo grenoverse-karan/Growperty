@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Helmet } from 'react-helmet';
 import { useNavigate } from 'react-router-dom';
-import { Heart, Eye, CalendarCheck, Share2, Phone, MessageCircle } from 'lucide-react';
+import { Heart, Eye, CalendarCheck, Share2, Phone } from 'lucide-react';
 import { useCpAuth } from '@/contexts/CpAuthContext.jsx';
 import apiServerClient from '@/lib/apiServerClient';
 import { toast } from 'sonner';
@@ -64,21 +64,23 @@ function WishlistButton({ propertyId }) {
 }
 
 // Engagement row shown on each of the CP's own listing cards.
+// "Contacts" = Call taps + WhatsApp taps combined; hover shows the split.
 function StatsFooter({ stats = {} }) {
+  const calls = Number(stats.calls || 0);
+  const whatsapps = Number(stats.whatsapps || 0);
   const items = [
-    { Icon: Eye,           label: 'Views',  value: stats.views },
-    { Icon: CalendarCheck, label: 'Visits', value: stats.visits },
-    { Icon: Share2,        label: 'Shares', value: stats.shares },
-    { Icon: Heart,         label: 'Saved',  value: stats.wishlists },
-    { Icon: Phone,         label: 'Calls',  value: stats.calls },
-    { Icon: MessageCircle, label: 'WhatsApp', value: stats.whatsapps },
+    { Icon: Eye,           label: 'Views',    value: stats.views,     span: 2 },
+    { Icon: CalendarCheck, label: 'Visits',   value: stats.visits,    span: 2 },
+    { Icon: Share2,        label: 'Shares',   value: stats.shares,    span: 2 },
+    { Icon: Heart,         label: 'Saved',    value: stats.wishlists, span: 3, color: '#ef4444' },
+    { Icon: Phone,         label: 'Contacts', value: calls + whatsapps, span: 3, color: '#16a34a', title: `${calls} call${calls === 1 ? '' : 's'} · ${whatsapps} WhatsApp` },
   ];
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', rowGap: 10, width: '100%', borderTop: `1px solid ${C.border}`, paddingTop: 8 }}>
-      {items.map(({ Icon, label, value }) => (
-        <div key={label} title={label} style={{ textAlign: 'center' }}>
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', rowGap: 10, width: '100%', borderTop: `1px solid ${C.border}`, paddingTop: 8 }}>
+      {items.map(({ Icon, label, value, span, color, title }) => (
+        <div key={label} title={title || label} style={{ textAlign: 'center', gridColumn: `span ${span}` }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, fontSize: 13, fontWeight: 700, color: C.text }}>
-            <Icon size={12} color={label === 'Saved' ? '#ef4444' : label === 'WhatsApp' ? '#16a34a' : C.sub} /> {Number(value || 0).toLocaleString('en-IN')}
+            <Icon size={12} color={color || C.sub} /> {Number(value || 0).toLocaleString('en-IN')}
           </div>
           <div style={{ fontSize: 10, color: C.muted, marginTop: 1 }}>{label}</div>
         </div>
