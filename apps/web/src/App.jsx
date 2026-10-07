@@ -81,6 +81,7 @@ const RefRedirectPage          = lazy(() => import('@/pages/RefRedirectPage.jsx'
 
 // Channel Partner — dashboard (lazy-loaded as a group)
 const CpDashboardLayout    = lazy(() => import('@/pages/cp/CpDashboardLayout.jsx'));
+const CpAnalyticsPage      = lazy(() => import('@/pages/cp/CpAnalyticsPage.jsx'));
 const CpMyListingsPage     = lazy(() => import('@/pages/cp/CpMyListingsPage.jsx'));
 const CpAddPropertyPage    = lazy(() => import('@/pages/cp/CpAddPropertyPage.jsx'));
 const CpWishlistPage       = lazy(() => import('@/pages/cp/CpWishlistPage.jsx'));
@@ -229,7 +230,7 @@ function App() {
 
                 {/* ── Channel Partner — dashboard ── */}
                 <Route path="/cp/dashboard" element={<CpProtectedRoute><CpDashboardLayout /></CpProtectedRoute>}>
-                  <Route index           element={<Navigate to="/cp/dashboard/listings" replace />} />
+                  <Route index           element={<CpAnalyticsPage />} />
                   <Route path="listings"   element={<CpMyListingsPage />} />
                   <Route path="add"        element={<CpAddPropertyPage />} />
                   <Route path="wishlist"   element={<CpWishlistPage />} />

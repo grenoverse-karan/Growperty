@@ -17,6 +17,7 @@ const C = {
 };
 
 const NAV = [
+  { label: 'Dashboard',       icon: '📊',  to: '/cp/dashboard', end: true },
   { label: 'My Listings',     icon: '🏘',  to: '/cp/dashboard/listings'  },
   { label: 'Add Property',    icon: '➕',  to: '/cp/dashboard/add'       },
   { label: 'Wish List',       icon: '❤️',  to: '/cp/dashboard/wishlist'  },
@@ -87,6 +88,7 @@ export default function CpDashboardLayout() {
           <NavLink
             key={item.to}
             to={item.to}
+            end={item.end}
             onClick={() => setSidebarOpen(false)}
             style={({ isActive }) => ({
               display: 'flex',

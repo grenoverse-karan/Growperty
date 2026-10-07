@@ -7,6 +7,7 @@ import OtpVerification from '../models/OtpVerification.js';
 import Property from '../models/Property.js';
 import VisitRequest from '../models/VisitRequest.js';
 import BuyerRequirement from '../models/BuyerRequirement.js';
+import CPVisitor from '../models/CPVisitor.js';
 import verifyCpToken from '../middleware/verifyCpToken.js';
 import { connectMongoDB } from '../utils/mongodb.js';
 import { sendTemplateMessage } from '../utils/whatsappTemplates.js';
@@ -936,6 +937,115 @@ router.get('/activities', verifyCpToken, async (req, res) => {
   } catch (err) {
     logger.error('[CP] /activities error', { error: err.message });
     return res.status(500).json({ error: 'Failed to fetch activities' });
+  }
+});
+
+// =====================
+// GET /cp/analytics?days=30 — Dashboard numbers for the CP's landing page (protected)
+// Everything is scoped to this CP: own listings, enquiries on them, leads
+// credited via referral/share links, posted requirements and referred visitors.
+// Days are bucketed in IST so "today" matches the CP's calendar.
+// =====================
+const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
+const dayKey = (d) => new Date(new Date(d).getTime() + IST_OFFSET_MS).toISOString().slice(0, 10);
+
+router.get('/analytics', verifyCpToken, async (req, res) => {
+  try {
+    await connectMongoDB();
+    const cpId = req.cp.sub;
+    const days = Math.max(7, Math.min(90, parseInt(req.query.days, 10) || 30));
+    const DAY = 24 * 60 * 60 * 1000;
+    const now = Date.now();
+    const since = new Date(now - days * DAY);
+    const prevSince = new Date(now - 2 * days * DAY);
+
+    const ownProps = await Property.find({ cpId }, 'propertyType bhk city sector status totalPrice createdAt').lean();
+    const ownIds = ownProps.map(p => p._id.toString());
+
+    const [visitRequests, requirements, visitors, cp] = await Promise.all([
+      VisitRequest.find({ $or: [{ propertyId: { $in: ownIds } }, { cpId }] }, 'propertyId status cpId createdAt visitDate').lean(),
+      BuyerRequirement.find({ cpId }, 'createdAt').lean(),
+      CPVisitor.find({ cpId }, 'firstVisit totalVisits propertiesViewed inquiryMade dealStatus').lean(),
+      ChannelPartner.findById(cpId).select('activities').lean(),
+    ]);
+
+    const inRange = (d, from, to = new Date(now + DAY)) => d && new Date(d) >= from && new Date(d) < to;
+    const count = (arr, field) => ({
+      period: arr.filter(x => inRange(x[field], since)).length,
+      prev: arr.filter(x => inRange(x[field], prevSince, since)).length,
+      total: arr.length,
+    });
+
+    // Daily series (oldest -> newest), zero-filled so the chart has no gaps
+    const buckets = {};
+    for (let i = days - 1; i >= 0; i--) {
+      buckets[dayKey(now - i * DAY)] = { date: dayKey(now - i * DAY), visitors: 0, leads: 0, requirements: 0 };
+    }
+    const bump = (arr, field, key) => arr.forEach(x => { const b = buckets[dayKey(x[field])]; if (b && inRange(x[field], since)) b[key] += 1; });
+    bump(visitors, 'firstVisit', 'visitors');
+    bump(visitRequests, 'createdAt', 'leads');
+    bump(requirements, 'createdAt', 'requirements');
+
+    // Listings by status
+    const listings = { total: ownProps.length, live: 0, pending: 0, rejected: 0, unlisted: 0, sold: 0, suspended: 0 };
+    ownProps.forEach(p => {
+      const key = p.status === 'approved' ? 'live' : p.status;
+      if (key in listings) listings[key] += 1;
+    });
+
+    // Visit requests by status (all time)
+    const visitStatus = {};
+    visitRequests.forEach(v => { visitStatus[v.status] = (visitStatus[v.status] || 0) + 1; });
+
+    // Funnel — visitors who first arrived in the period
+    const periodVisitors = visitors.filter(v => inRange(v.firstVisit, since));
+    const funnel = {
+      visitors: periodVisitors.length,
+      inquiries: periodVisitors.filter(v => v.inquiryMade).length,
+      visitsScheduled: periodVisitors.filter(v => ['visit_scheduled', 'deal_closed'].includes(v.dealStatus)).length,
+      dealsClosed: periodVisitors.filter(v => v.dealStatus === 'deal_closed').length,
+    };
+
+    // Top listings — enquiries in the period + views by referred visitors
+    const leadsByProp = {};
+    visitRequests.filter(v => inRange(v.createdAt, since)).forEach(v => { leadsByProp[v.propertyId] = (leadsByProp[v.propertyId] || 0) + 1; });
+    const viewsByProp = {};
+    visitors.forEach(v => (v.propertiesViewed || []).forEach(pv => { viewsByProp[pv.propertyId] = (viewsByProp[pv.propertyId] || 0) + (pv.viewCount || 1); }));
+    const topListings = ownProps
+      .map(p => ({
+        id: p._id.toString(),
+        label: [p.bhk, p.propertyType].filter(Boolean).join(' ') || 'Property',
+        location: [p.sector, p.city].filter(Boolean).join(', '),
+        price: p.totalPrice,
+        status: p.status,
+        leads: leadsByProp[p._id.toString()] || 0,
+        views: viewsByProp[p._id.toString()] || 0,
+      }))
+      .sort((a, b) => (b.leads - a.leads) || (b.views - a.views))
+      .slice(0, 5);
+
+    const recentActivity = (cp?.activities || []).slice().reverse().slice(0, 6)
+      .map(a => ({ type: a.type, message: a.message, createdAt: a.createdAt }));
+
+    return res.status(200).json({
+      range: { days, since },
+      listings,
+      visitors: { ...count(visitors, 'firstVisit'), returning: visitors.filter(v => (v.totalVisits || 1) > 1).length },
+      leads: {
+        ...count(visitRequests, 'createdAt'),
+        onListings: visitRequests.filter(v => ownIds.includes(v.propertyId)).length,
+        viaReferral: visitRequests.filter(v => v.cpId === cpId).length,
+      },
+      requirements: count(requirements, 'createdAt'),
+      visitStatus,
+      funnel,
+      series: Object.values(buckets),
+      topListings,
+      recentActivity,
+    });
+  } catch (err) {
+    logger.error('[CP] /analytics error', { error: err.message });
+    return res.status(500).json({ error: 'Failed to load analytics' });
   }
 });
 
