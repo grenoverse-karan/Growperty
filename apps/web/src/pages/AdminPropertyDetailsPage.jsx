@@ -46,6 +46,7 @@ const AdminPropertyDetailsPage = () => {
   const [property, setProperty] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [cp, setCp] = useState(null);
 
   useEffect(() => {
     if (!id) return;
@@ -66,6 +67,22 @@ const AdminPropertyDetailsPage = () => {
     })();
     return () => { cancelled = true; };
   }, [id, token]);
+
+  // Listings store the CP's database id; the CP ID people know (GP…) is its shareToken.
+  const cpDbId = property?.cpId;
+  useEffect(() => {
+    if (!cpDbId) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await apiServerClient.fetch(`/admin/channel-partners/${cpDbId}`, { headers: { Authorization: `Bearer ${token}` } });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!cancelled) setCp(data.cp);
+      } catch { /* the DB id below is still shown as a fallback */ }
+    })();
+    return () => { cancelled = true; };
+  }, [cpDbId, token]);
 
   if (error) {
     return (
@@ -214,7 +231,8 @@ const AdminPropertyDetailsPage = () => {
                     <Field label="Email" value={p.email} />
                     <Field label="Owner Type" value={p.ownerType} />
                     <Field label="Listed By" value={getListedBy(p)} />
-                    <Field label="CP ID" value={p.cpId} />
+                    <Field label="CP Name" value={cp?.name} />
+                    <Field label="CP ID" value={cp?.shareToken || p.cpId} />
                     <Field label="Current Address" value={p.currentAddress} />
                     <Field label="WhatsApp Alerts" value={p.whatsappAlerts === undefined ? '' : (p.whatsappAlerts ? 'On' : 'Off')} />
                   </CardContent>
