@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Helmet } from 'react-helmet';
 import { useNavigate } from 'react-router-dom';
-import { Heart, Eye, CalendarCheck, Share2 } from 'lucide-react';
+import { Heart, Eye, CalendarCheck, Share2, Phone, MessageCircle } from 'lucide-react';
 import { useCpAuth } from '@/contexts/CpAuthContext.jsx';
 import apiServerClient from '@/lib/apiServerClient';
 import { toast } from 'sonner';
@@ -70,13 +70,15 @@ function StatsFooter({ stats = {} }) {
     { Icon: CalendarCheck, label: 'Visits', value: stats.visits },
     { Icon: Share2,        label: 'Shares', value: stats.shares },
     { Icon: Heart,         label: 'Saved',  value: stats.wishlists },
+    { Icon: Phone,         label: 'Calls',  value: stats.calls },
+    { Icon: MessageCircle, label: 'WhatsApp', value: stats.whatsapps },
   ];
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', width: '100%', borderTop: `1px solid ${C.border}`, paddingTop: 8 }}>
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', rowGap: 10, width: '100%', borderTop: `1px solid ${C.border}`, paddingTop: 8 }}>
       {items.map(({ Icon, label, value }) => (
         <div key={label} title={label} style={{ textAlign: 'center' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, fontSize: 13, fontWeight: 700, color: C.text }}>
-            <Icon size={12} color={label === 'Saved' ? '#ef4444' : C.sub} /> {Number(value || 0).toLocaleString('en-IN')}
+            <Icon size={12} color={label === 'Saved' ? '#ef4444' : label === 'WhatsApp' ? '#16a34a' : C.sub} /> {Number(value || 0).toLocaleString('en-IN')}
           </div>
           <div style={{ fontSize: 10, color: C.muted, marginTop: 1 }}>{label}</div>
         </div>

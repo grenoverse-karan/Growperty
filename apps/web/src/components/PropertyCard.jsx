@@ -306,6 +306,7 @@ const PropertyCard = ({ property, compact = false, footer = null, statusBadge = 
                 e.stopPropagation();
                 const cp = getActiveCpContact();
                 const phone = cp ? cp.cpPhone.replace(/\D/g, '') : PLATFORM_PHONE;
+                trackProperty(property.id || property._id, 'call');
                 window.location.href = `tel:${phone}`;
               }}
             >
@@ -318,6 +319,7 @@ const PropertyCard = ({ property, compact = false, footer = null, statusBadge = 
                 e.preventDefault();
                 e.stopPropagation();
                 const url = `${window.location.origin}/property/${property.id || property._id}`;
+                trackProperty(property.id || property._id, 'whatsapp');
                 openWhatsApp(`Hi, I'm interested in this property: ${url}`);
               }}
             >

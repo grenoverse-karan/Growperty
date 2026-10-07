@@ -675,6 +675,8 @@ router.get('/properties', verifyCpToken, async (req, res) => {
           visits: vc[id] || 0,
           shares: p.shareCount || 0,
           wishlists: p.wishlistCount || 0,
+          calls: p.callCount || 0,
+          whatsapps: p.whatsappCount || 0,
         },
       };
     });

@@ -271,11 +271,14 @@ router.get('/:id', async (req, res) => {
 });
 
 // =====================
-// POST /:id/track — Anonymous engagement counter (share / wishlist add / remove)
+// POST /:id/track — Anonymous engagement counter (share / call / whatsapp / wishlist add / remove)
 // Public on purpose (visitors aren't logged in). Whitelisted events only; the
 // wishlist count can never drop below zero.
 // =====================
-const TRACK_EVENTS = { share: ['shareCount', 1], wishlist_add: ['wishlistCount', 1], wishlist_remove: ['wishlistCount', -1] };
+const TRACK_EVENTS = {
+  share: ['shareCount', 1], call: ['callCount', 1], whatsapp: ['whatsappCount', 1],
+  wishlist_add: ['wishlistCount', 1], wishlist_remove: ['wishlistCount', -1],
+};
 router.post('/:id/track', async (req, res) => {
   try {
     const rule = TRACK_EVENTS[req.body?.event];

@@ -32,6 +32,8 @@ const propertySchema = new mongoose.Schema(
     // analytics collections, visits from VisitRequest — see GET /cp/properties).
     shareCount:      { type: Number, default: 0 },
     wishlistCount:   { type: Number, default: 0 }, // current number of shortlists (add +1 / remove -1, never < 0)
+    callCount:       { type: Number, default: 0 },  // taps on the Call button
+    whatsappCount:   { type: Number, default: 0 },  // taps on the WhatsApp button
 
     images:          { type: [String], default: [] },
     // Small pre-compressed copy of images[0], generated on first upload —

@@ -726,6 +726,7 @@ const PropertyDetailsPage = () => {
                         <Button
                           onClick={() => {
                             const phone = cpContact ? cpContact.cpPhone.replace(/\D/g, '') : PLATFORM_PHONE;
+                            trackProperty(id, 'call');
                             window.location.href = `tel:${phone}`;
                           }}
                           className="w-full h-12 text-base font-bold rounded-xl bg-primary text-primary-foreground shadow-md hover:shadow-lg transition-all active:scale-[0.98]"
@@ -735,6 +736,7 @@ const PropertyDetailsPage = () => {
                         <Button
                           onClick={() => {
                             const url = window.location.href.split('?')[0];
+                            trackProperty(id, 'whatsapp');
                             openWhatsApp(`Hi, I'm interested in this property: ${url}`);
                           }}
                           className="w-full h-12 text-base font-bold rounded-xl bg-[#25D366] hover:bg-[#20bd5a] text-white shadow-md hover:shadow-lg transition-all active:scale-[0.98]"
