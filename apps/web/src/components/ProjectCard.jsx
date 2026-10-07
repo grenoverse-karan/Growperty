@@ -9,6 +9,10 @@ import { flattenPricing } from '@/lib/projectPricing.js';
 import { getStatusColor, PROJECT_CITY_LABELS, shortPrice, projectTypeLabel, isReraApproved } from '@/lib/projectDisplay.js';
 import { getActiveOffer, getOfferSummary } from '@/lib/offerUtils.js';
 import { isProjectWishlisted, toggleProjectWishlist } from '@/lib/projectWishlist.js';
+import ImageSlider from '@/components/ImageSlider.jsx';
+
+// Cloudinary serves resized/optimised variants straight from the URL.
+const cardPhoto = (url) => url.replace('/upload/', '/upload/c_fill,w_720,h_540,q_auto,f_auto/');
 
 // Shared project card — used on the Projects grid and as a "Featured
 // Projects" teaser on the Properties page. `index` only drives the
@@ -50,11 +54,11 @@ const ProjectCard = ({ project, index = 0 }) => {
     >
       <Link to={`/project/${project._id}`} className="relative aspect-[4/3] overflow-hidden block">
         {image ? (
-          <img
-            src={image}
+          <ImageSlider
+            images={(project.projectImages || []).map(cardPhoto)}
+            count={(project.projectImages || []).length}
             alt={project.projectName}
-            loading="lazy"
-            className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+            dotsTop={14}
           />
         ) : (
           <div className="w-full h-full bg-gradient-to-br from-brand-blue to-slate-800 flex items-center justify-center">
@@ -90,7 +94,7 @@ const ProjectCard = ({ project, index = 0 }) => {
             <Share2 className="h-4 w-4 text-slate-700" />
           </button>
         </div>
-        <div className={`absolute left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-6 pt-12 ${offer ? 'bottom-7' : 'bottom-0'}`}>
+        <div className={`absolute left-0 right-0 pointer-events-none bg-gradient-to-t from-black/80 to-transparent p-6 pt-12 ${offer ? 'bottom-7' : 'bottom-0'}`}>
           <h3 className="text-2xl font-bold text-white mb-1 leading-tight line-clamp-2">
             {project.projectName}
           </h3>
@@ -99,7 +103,7 @@ const ProjectCard = ({ project, index = 0 }) => {
           )}
         </div>
         {offer && (
-          <div className="shine-badge absolute inset-x-0 bottom-0 flex items-center justify-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-amber-500 via-orange-500 to-rose-500 text-white">
+          <div className="shine-badge pointer-events-none absolute inset-x-0 bottom-0 flex items-center justify-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-amber-500 via-orange-500 to-rose-500 text-white">
             <span className="text-sm leading-none">{offer.emoji}</span>
             <span className="text-xs font-extrabold tracking-wide truncate">{getOfferSummary(offer)}</span>
             <span className="text-sm leading-none">{offer.emoji}</span>

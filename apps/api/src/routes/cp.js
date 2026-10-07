@@ -645,6 +645,7 @@ router.get('/properties', verifyCpToken, async (req, res) => {
         { $skip: skip },
         { $limit: limit },
         { $addFields: {
+            imageCount: { $size: { $ifNull: ['$images', []] } },
             cover: { $cond: [{ $gt: [{ $strLenCP: { $ifNull: ['$thumbnail', ''] } }, 0] }, '$thumbnail', { $arrayElemAt: [{ $ifNull: ['$images', []] }, 0] }] },
         } },
         { $project: { images: 0, thumbnail: 0 } },

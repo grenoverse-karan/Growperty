@@ -12,6 +12,8 @@ import { isWishlisted as checkWishlisted, toggleWishlist as toggleWishlistStorag
 import { getActiveCpContact } from '@/lib/cpRef.js';
 import { openWhatsApp } from '@/lib/whatsappLink.js';
 import { trackProperty } from '@/lib/trackProperty.js';
+import ImageSlider from '@/components/ImageSlider.jsx';
+import { API_SERVER_URL } from '@/lib/apiServerClient.js';
 import { getActiveOffer, getOfferPricing, getOfferBenefitLabel, getOfferSummary } from '@/lib/offerUtils.js';
 
 const TYPE_PLACEHOLDER = {
@@ -62,6 +64,8 @@ const COMPACT_CSS = `
 .pc-compact .h-5.w-5 { width: .875rem; height: .875rem; }
 .pc-compact .h-9.w-9 { width: 1.75rem; height: 1.75rem; }
 .pc-compact .h-9.w-9 svg { width: .8rem; height: .8rem; }
+.pc-compact .h-8.w-8 { width: 1.5rem; height: 1.5rem; }
+.pc-compact .h-8.w-8 svg { width: .75rem; height: .75rem; }
 .pc-compact .top-4 { top: .5rem; }
 .pc-compact .left-4 { left: .5rem; }
 .pc-compact .right-4 { right: .5rem; }
@@ -135,12 +139,13 @@ const PropertyCard = ({ property, compact = false, footer = null, statusBadge = 
     <Card className={`group overflow-hidden bg-card border-border/50 shadow-lg hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 rounded-2xl flex flex-col h-full cursor-pointer ${isSold ? 'opacity-80' : ''}`}>
       <div className="relative overflow-hidden aspect-[4/3] bg-slate-100 dark:bg-slate-800">
         {firstImage ? (
-          <img
-            src={firstImage}
-            alt={property.title || 'Property Image'}
-            className={`w-full h-full object-cover transition-transform duration-700 group-hover:scale-110 ${isSold ? 'grayscale' : ''}`}
-            loading="lazy"
-            decoding="async"
+          <ImageSlider
+            images={[firstImage]}
+            count={Number(property.imageCount) || 1}
+            getUrl={(i) => `${API_SERVER_URL}/properties/${property.id || property._id}/images/${i}?w=640`}
+            alt={title}
+            grayscale={isSold}
+            dotsBottom={offer ? 34 : 10}
           />
         ) : (
           <div className={`w-full h-full bg-gradient-to-br ${ph.gradient} flex flex-col items-center justify-center gap-2 transition-transform duration-700 group-hover:scale-110 ${isSold ? 'grayscale' : ''}`}>
@@ -148,7 +153,7 @@ const PropertyCard = ({ property, compact = false, footer = null, statusBadge = 
             <span className="text-white/80 text-xs font-semibold">Image uploading soon...</span>
           </div>
         )}
-        <div className="absolute inset-0 bg-gradient-to-t from-slate-950/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+        <div className="absolute inset-0 pointer-events-none bg-gradient-to-t from-slate-950/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
 
         {/* Festive offer strip across the bottom of the photo */}
         {offer && (

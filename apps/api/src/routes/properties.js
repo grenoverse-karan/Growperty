@@ -1,6 +1,7 @@
 import express from 'express';
 import multer from 'multer';
 import mongoose from 'mongoose';
+import sharp from 'sharp';
 import Property from '../models/Property.js';
 import logger from '../utils/logger.js';
 import { verifyToken } from '../utils/jwt.js';
@@ -317,6 +318,22 @@ router.get('/:id/images/:index', async (req, res) => {
     if (!match) return res.status(500).json({ success: false, message: 'Corrupt image data' });
 
     const [, mimeType, base64Data] = match;
+
+    // ?w=<px> — a resized JPEG for card sliders, so browsing a card's photos
+    // doesn't pull the full-resolution originals. Short cache: the order of a
+    // listing's photos can change under the same URL.
+    const w = parseInt(req.query.w, 10);
+    if (w) {
+      const resized = await sharp(Buffer.from(base64Data, 'base64'))
+        .rotate()
+        .resize({ width: Math.min(1600, Math.max(160, w)), withoutEnlargement: true })
+        .jpeg({ quality: 72, mozjpeg: true })
+        .toBuffer();
+      res.set('Content-Type', 'image/jpeg');
+      res.set('Cache-Control', 'public, max-age=3600, s-maxage=86400');
+      return res.send(resized);
+    }
+
     res.set('Content-Type', mimeType);
     res.set('Cache-Control', 'public, max-age=31536000, immutable');
     return res.send(Buffer.from(base64Data, 'base64'));
