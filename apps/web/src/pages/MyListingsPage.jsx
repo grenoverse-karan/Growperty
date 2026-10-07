@@ -13,7 +13,7 @@ import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card'
 import { Button } from '@/components/ui/button';
 
 const MyListingsPage = () => {
-  const { currentUser } = useAuth();
+  const { currentUser, getToken } = useAuth();
   const [properties, setProperties] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -59,7 +59,7 @@ const MyListingsPage = () => {
     try {
       const res = await apiServerClient.fetch(`/properties/${propertyId}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
         body: JSON.stringify({ status: 'unlisted' }),
       });
       const data = await res.json();

@@ -25,12 +25,27 @@ const TEAM_CONTACT = '+91 9891117876';
 //
 // The status update is conditional on the status we read, so an admin who
 // approved/rejected the listing while the AI was thinking always wins.
-export async function runAiReview(propertyId, { textOnly = false } = {}) {
+export async function runAiReview(propertyId, { textOnly = false, onEdit = false } = {}) {
   const prop = await Property.findById(propertyId).lean();
   if (!prop) return null;
-  if (textOnly ? prop.status !== 'pending' : (!prop.images?.length || prop.status === 'rejected')) return null;
+  // onEdit: a lister changed the text of a pending OR live listing — re-check
+  // it and pull it (reject) if it now fails, even if it was approved before.
+  // Sold / unlisted / already-rejected listings are left alone.
+  const eligible = onEdit ? ['pending', 'approved'].includes(prop.status)
+    : textOnly ? prop.status === 'pending'
+    : prop.images?.length && prop.status !== 'rejected';
+  if (!eligible) return null;
 
   const { approved, reason } = await reviewListing(textOnly ? { ...prop, images: [] } : prop);
+
+  if (onEdit && approved !== false) {
+    // Text still fine (or the AI couldn't say): never touch the status, just leave an admin note.
+    await Property.updateOne(
+      { _id: propertyId, status: prop.status },
+      { $set: { aiReviewReason: approved === true ? 'Text re-checked after edit — OK' : reason, aiReviewedAt: new Date() } },
+    );
+    return { approved, reason, status: prop.status };
+  }
 
   if (textOnly && approved !== false) {
     // Nothing to change yet. Leave a note for admins — but never over a full
@@ -45,7 +60,10 @@ export async function runAiReview(propertyId, { textOnly = false } = {}) {
   const set = { aiReviewReason: reason, aiReviewedAt: new Date() };
 
   let newStatus = null;
-  if (prop.status === 'pending') {
+  if (onEdit) {
+    newStatus = 'rejected'; // only reachable when approved === false
+    set.status = newStatus;
+  } else if (prop.status === 'pending') {
     newStatus = approved === true ? 'approved' : approved === false ? 'rejected' : null; // null -> stays pending
     if (newStatus) set.status = newStatus;
     if (newStatus === 'approved') set.liveAt = new Date();

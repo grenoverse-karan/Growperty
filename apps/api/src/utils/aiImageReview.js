@@ -106,6 +106,13 @@ const NUMERIC_FIELDS = [
 
 const humanize = (key) => key.replace(/([A-Z])/g, ' $1').replace(/^./, c => c.toUpperCase());
 
+// True when an update body changes anything that gets reviewed (i.e. more than
+// status / ownership / counters / photos). Used to skip the AI on pure
+// workflow updates such as an owner unlisting their own listing.
+export function touchesReviewableContent(keys) {
+  return keys.some((key) => !NON_TEXT_KEYS.has(key));
+}
+
 export function collectListingText(property) {
   const out = [];
   for (const [label, key] of TEXT_FIELDS) {

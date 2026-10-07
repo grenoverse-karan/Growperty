@@ -776,6 +776,8 @@ router.put('/properties/:id', verifyCpToken, async (req, res) => {
 
     await Property.updateOne({ _id: prop._id }, { $set: data }, { runValidators: true });
     logger.info('[CP] Property edited', { cpId: req.cp.sub, propertyId: prop._id });
+    // Same rule as PUT /properties/:id: edited text is re-checked and the listing is rejected if it now fails.
+    scheduleAiReview(prop._id.toString(), { textOnly: true, onEdit: true });
     return res.status(200).json({ success: true, propertyId: prop._id.toString() });
   } catch (err) {
     logger.error('[CP] property edit error', { error: err.message });

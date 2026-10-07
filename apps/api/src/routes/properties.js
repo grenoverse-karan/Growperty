@@ -11,6 +11,7 @@ import { generateThumbnail } from '../utils/imageThumbnail.js';
 import { moderateFreeTextFields } from '../utils/contactModeration.js';
 import { sanitizeConnectivity } from '../utils/connectivity.js';
 import { scheduleAiReview } from '../utils/aiListingReview.js';
+import { touchesReviewableContent } from '../utils/aiImageReview.js';
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 2 * 1024 * 1024, files: 20 } });
 
@@ -354,17 +355,39 @@ router.get('/:id/images/:index', async (req, res) => {
 // =====================
 // PUT /:id — Update property
 // =====================
-router.put('/:id', async (req, res) => {
+// Fields only an admin (or the system) may change through this route.
+const OWNER_LOCKED_FIELDS = ['owner_id', 'cpId', 'listedBy', 'ownerType', 'liveAt', 'unlistedBy', 'aiReviewReason', 'aiReviewedAt',
+  'shareCount', 'wishlistCount', 'callCount', 'whatsappCount', 'images', 'thumbnail'];
+// Listers may only send these statuses: the edit form resets a listing to
+// 'pending' for re-review, the unlist button sends 'unlisted'. Approving or
+// rejecting is an admin action.
+const OWNER_STATUSES = ['pending', 'unlisted'];
+
+router.put('/:id', requireAuth, async (req, res) => {
   try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) return res.status(404).json({ success: false, message: 'Property not found' });
+    const existing = await Property.findById(req.params.id, { owner_id: 1, status: 1 }).lean();
+    if (!existing) return res.status(404).json({ success: false, message: 'Property not found' });
+    // Same rule as the photo routes. Without it anyone could edit — or, now that
+    // edited text is AI-reviewed, get rejected — somebody else's listing.
+    if (!req.isAdmin && existing.owner_id !== req.userId) {
+      return res.status(403).json({ success: false, message: 'Not allowed to edit this property' });
+    }
+
     const data = { ...req.body };
     delete data._id;
     delete data.createdAt;
     delete data.updatedAt;
+    if (!req.isAdmin) {
+      OWNER_LOCKED_FIELDS.forEach(f => delete data[f]);
+      delete data.rejectReason; delete data.rejectionReason;
+      if (data.status !== undefined && (!OWNER_STATUSES.includes(data.status) || existing.status === 'sold')) delete data.status;
+    }
 
     if (data.connectivity !== undefined) data.connectivity = sanitizeConnectivity(data.connectivity);
-    // A status change here comes from admin tooling: remember who unlisted it
-    // (so a CP can't relist something an admin took down) and clear the mark otherwise.
-    if (data.status !== undefined) data.unlistedBy = data.status === 'unlisted' ? 'admin' : '';
+    // Remember who unlisted it (so a CP can't relist something an admin took
+    // down) and clear the mark when the status moves elsewhere.
+    if (data.status !== undefined) data.unlistedBy = data.status === 'unlisted' ? (req.isAdmin ? 'admin' : 'owner') : '';
 
     const textFields = {};
     if (data.description !== undefined) textFields.description = data.description;
@@ -408,6 +431,13 @@ router.put('/:id', async (req, res) => {
       }
     } else {
       console.log('⏭ [WA] Skipped — no mobileNumber on property');
+    }
+
+    // Re-check the text after a lister's edit. If it now fails, the listing is
+    // rejected — even a live one. Admin edits are trusted; pure workflow updates
+    // (e.g. unlisting) change no reviewable content and are skipped.
+    if (!req.isAdmin && touchesReviewableContent(Object.keys(data))) {
+      scheduleAiReview(req.params.id, { textOnly: true, onEdit: true });
     }
 
     return res.status(200).json({ success: true, propertyId: updated._id.toString() });

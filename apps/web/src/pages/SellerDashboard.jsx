@@ -129,7 +129,7 @@ const SellerDashboard = () => {
     try {
       const res = await apiServerClient.fetch(`/properties/${propertyId}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
         body: JSON.stringify({ status: 'unlisted' }),
       });
       const data = await res.json();
