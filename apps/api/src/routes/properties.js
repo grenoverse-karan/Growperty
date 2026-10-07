@@ -337,6 +337,9 @@ router.put('/:id', async (req, res) => {
     delete data.updatedAt;
 
     if (data.connectivity !== undefined) data.connectivity = sanitizeConnectivity(data.connectivity);
+    // A status change here comes from admin tooling: remember who unlisted it
+    // (so a CP can't relist something an admin took down) and clear the mark otherwise.
+    if (data.status !== undefined) data.unlistedBy = data.status === 'unlisted' ? 'admin' : '';
 
     const textFields = {};
     if (data.description !== undefined) textFields.description = data.description;

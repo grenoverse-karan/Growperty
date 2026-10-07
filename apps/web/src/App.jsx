@@ -84,6 +84,7 @@ const CpDashboardLayout    = lazy(() => import('@/pages/cp/CpDashboardLayout.jsx
 const CpAnalyticsPage      = lazy(() => import('@/pages/cp/CpAnalyticsPage.jsx'));
 const CpMyListingsPage     = lazy(() => import('@/pages/cp/CpMyListingsPage.jsx'));
 const CpAddPropertyPage    = lazy(() => import('@/pages/cp/CpAddPropertyPage.jsx'));
+const CpEditPropertyPage   = lazy(() => import('@/pages/cp/CpEditPropertyPage.jsx'));
 const CpWishlistPage       = lazy(() => import('@/pages/cp/CpWishlistPage.jsx'));
 const CpRequirementsPage   = lazy(() => import('@/pages/cp/CpRequirementsPage.jsx'));
 const CpLeadsPage          = lazy(() => import('@/pages/cp/CpLeadsPage.jsx'));
@@ -234,6 +235,7 @@ function App() {
                   <Route path="listings"   element={<CpMyListingsPage source="mine" />} />
                   <Route path="growperty-listings" element={<CpMyListingsPage source="growperty" />} />
                   <Route path="add"        element={<CpAddPropertyPage />} />
+                  <Route path="edit/:id"   element={<CpEditPropertyPage />} />
                   <Route path="wishlist"   element={<CpWishlistPage />} />
                   <Route path="requirements" element={<CpRequirementsPage />} />
                   <Route path="leads"      element={<CpLeadsPage />} />

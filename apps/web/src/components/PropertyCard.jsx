@@ -44,6 +44,7 @@ function timeAgo(dateStr) {
 // footer        — replaces the Call/WhatsApp footer (e.g. engagement stats)
 // statusBadge   — extra chip stacked in the top-left corner (e.g. Live / Pending)
 // onShare       — replaces the default share action (e.g. CP referral share modal)
+// menu          — extra control (e.g. a three-dot actions menu) placed before the heart button
 const COMPACT_CSS = `
 .pc-compact .p-6 { padding: .625rem; }
 .pc-compact .p-6.pt-0 { padding-top: 0; }
@@ -69,7 +70,7 @@ const COMPACT_CSS = `
 .pc-compact .aspect-\\[4\\/3\\] { aspect-ratio: 16 / 10; }
 `;
 
-const PropertyCard = ({ property, compact = false, footer = null, statusBadge = null, onShare = null }) => {
+const PropertyCard = ({ property, compact = false, footer = null, statusBadge = null, onShare = null, menu = null }) => {
   const originalPrice = Number(property.totalPrice || property.price);
   const offer = getActiveOffer(property);
   const offerPricing = getOfferPricing(offer, originalPrice);
@@ -183,6 +184,7 @@ const PropertyCard = ({ property, compact = false, footer = null, statusBadge = 
         )}
 
         <div className="absolute top-4 right-4 flex items-center gap-2">
+          {menu}
           <button
             type="button"
             onClick={toggleWishlist}

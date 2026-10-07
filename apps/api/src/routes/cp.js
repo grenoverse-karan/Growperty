@@ -1,5 +1,6 @@
 import express from 'express';
 import jwt from 'jsonwebtoken';
+import mongoose from 'mongoose';
 import bcrypt from 'bcrypt';
 import { randomBytes } from 'crypto';
 import ChannelPartner from '../models/ChannelPartner.js';
@@ -729,6 +730,90 @@ router.post('/properties', verifyCpToken, async (req, res) => {
   } catch (err) {
     logger.error('[CP] /properties post error', { error: err.message });
     return res.status(500).json({ error: 'Failed to create property' });
+  }
+});
+
+// =====================
+// Manage own listings: edit / unlist-relist / delete (protected, owner only)
+// =====================
+const CP_LOCKED_FIELDS = ['_id', 'id', 'owner_id', 'cpId', 'listedBy', 'ownerType', 'status', 'unlistedBy', 'liveAt', 'images', 'thumbnail',
+  'shareCount', 'wishlistCount', 'callCount', 'whatsappCount', 'createdAt', 'updatedAt', 'stats'];
+
+const loadOwnProperty = async (req, res, projection = 'status cpId unlistedBy') => {
+  if (!mongoose.Types.ObjectId.isValid(req.params.id)) { res.status(404).json({ error: 'Listing not found' }); return null; }
+  const prop = await Property.findOne({ _id: req.params.id, cpId: req.cp.sub }).select(projection).lean();
+  if (!prop) { res.status(404).json({ error: 'Listing not found' }); return null; }
+  return prop;
+};
+
+// PUT /cp/properties/:id — edit details (images go through /properties/:id/images, as on create)
+router.put('/properties/:id', verifyCpToken, async (req, res) => {
+  try {
+    await connectMongoDB();
+    const prop = await loadOwnProperty(req, res);
+    if (!prop) return;
+
+    const data = { ...(req.body || {}) };
+    CP_LOCKED_FIELDS.forEach(f => delete data[f]);
+    // A rejected listing that's been edited goes back into the review queue.
+    if (prop.status === 'rejected') data.status = 'pending';
+
+    await Property.updateOne({ _id: prop._id }, { $set: data }, { runValidators: true });
+    logger.info('[CP] Property edited', { cpId: req.cp.sub, propertyId: prop._id });
+    return res.status(200).json({ success: true, propertyId: prop._id.toString() });
+  } catch (err) {
+    logger.error('[CP] property edit error', { error: err.message });
+    return res.status(500).json({ error: 'Failed to update listing' });
+  }
+});
+
+// PATCH /cp/properties/:id/status — { action: 'unlist' | 'relist' }
+router.patch('/properties/:id/status', verifyCpToken, async (req, res) => {
+  try {
+    await connectMongoDB();
+    const prop = await loadOwnProperty(req, res);
+    if (!prop) return;
+    const { action } = req.body || {};
+
+    let update;
+    if (action === 'unlist') {
+      if (prop.status !== 'approved') return res.status(400).json({ error: 'Only live listings can be unlisted' });
+      update = { status: 'unlisted', unlistedBy: 'cp' };
+    } else if (action === 'relist') {
+      if (prop.status !== 'unlisted' || prop.unlistedBy !== 'cp') {
+        return res.status(403).json({ error: 'This listing was unlisted by Growperty. Please contact support to relist it.' });
+      }
+      update = { status: 'approved', unlistedBy: '' };
+    } else {
+      return res.status(400).json({ error: 'Invalid action' });
+    }
+
+    await Property.updateOne({ _id: prop._id }, { $set: update });
+    await ChannelPartner.findByIdAndUpdate(req.cp.sub, {
+      $push: { activities: { type: 'property_' + action, message: `${action === 'unlist' ? 'Unlisted' : 'Relisted'} a property`, propertyId: prop._id.toString(), createdAt: new Date() } },
+    });
+    return res.status(200).json({ success: true, status: update.status });
+  } catch (err) {
+    logger.error('[CP] property status error', { error: err.message });
+    return res.status(500).json({ error: 'Failed to update listing' });
+  }
+});
+
+// DELETE /cp/properties/:id
+router.delete('/properties/:id', verifyCpToken, async (req, res) => {
+  try {
+    await connectMongoDB();
+    const prop = await loadOwnProperty(req, res);
+    if (!prop) return;
+    await Property.deleteOne({ _id: prop._id });
+    await ChannelPartner.findByIdAndUpdate(req.cp.sub, {
+      $push: { activities: { type: 'property_deleted', message: 'Deleted a property listing', propertyId: prop._id.toString(), createdAt: new Date() } },
+    });
+    logger.info('[CP] Property deleted', { cpId: req.cp.sub, propertyId: prop._id });
+    return res.status(200).json({ success: true });
+  } catch (err) {
+    logger.error('[CP] property delete error', { error: err.message });
+    return res.status(500).json({ error: 'Failed to delete listing' });
   }
 });
 

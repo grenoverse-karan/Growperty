@@ -27,6 +27,7 @@ const propertySchema = new mongoose.Schema(
     listedBy:        { type: String, enum: ['owner', 'cp', 'admin'] },
     cpId:            { type: String },
     liveAt:          { type: Date },
+    unlistedBy:      { type: String, default: '' }, // 'cp' | 'admin' — who unlisted it; only a CP-unlisted listing can be relisted by the CP
 
     // Engagement counters bumped by POST /:id/track (views come from the
     // analytics collections, visits from VisitRequest — see GET /cp/properties).

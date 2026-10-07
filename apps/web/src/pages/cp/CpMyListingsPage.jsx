@@ -1,13 +1,20 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Helmet } from 'react-helmet';
 import { useNavigate } from 'react-router-dom';
-import { Heart, Eye, CalendarCheck, Share2, Phone } from 'lucide-react';
+import { Heart, Eye, CalendarCheck, Share2, Phone, MoreVertical, Pencil, EyeOff, RotateCcw, Trash2 } from 'lucide-react';
 import { useCpAuth } from '@/contexts/CpAuthContext.jsx';
 import apiServerClient from '@/lib/apiServerClient';
 import { toast } from 'sonner';
 import { isWishlisted, toggleWishlist } from '@/lib/wishlist.js';
 import { trackProperty } from '@/lib/trackProperty.js';
 import PropertyCard from '@/components/PropertyCard.jsx';
+import {
+  DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator,
+} from '@/components/ui/dropdown-menu.jsx';
+import {
+  AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogFooter, AlertDialogTitle,
+  AlertDialogDescription, AlertDialogCancel, AlertDialogAction,
+} from '@/components/ui/alert-dialog.jsx';
 
 const C = {
   bg:      '#f5f6f8',
@@ -89,6 +96,45 @@ function StatsFooter({ stats = {} }) {
   );
 }
 
+// Three-dot actions on a CP listing card. The card is wrapped in a <Link>, so
+// every click here is stopped from bubbling up and navigating to the property.
+const stop = (e) => { e.preventDefault(); e.stopPropagation(); };
+
+function ListingMenu({ property, onEdit, onUnlist, onRelist, onDelete }) {
+  const canUnlist = property.status === 'approved';
+  const isUnlisted = property.status === 'unlisted';
+  const cpUnlisted = property.unlistedBy === 'cp';
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          type="button"
+          onClick={stop}
+          aria-label="Listing actions"
+          className="h-9 w-9 rounded-full bg-white/90 backdrop-blur-sm shadow-md flex items-center justify-center hover:bg-white transition-colors"
+        >
+          <MoreVertical className="h-4 w-4 text-slate-700" />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" onClick={stop} className="min-w-[170px]">
+        <DropdownMenuItem onSelect={() => onEdit(property)}><Pencil className="h-4 w-4 mr-2" /> Edit</DropdownMenuItem>
+        {canUnlist && (
+          <DropdownMenuItem onSelect={() => onUnlist(property)}><EyeOff className="h-4 w-4 mr-2" /> Unlist</DropdownMenuItem>
+        )}
+        {isUnlisted && (
+          <DropdownMenuItem disabled={!cpUnlisted} onSelect={() => onRelist(property)}>
+            <RotateCcw className="h-4 w-4 mr-2" /> {cpUnlisted ? 'Relist' : 'Unlisted by Growperty'}
+          </DropdownMenuItem>
+        )}
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onSelect={() => onDelete(property)} className="text-red-600 focus:text-red-600 focus:bg-red-50">
+          <Trash2 className="h-4 w-4 mr-2" /> Delete
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
 // source="mine"      -> the CP's own listings (default, /cp/dashboard/listings)
 // source="growperty" -> Growperty-owned listings the CP can share (/cp/dashboard/growperty-listings)
 export default function CpMyListingsPage({ source = 'mine' }) {
@@ -122,6 +168,36 @@ export default function CpMyListingsPage({ source = 'mine' }) {
     setCurrent({ items: [], total: 0, page: 1, totalPages: 1 });
     fetchPage(1);
   }, [fetchPage]);
+
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleting, setDeleting] = useState(false);
+
+  const authHeaders = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };
+
+  const changeStatus = async (property, action) => {
+    const id = property.id || property._id;
+    try {
+      const res  = await apiServerClient.fetch(`/cp/properties/${id}/status`, { method: 'PATCH', headers: authHeaders, body: JSON.stringify({ action }) });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to update listing');
+      setCurrent(prev => ({ ...prev, items: prev.items.map(p => (p.id || p._id) === id ? { ...p, status: data.status, unlistedBy: action === 'unlist' ? 'cp' : '' } : p) }));
+      toast.success(action === 'unlist' ? 'Listing unlisted — it is hidden from buyers' : 'Listing is live again');
+    } catch (err) { toast.error(err.message); }
+  };
+
+  const confirmDelete = async () => {
+    const id = deleteTarget.id || deleteTarget._id;
+    setDeleting(true);
+    try {
+      const res  = await apiServerClient.fetch(`/cp/properties/${id}`, { method: 'DELETE', headers: authHeaders });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Failed to delete listing');
+      setCurrent(prev => ({ ...prev, items: prev.items.filter(p => (p.id || p._id) !== id), total: Math.max(0, prev.total - 1) }));
+      toast.success('Listing deleted');
+      setDeleteTarget(null);
+    } catch (err) { toast.error(err.message); }
+    finally { setDeleting(false); }
+  };
 
   const getShareLink = (propertyId, src) => {
     const base = `${window.location.origin}/property/${propertyId}?ref=${shareToken}`;
@@ -222,6 +298,15 @@ export default function CpMyListingsPage({ source = 'mine' }) {
                     <span style={{ background: st.bg, color: st.color, fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 999 }}>{st.label}</span>
                   )}
                   footer={<StatsFooter stats={p.stats} />}
+                  menu={(
+                    <ListingMenu
+                      property={p}
+                      onEdit={(x) => navigate(`/cp/dashboard/edit/${x.id || x._id}`)}
+                      onUnlist={(x) => changeStatus(x, 'unlist')}
+                      onRelist={(x) => changeStatus(x, 'relist')}
+                      onDelete={setDeleteTarget}
+                    />
+                  )}
                   onShare={shareToken ? () => setShareModal({ propertyId: p.id || p._id, title }) : null}
                 />
               );
@@ -378,6 +463,25 @@ export default function CpMyListingsPage({ source = 'mine' }) {
           </button>
         </div>
       )}
+
+      {/* ── Delete confirmation ── */}
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => { if (!open && !deleting) setDeleteTarget(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this listing?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {deleteTarget ? `${deleteTarget.bhk ? deleteTarget.bhk + ' ' : ''}${deleteTarget.propertyType} in ${[deleteTarget.sector, deleteTarget.city].filter(Boolean).join(', ')}` : ''}
+              {' '}will be permanently removed. This can't be undone. If you only want to hide it from buyers, use Unlist instead.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={(e) => { e.preventDefault(); confirmDelete(); }} disabled={deleting} className="bg-red-600 hover:bg-red-700 text-white">
+              {deleting ? 'Deleting…' : 'Delete'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* ── Share Modal ── */}
       {shareModal && (

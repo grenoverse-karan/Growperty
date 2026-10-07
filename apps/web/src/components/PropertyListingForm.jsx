@@ -711,8 +711,8 @@ const PropertyListingForm = ({ isAdmin = false, initialData = null, cpMode = fal
       // Step 1: Submit property metadata (no images) — stays well under Vercel's 4.5MB body limit
       const authToken = isAdmin ? adminToken : cpMode ? cpToken : getToken();
       const editId = initialData?._id || initialData?.id;
-      const fetchUrl  = cpMode ? '/cp/properties' : (editId ? `/properties/${editId}` : '/properties');
-      const fetchMethod = cpMode ? 'POST' : (editId ? 'PUT' : 'POST');
+      const fetchUrl  = cpMode ? (editId ? `/cp/properties/${editId}` : '/cp/properties') : (editId ? `/properties/${editId}` : '/properties');
+      const fetchMethod = editId ? 'PUT' : 'POST';
       const response = await apiServerClient.fetch(fetchUrl, {
         method: fetchMethod,
         headers: {
@@ -779,7 +779,7 @@ const PropertyListingForm = ({ isAdmin = false, initialData = null, cpMode = fal
         toast({ title: 'Success', description: editId ? 'Property updated successfully.' : 'Property listed successfully and is now live.' });
         navigate('/admin/properties');
       } else if (cpMode) {
-        toast({ title: 'Success', description: 'Property listed successfully and is pending approval.' });
+        toast({ title: 'Success', description: editId ? 'Listing updated successfully.' : 'Property listed successfully and is pending approval.' });
         navigate('/cp/dashboard/listings');
       } else {
         toast({ title: 'Success', description: 'Property listed successfully and is pending approval.' });
