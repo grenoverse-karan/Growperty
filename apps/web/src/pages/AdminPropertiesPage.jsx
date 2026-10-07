@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Helmet } from 'react-helmet';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { MapPin, User, Phone, Calendar, Trash2, RefreshCw, Loader2, Search, ChevronDown, ChevronUp, Image as ImageIcon, Pencil } from 'lucide-react';
+import { MapPin, User, Phone, Calendar, Trash2, RefreshCw, Loader2, Search, ChevronDown, ChevronUp, Image as ImageIcon, Pencil, Eye, ExternalLink } from 'lucide-react';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from '@/components/ui/dialog';
@@ -105,7 +105,7 @@ function groupByDate(items) {
 }
 
 // ── Property Card ─────────────────────────────────────────────────
-const PropertyCard = ({ property, onAction, onEdit, actionLoading }) => {
+const PropertyCard = ({ property, onAction, onEdit, onView, actionLoading }) => {
   const id = property._id || property.id;
   const status = property.status || 'pending';
   const meta = STATUS_META[status] || STATUS_META.pending;
@@ -225,6 +225,24 @@ const PropertyCard = ({ property, onAction, onEdit, actionLoading }) => {
         padding: '10px 20px', borderTop: `1px solid ${C.border}`,
         display: 'flex', gap: 8, flexWrap: 'wrap',
       }}>
+        <button
+          onClick={() => onView(id)}
+          style={{
+            padding: '6px 16px', borderRadius: 7, background: C.hover, color: C.text,
+            border: `1px solid ${C.border}`, fontSize: 12, fontWeight: 600, cursor: 'pointer',
+            display: 'flex', alignItems: 'center', gap: 5,
+          }}
+        ><Eye size={12} /> View</button>
+        <a
+          href={`/property/${id}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{
+            padding: '6px 16px', borderRadius: 7, background: C.hover, color: '#4a9fd5',
+            border: `1px solid ${C.border}`, fontSize: 12, fontWeight: 600, textDecoration: 'none',
+            display: 'flex', alignItems: 'center', gap: 5,
+          }}
+        ><ExternalLink size={12} /> View on website</a>
         {actions.map(action => {
           const am = ACTION_META[action];
           const isLoading = actionLoading === `${id}-${action}`;
@@ -264,6 +282,7 @@ const AdminPropertiesPage = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(null);
   const [search, setSearch] = useState('');
+  const [listedByFilter, setListedByFilter] = useState('all');
   const [rejectDialog, setRejectDialog] = useState({ open: false, id: null });
   const [rejectReason, setRejectReason] = useState('');
 
@@ -362,11 +381,18 @@ const AdminPropertiesPage = () => {
 
   const filtered = properties.filter(p => {
     const matchStatus = activeTab === 'all' || p.status === activeTab;
+    const matchListedBy = listedByFilter === 'all' || getListedBy(p) === listedByFilter;
     const q = search.toLowerCase();
     const matchSearch = !q || [p.propertyType, p.bhk, p.city, p.sector, p.name, p.mobileNumber]
       .some(v => v?.toLowerCase().includes(q));
-    return matchStatus && matchSearch;
+    return matchStatus && matchListedBy && matchSearch;
   });
+
+  const listedByCounts = properties.reduce((acc, p) => {
+    const by = getListedBy(p);
+    acc[by] = (acc[by] || 0) + 1;
+    return acc;
+  }, {});
 
   return (
     <>
@@ -443,6 +469,37 @@ const AdminPropertiesPage = () => {
           })}
         </div>
 
+        {/* Listed-by filter */}
+        <div style={{ display: 'flex', gap: 8, marginBottom: 24, flexWrap: 'wrap', alignItems: 'center' }}>
+          <span style={{ fontSize: 12, color: C.muted, marginRight: 4 }}>Listed by</span>
+          {['all', 'Admin', 'CP', 'Seller', 'Builder'].map(by => {
+            const isActive = listedByFilter === by;
+            const color = by === 'all' ? '#4a9fd5' : LISTED_BY_STYLES[by].color;
+            const count = by === 'all' ? properties.length : (listedByCounts[by] || 0);
+            return (
+              <button
+                key={by}
+                onClick={() => setListedByFilter(by)}
+                style={{
+                  padding: '6px 14px', borderRadius: 8,
+                  background: isActive ? `${color}22` : C.card,
+                  border: `1px solid ${isActive ? color : C.border}`,
+                  color: isActive ? color : C.sub,
+                  fontSize: 13, fontWeight: isActive ? 700 : 400, cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', gap: 6,
+                }}
+              >
+                {by === 'all' ? 'All' : by}
+                <span style={{
+                  fontSize: 11, fontWeight: 700, minWidth: 18, textAlign: 'center',
+                  background: isActive ? color : C.border, color: isActive ? '#0b1220' : C.muted,
+                  borderRadius: 20, padding: '0 6px',
+                }}>{count}</span>
+              </button>
+            );
+          })}
+        </div>
+
         {/* List — grouped by listing date */}
         {isLoading ? (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 200 }}>
@@ -473,6 +530,7 @@ const AdminPropertiesPage = () => {
                   property={p}
                   onAction={handleAction}
                   onEdit={(id) => navigate(`/admin/edit-property/${id}`)}
+                  onView={(id) => navigate(`/admin/properties/${id}`)}
                   actionLoading={actionLoading}
                 />
               ))}
