@@ -135,6 +135,52 @@ function ListingMenu({ property, onEdit, onUnlist, onRelist, onDelete }) {
   );
 }
 
+// A shareable-link bar: the URL, Copy, Share (native share sheet, else WhatsApp) and Open.
+function LinkBar({ icon, title, desc, url, shareTitle, shareText, openable = true }) {
+  const [copied, setCopied] = useState(false);
+
+  const copy = () => {
+    navigator.clipboard.writeText(url).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
+
+  const share = async () => {
+    if (navigator.share) {
+      try { await navigator.share({ title: shareTitle, text: shareText, url }); } catch { /* user cancelled */ }
+    } else {
+      window.open(`https://wa.me/?text=${encodeURIComponent(`${shareText}: ${url}`)}`, '_blank');
+    }
+  };
+
+  return (
+    <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, padding: '14px 16px', marginBottom: 18, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+      <div style={{ minWidth: 190, flex: '0 1 230px' }}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: C.text }}>{icon} {title}</div>
+        <div style={{ fontSize: 11.5, color: C.muted, marginTop: 2 }}>{desc}</div>
+      </div>
+      <div style={{ flex: '1 1 260px', minWidth: 0, background: '#f9fafb', border: `1px solid ${C.border}`, borderRadius: 8, padding: '9px 12px', fontSize: 12, color: C.sub, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={url}>
+        {url}
+      </div>
+      <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+        <button type="button" onClick={copy} style={{
+          background: copied ? '#d1fae5' : C.surface, border: `1px solid ${copied ? '#10b981' : C.border}`,
+          color: copied ? C.greenDark : C.sub, borderRadius: 8, padding: '9px 16px', fontSize: 13, fontWeight: 600, cursor: 'pointer', minWidth: 78,
+        }}>{copied ? '✓ Copied' : 'Copy'}</button>
+        <button type="button" onClick={share} style={{
+          background: C.greenDark, border: 'none', color: '#fff', borderRadius: 8, padding: '9px 18px', fontSize: 13, fontWeight: 600, cursor: 'pointer',
+        }}>Share</button>
+        {openable && (
+          <a href={url} target="_blank" rel="noreferrer" style={{
+            background: C.surface, border: `1px solid ${C.border}`, color: C.sub, borderRadius: 8, padding: '9px 14px', fontSize: 13, fontWeight: 600, textDecoration: 'none', display: 'inline-flex', alignItems: 'center',
+          }}>Open ↗</a>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // source="mine"      -> the CP's own listings (default, /cp/dashboard/listings)
 // source="growperty" -> Growperty-owned listings the CP can share (/cp/dashboard/growperty-listings)
 export default function CpMyListingsPage({ source = 'mine' }) {
@@ -201,22 +247,17 @@ export default function CpMyListingsPage({ source = 'mine' }) {
 
   // "My store" link: a public page with only the listings this CP added (no Growperty listings).
   const storeUrl = shareToken ? `${window.location.origin}/cp/${shareToken}/listings?own=1` : '';
-  const [storeCopied, setStoreCopied] = useState(false);
 
-  const copyStoreLink = () => {
-    navigator.clipboard.writeText(storeUrl).then(() => {
-      setStoreCopied(true);
-      setTimeout(() => setStoreCopied(false), 2000);
-    });
-  };
-
-  const shareStoreLink = async () => {
-    if (navigator.share) {
-      try { await navigator.share({ title: 'My property listings on Growperty', text: 'Check out my property listings on Growperty', url: storeUrl }); } catch { /* user cancelled */ }
-    } else {
-      window.open(`https://wa.me/?text=${encodeURIComponent(`Check out my property listings on Growperty: ${storeUrl}`)}`, '_blank');
-    }
-  };
+  // Sitewide referral link (buyers who click it are credited to this CP for 7 days).
+  // /cp/me creates it on first use, so it's fetched rather than read from login data.
+  const [refUrl, setRefUrl] = useState('');
+  useEffect(() => {
+    if (isMine || !token) return;
+    apiServerClient.fetch('/cp/me', { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => (r.ok ? r.json() : null))
+      .then(data => { if (data?.cp?.refLink) setRefUrl(`https://${data.cp.refLink}`); })
+      .catch(() => {});
+  }, [isMine, token]);
 
   const getShareLink = (propertyId, src) => {
     const base = `${window.location.origin}/property/${propertyId}?ref=${shareToken}`;
@@ -293,27 +334,18 @@ export default function CpMyListingsPage({ source = 'mine' }) {
         }
       `}</style>
       {isMine && storeUrl && (
-        <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, padding: '14px 16px', marginBottom: 18, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-          <div style={{ minWidth: 190, flex: '0 1 230px' }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: C.text }}>🔗 Your store link</div>
-            <div style={{ fontSize: 11.5, color: C.muted, marginTop: 2 }}>Opens a page with only the listings you added — your live ones, no Growperty listings.</div>
-          </div>
-          <div style={{ flex: '1 1 260px', minWidth: 0, background: '#f9fafb', border: `1px solid ${C.border}`, borderRadius: 8, padding: '9px 12px', fontSize: 12, color: C.sub, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={storeUrl}>
-            {storeUrl}
-          </div>
-          <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
-            <button type="button" onClick={copyStoreLink} style={{
-              background: storeCopied ? '#d1fae5' : C.surface, border: `1px solid ${storeCopied ? '#10b981' : C.border}`,
-              color: storeCopied ? C.greenDark : C.sub, borderRadius: 8, padding: '9px 16px', fontSize: 13, fontWeight: 600, cursor: 'pointer', minWidth: 78,
-            }}>{storeCopied ? '✓ Copied' : 'Copy'}</button>
-            <button type="button" onClick={shareStoreLink} style={{
-              background: C.greenDark, border: 'none', color: '#fff', borderRadius: 8, padding: '9px 18px', fontSize: 13, fontWeight: 600, cursor: 'pointer',
-            }}>Share</button>
-            <a href={storeUrl} target="_blank" rel="noreferrer" style={{
-              background: C.surface, border: `1px solid ${C.border}`, color: C.sub, borderRadius: 8, padding: '9px 14px', fontSize: 13, fontWeight: 600, textDecoration: 'none', display: 'inline-flex', alignItems: 'center',
-            }}>Open ↗</a>
-          </div>
-        </div>
+        <LinkBar
+          icon="🔗" title="Your store link" url={storeUrl}
+          desc="Opens a page with only the listings you added — your live ones, no Growperty listings."
+          shareTitle="My property listings on Growperty" shareText="Check out my property listings on Growperty"
+        />
+      )}
+      {!isMine && refUrl && (
+        <LinkBar
+          icon="🎯" title="Get your referral link" url={refUrl} openable={false}
+          desc="Share it with buyers — anyone who clicks it is credited to you for 7 days, site-wide, including these Growperty listings."
+          shareTitle="Properties on Growperty" shareText="Check out Growperty properties"
+        />
       )}
 
       {isMine ? (
