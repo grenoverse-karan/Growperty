@@ -384,11 +384,23 @@ router.get('/store/:shareToken/listings', async (req, res) => {
     const filter = { status: 'approved', $or: [{ cpId: cp._id.toString() }, { listedBy: { $in: ['owner', 'admin'] } }] };
 
     const [docs, total] = await Promise.all([
-      Property.find(filter, { images: { $slice: 1 } }).sort({ cpId: -1, createdAt: -1 }).skip(skip).limit(limit).lean(),
+      // Cover photo (thumbnail, else first full image) + imageCount for the card slider.
+      Property.aggregate([
+        { $match: filter },
+        { $sort: { cpId: -1, createdAt: -1 } },
+        { $skip: skip },
+        { $limit: limit },
+        { $addFields: {
+            imageCount: { $size: { $ifNull: ['$images', []] } },
+            cover: { $cond: [{ $gt: [{ $strLenCP: { $ifNull: ['$thumbnail', ''] } }, 0] }, '$thumbnail', { $arrayElemAt: [{ $ifNull: ['$images', []] }, 0] }] },
+        } },
+        { $project: { images: 0, thumbnail: 0 } },
+      ]),
       Property.countDocuments(filter),
     ]);
 
-    return res.status(200).json({ items: docs.map(p => ({ ...p, id: p._id.toString() })), total, page, totalPages: Math.ceil(total / limit) });
+    const items = docs.map(({ cover, ...p }) => ({ ...p, id: p._id.toString(), images: cover ? [cover] : [] }));
+    return res.status(200).json({ items, total, page, totalPages: Math.ceil(total / limit) });
   } catch (err) {
     logger.error('[CP] store listings error', { error: err.message });
     return res.status(500).json({ error: 'Internal server error' });

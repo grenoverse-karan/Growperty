@@ -6,6 +6,8 @@ import Footer from '@/components/Footer.jsx';
 import { formatIndianPrice } from '@/hooks/useProperties.js';
 import apiServerClient from '@/lib/apiServerClient.js';
 import { MapPin, Phone, MessageCircle, Bed, Maximize, IndianRupee } from 'lucide-react';
+import ImageSlider from '@/components/ImageSlider.jsx';
+import { API_SERVER_URL } from '@/lib/apiServerClient.js';
 
 const PLACEHOLDER = 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=800&q=70';
 
@@ -15,8 +17,10 @@ function StorePropertyCard({ property, cp }) {
   const title = [property.bhk, property.propertyType].filter(Boolean).join(' ') || 'Property';
   const location = [property.sector, property.city].filter(Boolean).join(', ');
   const price = formatIndianPrice(property.totalPrice);
+  const propId = property._id || property.id;
+  // Listing photos are stored as data: URIs (or http URLs) — both are valid <img> sources.
   const img = property.images?.[0];
-  const imgSrc = img && img.startsWith('http') ? img : PLACEHOLDER;
+  const hasPhoto = !!img && (img.startsWith('http') || img.startsWith('data:'));
 
   const waMsg = encodeURIComponent(`Hi ${cp.name}, I'm interested in this property: ${window.location.origin}/property/${property._id || property.id}`);
   const waLink = `https://wa.me/91${cp.phone.replace(/\D/g, '').slice(-10)}?text=${waMsg}`;
@@ -28,10 +32,21 @@ function StorePropertyCard({ property, cp }) {
       display: 'flex', flexDirection: 'column',
     }}>
       <div
+        className="group overflow-hidden"
         style={{ position: 'relative', aspectRatio: '16/9', cursor: 'pointer' }}
-        onClick={() => navigate(`/property/${property._id || property.id}`)}
+        onClick={() => navigate(`/property/${propId}`)}
       >
-        <img src={imgSrc} alt={title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={e => { e.target.src = PLACEHOLDER; }} />
+        {hasPhoto ? (
+          <ImageSlider
+            images={[img]}
+            count={Number(property.imageCount) || 1}
+            getUrl={(i) => `${API_SERVER_URL}/properties/${propId}/images/${i}?w=640`}
+            alt={title}
+            dotsTop={10}
+          />
+        ) : (
+          <img src={PLACEHOLDER} alt={title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+        )}
         <div style={{
           position: 'absolute', bottom: 10, left: 10,
           background: 'rgba(0,0,0,0.65)', color: '#fff',
