@@ -149,6 +149,8 @@ const PropertyListingForm = ({ isAdmin = false, initialData = null, cpMode = fal
     if (showBhk && !formData.bhk && !formData.rooms) errors.bhk = 'BHK ya Rooms count me se koi ek select karo';
     if (!formData.totalArea) errors.totalArea = 'Total area enter karo';
     if (!formData.totalPrice || Number(formData.totalPrice) <= 0) errors.totalPrice = 'Expected price enter karo';
+    // Same range the server enforces: ₹5 lakh – ₹1,000 crore (admins may list outside it).
+    else if (!isAdmin && (Number(formData.totalPrice) < 5_00_000 || Number(formData.totalPrice) > 10_00_00_00_000)) errors.totalPrice = 'Invalid price — please enter actual property price';
     if (!formData.city) errors.city = 'City select karo';
     if (!formData.sector?.trim()) errors.sector = 'Sector / Area enter karo';
     if (!formData.houseNo?.trim()) errors.houseNo = 'Flat / House No. enter karo';

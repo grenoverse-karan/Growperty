@@ -132,6 +132,13 @@ export function collectListingText(property) {
   return out;
 }
 
+// A listing's price must be a plausible real one. Anything outside this range
+// is rejected on the spot (no AI call).
+export const MIN_PRICE = 5_00_000;        // ₹5 lakh
+export const MAX_PRICE = 10_00_00_00_000; // ₹1,000 crore
+export const INVALID_PRICE_REASON = 'Invalid price — please enter actual property price';
+export const isPriceInRange = (price) => Number.isFinite(Number(price)) && Number(price) >= MIN_PRICE && Number(price) <= MAX_PRICE;
+
 // Count-type fields (floors, rooms, parking…) never legitimately reach 10
 // digits, so a phone-number-sized value there is rejected without an AI call.
 export function findPhoneLikeCount(property) {
@@ -210,6 +217,8 @@ const manual = (reason) => ({ approved: null, reason });
 
 async function reviewListingRaw(property) {
   try {
+    if (!isPriceInRange(property?.totalPrice)) return { approved: false, reason: INVALID_PRICE_REASON };
+
     const phoneLike = findPhoneLikeCount(property);
     if (phoneLike) return { approved: false, reason: `${phoneLike} contains a phone-number-like value` };
 

@@ -20,6 +20,7 @@
 //    from the SPA's default index.html meta tags, which is exactly what
 //    these two routes bypass.
 import { SITE_URL } from './src/lib/siteUrl.js';
+import { formatShortPrice } from './src/lib/shortPrice.js';
 
 const BOT_UA = /WhatsApp|facebookexternalhit|Facebot|Twitterbot|LinkedInBot|TelegramBot|Slackbot|Discordbot|Pinterest|Iframely/i;
 
@@ -64,10 +65,9 @@ function esc(str) {
     .replace(/>/g, '&gt;');
 }
 
-// Full Indian grouping, e.g. ₹36,13,500.
+// Short display price, e.g. ₹36.1 L / ₹1.2 Cr (structured data keeps the exact number).
 function fmtPrice(price) {
-  const n = Number(price);
-  return n ? `₹${Math.round(n).toLocaleString('en-IN')}` : '';
+  return Number(price) ? formatShortPrice(price) : '';
 }
 
 function buildOgHtml({ title, pageTitle, description, image, canonical, imageIsReal }) {

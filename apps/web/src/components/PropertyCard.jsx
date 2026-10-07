@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Bed, MapPin, Bath, Phone, MessageCircle, Heart, Share2, Building2, TreePine, Store, Home, DoorOpen, Sparkles, ShieldCheck } from 'lucide-react';
 import { toast } from 'sonner';
-import { formatIndianPrice } from '@/hooks/useProperties.js';
+import { formatShortPrice } from '@/lib/shortPrice.js';
 import { getFilteredAddress } from '@/lib/contentFilteringUtils.js';
 import { PLATFORM_PHONE } from '@/constants/contactInfo.js';
 import { isWishlisted as checkWishlisted, toggleWishlist as toggleWishlistStorage } from '@/lib/wishlist.js';
@@ -81,7 +81,7 @@ const PropertyCard = ({ property, compact = false, footer = null, statusBadge = 
   const offerBenefit = getOfferBenefitLabel(offer);
   // A % offer lowers the shown price; the original is struck through beside it.
   const price = offerPricing ? offerPricing.finalPrice : originalPrice;
-  const formattedPrice = formatIndianPrice(price);
+  const formattedPrice = formatShortPrice(price);
   const area = Number(property.totalArea);
   const pricePerUnit = price > 0 && area > 0 ? Math.round(price / area) : null;
   const unitLabel = property.areaUnit === 'Sq.yd' ? 'sq.yd' : property.areaUnit === 'Sq.m' ? 'sq.m' : 'sq.ft';
@@ -231,14 +231,14 @@ const PropertyCard = ({ property, compact = false, footer = null, statusBadge = 
               {formattedPrice}
             </p>
             {offerPricing && (
-              <p className="text-sm text-muted-foreground line-through">{formatIndianPrice(originalPrice)}</p>
+              <p className="text-sm text-muted-foreground line-through">{formatShortPrice(originalPrice)}</p>
             )}
           </div>
           {(offerPricing || offerBenefit) && (
             <span className="inline-flex items-center mt-1.5 max-w-full text-xs font-extrabold text-white bg-gradient-to-b from-[#FB5C74] to-[#FA233B] shadow-sm shadow-[#FA233B]/30 px-2.5 py-1 rounded-full">
               <span className="truncate">
                 {offerPricing
-                  ? `Save ₹${offerPricing.saving.toLocaleString('en-IN')} (${offerPricing.pct}% Off)`
+                  ? `Save ${formatShortPrice(offerPricing.saving)} (${offerPricing.pct}% Off)`
                   : offerBenefit}
               </span>
             </span>

@@ -3,7 +3,7 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { Helmet } from 'react-helmet';
 import Header from '@/components/Header.jsx';
 import Footer from '@/components/Footer.jsx';
-import { formatIndianPrice } from '@/hooks/useProperties.js';
+import { formatShortPrice } from '@/lib/shortPrice.js';
 import apiServerClient from '@/lib/apiServerClient.js';
 import { MapPin, Phone, MessageCircle, Bed, Maximize, IndianRupee } from 'lucide-react';
 import ImageSlider from '@/components/ImageSlider.jsx';
@@ -16,7 +16,7 @@ function StorePropertyCard({ property, cp }) {
   const navigate = useNavigate();
   const title = [property.bhk, property.propertyType].filter(Boolean).join(' ') || 'Property';
   const location = [property.sector, property.city].filter(Boolean).join(', ');
-  const price = formatIndianPrice(property.totalPrice);
+  const price = formatShortPrice(property.totalPrice);
   const propId = property._id || property.id;
   // Listing photos are stored as data: URIs (or http URLs) — both are valid <img> sources.
   const img = property.images?.[0];

@@ -1,13 +1,11 @@
 import BuyerRequirement from '../models/BuyerRequirement.js';
 import { sendTemplateAsync } from './whatsappTemplates.js';
 import logger from './logger.js';
+import { formatShortPrice } from './shortPrice.js';
 
 function formatPrice(n) {
   if (!n || isNaN(n)) return '-';
-  const num = Number(n);
-  if (num >= 1e7) return `₹${(num / 1e7).toFixed(2).replace(/\.?0+$/, '')} Cr`;
-  if (num >= 1e5) return `₹${(num / 1e5).toFixed(2).replace(/\.?0+$/, '')} Lac`;
-  return `₹${num.toLocaleString('en-IN')}`;
+  return formatShortPrice(n);
 }
 
 /**

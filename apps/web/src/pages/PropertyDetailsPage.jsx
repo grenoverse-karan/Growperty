@@ -13,7 +13,7 @@ import {
   Home, IndianRupee, Tag, Info, Clock, CalendarDays, Heart, Share2, DoorOpen, Landmark, Calculator,
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { formatIndianPrice } from '@/hooks/useProperties.js';
+import { formatShortPrice } from '@/lib/shortPrice.js';
 import apiServerClient, { API_SERVER_URL } from '@/lib/apiServerClient.js';
 import { PLATFORM_PHONE } from '@/constants/contactInfo.js';
 import VisitRequestModal from '@/components/VisitRequestModal.jsx';
@@ -244,7 +244,7 @@ const PropertyDetailsPage = () => {
   // A % offer lowers the shown price (and the EMI calculator's starting
   // price); the original is struck through beside it.
   const effectivePrice = offerPricing ? offerPricing.finalPrice : Number(property.totalPrice);
-  const formattedPrice = formatIndianPrice(effectivePrice);
+  const formattedPrice = formatShortPrice(effectivePrice);
 
   const pricePerSqft = effectivePrice && property.totalArea
     ? Math.round(effectivePrice / Number(property.totalArea))
@@ -439,10 +439,10 @@ const PropertyDetailsPage = () => {
                     {(offerPricing || offerBenefit) && (
                       <div className="flex items-center gap-2 flex-wrap mt-1">
                         {offerPricing && (
-                          <span className="text-base text-muted-foreground line-through">{formatIndianPrice(property.totalPrice)}</span>
+                          <span className="text-base text-muted-foreground line-through">{formatShortPrice(property.totalPrice)}</span>
                         )}
                         <span className="inline-flex items-center text-xs font-extrabold text-white bg-gradient-to-b from-[#FB5C74] to-[#FA233B] shadow-sm shadow-[#FA233B]/30 px-2.5 py-1 rounded-full">
-                          {offerPricing ? `Save ₹${offerPricing.saving.toLocaleString('en-IN')}` : offerBenefit}
+                          {offerPricing ? `Save ${formatShortPrice(offerPricing.saving)}` : offerBenefit}
                         </span>
                       </div>
                     )}
