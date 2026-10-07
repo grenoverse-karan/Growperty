@@ -381,8 +381,11 @@ router.get('/store/:shareToken/listings', async (req, res) => {
     const limit = Math.max(1, Math.min(50, parseInt(req.query.limit) || 20));
     const skip  = (page - 1) * limit;
 
-    // CP's own listings + all Growperty-approved listings they can promote
-    const filter = { status: 'approved', $or: [{ cpId: cp._id.toString() }, { listedBy: { $in: ['owner', 'admin'] } }] };
+    // Default: the CP's own listings + all Growperty-approved listings they can promote.
+    // ?scope=own: only what this CP listed (the "my store" link they share).
+    const filter = req.query.scope === 'own'
+      ? { status: 'approved', cpId: cp._id.toString() }
+      : { status: 'approved', $or: [{ cpId: cp._id.toString() }, { listedBy: { $in: ['owner', 'admin'] } }] };
 
     const [docs, total] = await Promise.all([
       // Cover photo (thumbnail, else first full image) + imageCount for the card slider.

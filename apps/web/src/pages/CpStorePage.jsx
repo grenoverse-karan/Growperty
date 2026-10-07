@@ -209,8 +209,13 @@ function BuyerEnquiryForm({ shareToken }) {
 
 // ── Main Store Page ───────────────────────────────────────────────
 export default function CpStorePage() {
-  const { shareToken, tab } = useParams();
+  const { shareToken } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
+  // The routes are literal (/cp/:shareToken/listings and /buyers), so the tab comes from the path.
+  const tab = location.pathname.split('/').filter(Boolean).pop();
+  // ?own=1 — the CP's "my store" link: only listings this partner added themselves.
+  const ownOnly = new URLSearchParams(location.search).get('own') === '1';
 
   const [cp, setCp]               = useState(null);
   const [listings, setListings]   = useState([]);
@@ -232,7 +237,7 @@ export default function CpStorePage() {
   useEffect(() => {
     if (activeTab !== 'listings') return;
     setLoading(true);
-    apiServerClient.fetch(`/cp/store/${shareToken}/listings?page=${page}&limit=12`)
+    apiServerClient.fetch(`/cp/store/${shareToken}/listings?page=${page}&limit=12${ownOnly ? '&scope=own' : ''}`)
       .then(r => r.ok ? r.json() : Promise.reject())
       .then(data => {
         setListings(data.items);
@@ -241,7 +246,7 @@ export default function CpStorePage() {
       })
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, [shareToken, activeTab, page]);
+  }, [shareToken, activeTab, page, ownOnly]);
 
   if (error) return (
     <>
@@ -310,7 +315,7 @@ export default function CpStorePage() {
               ].map(t => (
                 <button
                   key={t.key}
-                  onClick={() => navigate(`/cp/${shareToken}/${t.key}`, { replace: true })}
+                  onClick={() => { setPage(1); navigate({ pathname: `/cp/${shareToken}/${t.key}`, search: location.search }, { replace: true }); }}
                   style={{
                     background: 'none', border: 'none', cursor: 'pointer',
                     padding: '12px 22px', fontSize: 14, fontWeight: 600,

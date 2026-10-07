@@ -199,6 +199,25 @@ export default function CpMyListingsPage({ source = 'mine' }) {
     finally { setDeleting(false); }
   };
 
+  // "My store" link: a public page with only the listings this CP added (no Growperty listings).
+  const storeUrl = shareToken ? `${window.location.origin}/cp/${shareToken}/listings?own=1` : '';
+  const [storeCopied, setStoreCopied] = useState(false);
+
+  const copyStoreLink = () => {
+    navigator.clipboard.writeText(storeUrl).then(() => {
+      setStoreCopied(true);
+      setTimeout(() => setStoreCopied(false), 2000);
+    });
+  };
+
+  const shareStoreLink = async () => {
+    if (navigator.share) {
+      try { await navigator.share({ title: 'My property listings on Growperty', text: 'Check out my property listings on Growperty', url: storeUrl }); } catch { /* user cancelled */ }
+    } else {
+      window.open(`https://wa.me/?text=${encodeURIComponent(`Check out my property listings on Growperty: ${storeUrl}`)}`, '_blank');
+    }
+  };
+
   const getShareLink = (propertyId, src) => {
     const base = `${window.location.origin}/property/${propertyId}?ref=${shareToken}`;
     return src ? `${base}&src=${src}` : base;
@@ -273,6 +292,30 @@ export default function CpMyListingsPage({ source = 'mine' }) {
           .cpml-actions { width: 100%; }
         }
       `}</style>
+      {isMine && storeUrl && (
+        <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, padding: '14px 16px', marginBottom: 18, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+          <div style={{ minWidth: 190, flex: '0 1 230px' }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: C.text }}>🔗 Your store link</div>
+            <div style={{ fontSize: 11.5, color: C.muted, marginTop: 2 }}>Opens a page with only the listings you added — your live ones, no Growperty listings.</div>
+          </div>
+          <div style={{ flex: '1 1 260px', minWidth: 0, background: '#f9fafb', border: `1px solid ${C.border}`, borderRadius: 8, padding: '9px 12px', fontSize: 12, color: C.sub, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={storeUrl}>
+            {storeUrl}
+          </div>
+          <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+            <button type="button" onClick={copyStoreLink} style={{
+              background: storeCopied ? '#d1fae5' : C.surface, border: `1px solid ${storeCopied ? '#10b981' : C.border}`,
+              color: storeCopied ? C.greenDark : C.sub, borderRadius: 8, padding: '9px 16px', fontSize: 13, fontWeight: 600, cursor: 'pointer', minWidth: 78,
+            }}>{storeCopied ? '✓ Copied' : 'Copy'}</button>
+            <button type="button" onClick={shareStoreLink} style={{
+              background: C.greenDark, border: 'none', color: '#fff', borderRadius: 8, padding: '9px 18px', fontSize: 13, fontWeight: 600, cursor: 'pointer',
+            }}>Share</button>
+            <a href={storeUrl} target="_blank" rel="noreferrer" style={{
+              background: C.surface, border: `1px solid ${C.border}`, color: C.sub, borderRadius: 8, padding: '9px 14px', fontSize: 13, fontWeight: 600, textDecoration: 'none', display: 'inline-flex', alignItems: 'center',
+            }}>Open ↗</a>
+          </div>
+        </div>
+      )}
+
       {isMine ? (
         loading ? (
           <div style={{ padding: 48, textAlign: 'center', color: C.muted, fontSize: 14 }}>Loading...</div>
