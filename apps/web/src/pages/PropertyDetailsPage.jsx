@@ -24,6 +24,7 @@ import ConnectivityList from '@/components/ConnectivityList.jsx';
 import { getActiveOffer, getOfferPricing, getOfferBenefitLabel, getOfferSummary, getOfferPhrase } from '@/lib/offerUtils.js';
 import { useAuth } from '@/contexts/AuthContext.jsx';
 import { isWishlisted, toggleWishlist } from '@/lib/wishlist.js';
+import { trackProperty } from '@/lib/trackProperty.js';
 import { getActiveCpContact } from '@/lib/cpRef.js';
 import { openWhatsApp } from '@/lib/whatsappLink.js';
 import { trackCpVisitor } from '@/lib/cpVisitorTracking.js';
@@ -98,9 +99,10 @@ const PropertyDetailsPage = () => {
   const handleShare = async () => {
     const url = window.location.href;
     if (navigator.share) {
-      try { await navigator.share({ title: document.title, url }); } catch { /* user cancelled */ }
+      try { await navigator.share({ title: document.title, url }); trackProperty(id, 'share'); } catch { /* user cancelled */ }
     } else {
       await navigator.clipboard.writeText(url);
+      trackProperty(id, 'share');
       toast.success('Link copied to clipboard');
     }
   };

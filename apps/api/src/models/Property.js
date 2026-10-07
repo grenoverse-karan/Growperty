@@ -28,6 +28,11 @@ const propertySchema = new mongoose.Schema(
     cpId:            { type: String },
     liveAt:          { type: Date },
 
+    // Engagement counters bumped by POST /:id/track (views come from the
+    // analytics collections, visits from VisitRequest — see GET /cp/properties).
+    shareCount:      { type: Number, default: 0 },
+    wishlistCount:   { type: Number, default: 0 }, // current number of shortlists (add +1 / remove -1, never < 0)
+
     images:          { type: [String], default: [] },
     // Small pre-compressed copy of images[0], generated on first upload —
     // keeps GET /api/properties light regardless of the original's size.

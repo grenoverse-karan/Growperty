@@ -11,6 +11,7 @@ import { PLATFORM_PHONE } from '@/constants/contactInfo.js';
 import { isWishlisted as checkWishlisted, toggleWishlist as toggleWishlistStorage } from '@/lib/wishlist.js';
 import { getActiveCpContact } from '@/lib/cpRef.js';
 import { openWhatsApp } from '@/lib/whatsappLink.js';
+import { trackProperty } from '@/lib/trackProperty.js';
 import { getActiveOffer, getOfferPricing, getOfferBenefitLabel, getOfferSummary } from '@/lib/offerUtils.js';
 
 const TYPE_PLACEHOLDER = {
@@ -39,7 +40,36 @@ function timeAgo(dateStr) {
   return new Date(dateStr).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
 }
 
-const PropertyCard = ({ property }) => {
+// compact       — ~half-size card for dashboards (scoped CSS below, public card untouched)
+// footer        — replaces the Call/WhatsApp footer (e.g. engagement stats)
+// statusBadge   — extra chip stacked in the top-left corner (e.g. Live / Pending)
+// onShare       — replaces the default share action (e.g. CP referral share modal)
+const COMPACT_CSS = `
+.pc-compact .p-6 { padding: .625rem; }
+.pc-compact .p-6.pt-0 { padding-top: 0; }
+.pc-compact .text-3xl { font-size: 1.125rem; line-height: 1.5rem; }
+.pc-compact .text-xl { font-size: .875rem; line-height: 1.25rem; }
+.pc-compact .text-sm { font-size: .6875rem; line-height: 1rem; }
+.pc-compact .text-xs { font-size: .625rem; line-height: .875rem; }
+.pc-compact .mb-6 { margin-bottom: .5rem; }
+.pc-compact .mb-3 { margin-bottom: .375rem; }
+.pc-compact .mb-2 { margin-bottom: .25rem; }
+.pc-compact .gap-4 { gap: .5rem; }
+.pc-compact .py-4 { padding-top: .5rem; padding-bottom: .5rem; }
+.pc-compact .gap-3 { gap: .5rem; }
+.pc-compact .p-2 { padding: .25rem; }
+.pc-compact .h-5.w-5 { width: .875rem; height: .875rem; }
+.pc-compact .h-9.w-9 { width: 1.75rem; height: 1.75rem; }
+.pc-compact .h-9.w-9 svg { width: .8rem; height: .8rem; }
+.pc-compact .top-4 { top: .5rem; }
+.pc-compact .left-4 { left: .5rem; }
+.pc-compact .right-4 { right: .5rem; }
+.pc-compact .px-3 { padding-left: .5rem; padding-right: .5rem; }
+.pc-compact .py-1\\.5 { padding-top: .125rem; padding-bottom: .125rem; }
+.pc-compact .aspect-\\[4\\/3\\] { aspect-ratio: 16 / 10; }
+`;
+
+const PropertyCard = ({ property, compact = false, footer = null, statusBadge = null, onShare = null }) => {
   const originalPrice = Number(property.totalPrice || property.price);
   const offer = getActiveOffer(property);
   const offerPricing = getOfferPricing(offer, originalPrice);
@@ -87,17 +117,20 @@ const PropertyCard = ({ property }) => {
   const handleShare = async (e) => {
     e.preventDefault();
     e.stopPropagation();
+    if (onShare) { onShare(property); return; }
     const url = `${window.location.origin}/property/${property.id}`;
     if (navigator.share) {
-      try { await navigator.share({ title, url }); } catch { /* user cancelled */ }
+      try { await navigator.share({ title, url }); trackProperty(property.id, 'share'); } catch { /* user cancelled */ }
     } else {
       await navigator.clipboard.writeText(url);
+      trackProperty(property.id, 'share');
       toast.success('Link copied to clipboard');
     }
   };
 
   return (
-    <Link to={`/property/${property.id}`} className="block h-full">
+    <Link to={`/property/${property.id}`} className={`block h-full ${compact ? 'pc-compact' : ''}`}>
+    {compact && <style>{COMPACT_CSS}</style>}
     <Card className={`group overflow-hidden bg-card border-border/50 shadow-lg hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 rounded-2xl flex flex-col h-full cursor-pointer ${isSold ? 'opacity-80' : ''}`}>
       <div className="relative overflow-hidden aspect-[4/3] bg-slate-100 dark:bg-slate-800">
         {firstImage ? (
@@ -135,6 +168,7 @@ const PropertyCard = ({ property }) => {
           </div>
         ) : (
           <div className="absolute top-4 left-4 flex flex-col gap-2 items-start">
+            {statusBadge}
             {timeAgo(property.createdAt) && (
               <Badge className="bg-black/60 backdrop-blur-sm text-white shadow-md font-semibold px-3 py-1 text-xs border-0">
                 {timeAgo(property.createdAt)}
@@ -258,7 +292,7 @@ const PropertyCard = ({ property }) => {
       </CardContent>
       
       <CardFooter className="p-6 pt-0 mt-auto">
-        {isSold ? (
+        {footer ? footer : isSold ? (
           <div className="w-full rounded-xl h-10 flex items-center justify-center text-sm font-bold bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400">
             This property has been sold
           </div>

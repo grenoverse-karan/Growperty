@@ -271,6 +271,30 @@ router.get('/:id', async (req, res) => {
 });
 
 // =====================
+// POST /:id/track — Anonymous engagement counter (share / wishlist add / remove)
+// Public on purpose (visitors aren't logged in). Whitelisted events only; the
+// wishlist count can never drop below zero.
+// =====================
+const TRACK_EVENTS = { share: ['shareCount', 1], wishlist_add: ['wishlistCount', 1], wishlist_remove: ['wishlistCount', -1] };
+router.post('/:id/track', async (req, res) => {
+  try {
+    const rule = TRACK_EVENTS[req.body?.event];
+    if (!rule || !mongoose.Types.ObjectId.isValid(req.params.id)) return res.status(400).json({ success: false });
+    const [field, delta] = rule;
+    const result = await Property.updateOne(
+      { _id: req.params.id },
+      [{ $set: { [field]: { $max: [0, { $add: [{ $ifNull: [`$${field}`, 0] }, delta] }] } } }],
+      { updatePipeline: true }
+    );
+    if (!result.matchedCount) return res.status(404).json({ success: false });
+    return res.status(200).json({ success: true });
+  } catch (err) {
+    logger.error('POST /api/properties/:id/track error', { message: err.message });
+    return res.status(500).json({ success: false });
+  }
+});
+
+// =====================
 // GET /:id/images/:index — Single full-res image, served as a real cacheable
 // image resource (not embedded in JSON) so the browser can fetch/cache it
 // independently and in parallel with other images.

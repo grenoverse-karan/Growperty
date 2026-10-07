@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Helmet } from 'react-helmet';
 import { useNavigate } from 'react-router-dom';
-import { Heart } from 'lucide-react';
+import { Heart, Eye, CalendarCheck, Share2 } from 'lucide-react';
 import { useCpAuth } from '@/contexts/CpAuthContext.jsx';
 import apiServerClient from '@/lib/apiServerClient';
 import { toast } from 'sonner';
 import { isWishlisted, toggleWishlist } from '@/lib/wishlist.js';
+import { trackProperty } from '@/lib/trackProperty.js';
+import PropertyCard from '@/components/PropertyCard.jsx';
 
 const C = {
   bg:      '#f5f6f8',
@@ -61,6 +63,28 @@ function WishlistButton({ propertyId }) {
   );
 }
 
+// Engagement row shown on each of the CP's own listing cards.
+function StatsFooter({ stats = {} }) {
+  const items = [
+    { Icon: Eye,           label: 'Views',  value: stats.views },
+    { Icon: CalendarCheck, label: 'Visits', value: stats.visits },
+    { Icon: Share2,        label: 'Shares', value: stats.shares },
+    { Icon: Heart,         label: 'Saved',  value: stats.wishlists },
+  ];
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', width: '100%', borderTop: `1px solid ${C.border}`, paddingTop: 8 }}>
+      {items.map(({ Icon, label, value }) => (
+        <div key={label} title={label} style={{ textAlign: 'center' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, fontSize: 13, fontWeight: 700, color: C.text }}>
+            <Icon size={12} color={label === 'Saved' ? '#ef4444' : C.sub} /> {Number(value || 0).toLocaleString('en-IN')}
+          </div>
+          <div style={{ fontSize: 10, color: C.muted, marginTop: 1 }}>{label}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // source="mine"      -> the CP's own listings (default, /cp/dashboard/listings)
 // source="growperty" -> Growperty-owned listings the CP can share (/cp/dashboard/growperty-listings)
 export default function CpMyListingsPage({ source = 'mine' }) {
@@ -102,6 +126,7 @@ export default function CpMyListingsPage({ source = 'mine' }) {
 
   const handleCopy = (propertyId, src) => {
     navigator.clipboard.writeText(getShareLink(propertyId, src)).then(() => {
+      trackProperty(propertyId, 'share');
       setCopied(src);
       setTimeout(() => setCopied(''), 2000);
     });
@@ -168,6 +193,39 @@ export default function CpMyListingsPage({ source = 'mine' }) {
           .cpml-actions { width: 100%; }
         }
       `}</style>
+      {isMine ? (
+        loading ? (
+          <div style={{ padding: 48, textAlign: 'center', color: C.muted, fontSize: 14 }}>Loading...</div>
+        ) : current.items.length === 0 ? (
+          <div style={{ background: C.surface, borderRadius: 12, border: `1px solid ${C.border}`, padding: 48, textAlign: 'center' }}>
+            <div style={{ fontSize: 36, marginBottom: 10 }}>🏘</div>
+            <div style={{ fontSize: 15, fontWeight: 600, color: C.text, marginBottom: 6 }}>No listings yet</div>
+            <span onClick={() => navigate('/cp/dashboard/add')} style={{ color: C.greenDark, cursor: 'pointer', fontWeight: 600, fontSize: 14 }}>
+              Add your first property →
+            </span>
+          </div>
+        ) : (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))', gap: 16 }}>
+            {current.items.map(p => {
+              const st = STATUS_META[p.status] || STATUS_META.approved;
+              const title = p.bhk ? `${p.bhk} ${p.propertyType}` : p.propertyType;
+              return (
+                <PropertyCard
+                  key={p.id || p._id}
+                  property={p}
+                  compact
+                  statusBadge={(
+                    <span style={{ background: st.bg, color: st.color, fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 999 }}>{st.label}</span>
+                  )}
+                  footer={<StatsFooter stats={p.stats} />}
+                  onShare={shareToken ? () => setShareModal({ propertyId: p.id || p._id, title }) : null}
+                />
+              );
+            })}
+          </div>
+        )
+      ) : (
+        <>
       <div style={{ background: C.surface, borderRadius: 12, border: `1px solid ${C.border}`, overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.05)' }}>
         <div className="cpml-row cpml-header" style={{
           padding: '11px 20px',
@@ -291,6 +349,9 @@ export default function CpMyListingsPage({ source = 'mine' }) {
         )}
       </div>
 
+        </>
+      )}
+
       {/* ── Pagination ── */}
       {current.totalPages > 1 && (
         <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginTop: 20 }}>
@@ -368,6 +429,7 @@ export default function CpMyListingsPage({ source = 'mine' }) {
                 <button
                   onClick={() => {
                     const link = getShareLink(shareModal.propertyId, 'whatsapp');
+                    trackProperty(shareModal.propertyId, 'share');
                     window.open(`https://wa.me/?text=${encodeURIComponent(`Check out this property: ${link}`)}`, '_blank');
                   }}
                   style={{

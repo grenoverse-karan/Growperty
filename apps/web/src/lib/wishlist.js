@@ -1,3 +1,5 @@
+import { trackProperty } from '@/lib/trackProperty.js';
+
 const WISHLIST_KEY = 'growperty_wishlist';
 
 export function getWishlist() {
@@ -16,5 +18,6 @@ export function toggleWishlist(propertyId) {
     ? current.filter((id) => id !== propertyId)
     : [...current, propertyId];
   localStorage.setItem(WISHLIST_KEY, JSON.stringify(next));
+  trackProperty(propertyId, wasWishlisted ? 'wishlist_remove' : 'wishlist_add');
   return !wasWishlisted;
 }

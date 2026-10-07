@@ -8,6 +8,8 @@ import Property from '../models/Property.js';
 import VisitRequest from '../models/VisitRequest.js';
 import BuyerRequirement from '../models/BuyerRequirement.js';
 import CPVisitor from '../models/CPVisitor.js';
+import AnalyticsPageView from '../models/AnalyticsPageView.js';
+import AnalyticsSession from '../models/AnalyticsSession.js';
 import verifyCpToken from '../middleware/verifyCpToken.js';
 import { connectMongoDB } from '../utils/mongodb.js';
 import { sendTemplateMessage } from '../utils/whatsappTemplates.js';
@@ -635,11 +637,47 @@ router.get('/properties', verifyCpToken, async (req, res) => {
     if (req.query.status) filter.status = req.query.status;
 
     const [docs, total] = await Promise.all([
-      Property.find(filter, { images: { $slice: 1 } }).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
+      // Cover image only (thumbnail, else first full image) — not every base64 photo.
+      Property.aggregate([
+        { $match: filter },
+        { $sort: { createdAt: -1 } },
+        { $skip: skip },
+        { $limit: limit },
+        { $addFields: {
+            cover: { $cond: [{ $gt: [{ $strLenCP: { $ifNull: ['$thumbnail', ''] } }, 0] }, '$thumbnail', { $arrayElemAt: [{ $ifNull: ['$images', []] }, 0] }] },
+        } },
+        { $project: { images: 0, thumbnail: 0 } },
+      ]),
       Property.countDocuments(filter),
     ]);
 
-    const items = docs.map(p => ({ ...p, id: p._id.toString() }));
+    // Engagement stats per listing: views = page views + sessions that landed
+    // on it (the first page of a session isn't logged as a page view);
+    // visits = visit requests; shares / saves = counters bumped by /:id/track.
+    const ids = docs.map(p => p._id.toString());
+    const paths = ids.map(id => `/property/${id}`);
+    const [pageViews, landings, visitCounts] = await Promise.all([
+      AnalyticsPageView.aggregate([{ $match: { page: { $in: paths } } }, { $group: { _id: '$page', n: { $sum: 1 } } }]),
+      AnalyticsSession.aggregate([{ $match: { landingPage: { $in: paths } } }, { $group: { _id: '$landingPage', n: { $sum: 1 } } }]),
+      VisitRequest.aggregate([{ $match: { propertyId: { $in: ids } } }, { $group: { _id: '$propertyId', n: { $sum: 1 } } }]),
+    ]);
+    const toMap = (rows) => Object.fromEntries(rows.map(r => [r._id, r.n]));
+    const pv = toMap(pageViews), ls = toMap(landings), vc = toMap(visitCounts);
+
+    const items = docs.map(({ cover, ...p }) => {
+      const id = p._id.toString();
+      return {
+        ...p,
+        id,
+        images: cover ? [cover] : [],
+        stats: {
+          views: (pv[`/property/${id}`] || 0) + (ls[`/property/${id}`] || 0),
+          visits: vc[id] || 0,
+          shares: p.shareCount || 0,
+          wishlists: p.wishlistCount || 0,
+        },
+      };
+    });
     return res.status(200).json({ items, total, page, totalPages: Math.ceil(total / limit) });
   } catch (err) {
     logger.error('[CP] /properties get error', { error: err.message });
