@@ -91,8 +91,12 @@ router.post('/', requireAuth, async (req, res) => {
 
     const saved = await property.save();
     logger.info('Property created', { id: saved._id });
-    // The web forms upload photos in a second request (reviewed there); this covers clients that send them inline.
-    if (!req.isAdmin && saved.status === 'pending' && saved.images?.length) scheduleAiReview(saved._id.toString());
+    // Check the typed text right away. The web forms upload photos in a second
+    // request (that upload triggers the full review); clients that send photos
+    // inline get the full review now.
+    if (!req.isAdmin && saved.status === 'pending') {
+      scheduleAiReview(saved._id.toString(), { textOnly: !saved.images?.length });
+    }
 
     // Notify lister based on status
     if (saved.mobileNumber) {

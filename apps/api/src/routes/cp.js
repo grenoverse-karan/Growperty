@@ -15,6 +15,7 @@ import verifyCpToken from '../middleware/verifyCpToken.js';
 import { connectMongoDB } from '../utils/mongodb.js';
 import { sendTemplateMessage } from '../utils/whatsappTemplates.js';
 import logger from '../utils/logger.js';
+import { scheduleAiReview } from '../utils/aiListingReview.js';
 
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-this-in-production';
@@ -739,6 +740,8 @@ router.post('/properties', verifyCpToken, async (req, res) => {
     });
 
     logger.info('[CP] Property created', { cpId: req.cp.sub, propertyId: property._id });
+    // Same as POST /properties: check the text now; photos (uploaded next) trigger the full review.
+    scheduleAiReview(property._id.toString(), { textOnly: !property.images?.length });
     return res.status(201).json({ success: true, propertyId: property._id.toString() });
   } catch (err) {
     logger.error('[CP] /properties post error', { error: err.message });

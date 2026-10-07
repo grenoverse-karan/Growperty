@@ -38,7 +38,8 @@ REJECT if any field contains:
  2. An email address in any form, including obfuscated ones ("name at gmail dot com", "name[at]gmail").
  3. Vulgar, dirty or obscene words, or abusive, insulting, threatening or hateful language, in English, Hindi or Hinglish (romanised Hindi), including gaalis and censored or spaced-out spellings.
  4. Sexual or adult content, or solicitation (escort, massage, dating and similar).
-NOT violations: prices and amounts (Rs 35,62,500; 1.5 Cr; 45 lakh), areas and dimensions, floor / tower / block / house / plot / sector numbers, pincodes, distances and minutes, years, percentages, RERA or registration numbers. A number is a phone number only if it works as a contactable number. The placeholder "[HIDDEN]" means contact details were already redacted automatically — treat it as clean.
+ 5. A phone-number-like value hidden in a structured or numeric detail (floor number, total floors, rooms, bathrooms, balconies, parking, area, price, sector, address, plot type and so on): 10 digits starting 6-9, with or without 91 / +91 / 0, sitting where an ordinary value belongs. Judge ONLY whether a value looks like a contact number. Do not judge whether the details are realistic or consistent with each other (BHK versus bathrooms, price versus area and so on); ordinary and unusual-but-harmless numbers are fine.
+NOT violations: prices and amounts (Rs 35,62,500; 1.5 Cr; 45 lakh), areas and dimensions, floor / tower / block / house / plot / sector numbers, pincodes, distances and minutes, years, percentages, RERA or registration numbers. A number is a phone number only if it works as a contactable number.
 
 DECISION RULES
 - "reject" only when you are clearly confident that at least one photo or text field breaks a rule.
@@ -71,7 +72,7 @@ const TEXT_FIELDS = [
   ['Landmark', 'landmark'],
   ['Current address', 'currentAddress'],
   ['Nearby famous place', 'nearbyFamousPlace'],
-  ['Nearby amenities', 'nearbyAmenities'],
+  ['Nearby facilities / amenities', 'nearbyAmenities'],
   ['Amenities', 'amenities'],
   ['Highlights (special features)', 'specialFeatures'],
   ['Best for', 'bestFor'],
@@ -80,7 +81,30 @@ const TEXT_FIELDS = [
   ['Offer title', 'offerTitle'],
   ['Offer details', 'offerDetails'],
   ['Property sub-type', 'propertySubType'],
+  ['Sector', 'sector'],
+  ['City', 'city'],
 ];
+
+// Anything else is still reviewed (a client can put text into any string
+// field — the web form's dropdowns aren't enforced by the server), except
+// these: ids, the owner's own contact fields, workflow/system fields.
+const NON_TEXT_KEYS = new Set([
+  '_id', 'id', '__v', 'owner_id', 'cpId', 'name', 'email', 'mobileNumber', 'ownerType', 'listedBy', 'unlistedBy', 'status',
+  'images', 'thumbnail', 'createdAt', 'updatedAt', 'liveAt', 'aiReviewReason', 'aiReviewedAt', 'whatsappAlerts',
+  'visitTimeType', 'visitFixedSlots', 'visitFlexibleSlots', 'offerValidTill',
+  'shareCount', 'wishlistCount', 'callCount', 'whatsappCount',
+]);
+const KEY_LABELS = new Set(TEXT_FIELDS.map(([, key]) => key));
+
+// Numeric details. Server-side there is no upper bound on them, so a 10-digit
+// phone number fits in any of these.
+const NUMERIC_FIELDS = [
+  ['Floor number', 'floorNumber', true], ['Total floors', 'totalFloors', true], ['Rooms', 'rooms', true],
+  ['Bathrooms', 'bathrooms', true], ['Balconies', 'balconies', true], ['Car parking', 'carParking', true],
+  ['Bike parking', 'bikeParking', true], ['Total area', 'totalArea', false], ['Total price', 'totalPrice', false],
+];
+
+const humanize = (key) => key.replace(/([A-Z])/g, ' $1').replace(/^./, c => c.toUpperCase());
 
 export function collectListingText(property) {
   const out = [];
@@ -88,7 +112,28 @@ export function collectListingText(property) {
     const text = flatten(property?.[key]).join(', ').slice(0, MAX_FIELD_CHARS);
     if (text) out.push([label, text]);
   }
+  for (const key of Object.keys(property || {})) {
+    if (KEY_LABELS.has(key) || NON_TEXT_KEYS.has(key)) continue;
+    const text = flatten(property[key]).join(', ').slice(0, MAX_FIELD_CHARS);
+    if (text) out.push([humanize(key), text]);
+  }
+  // 0 / empty means "not specified" (the schema defaults counts to 0), so leave those out.
+  const numbers = NUMERIC_FIELDS
+    .filter(([, key]) => Number(property?.[key]) > 0)
+    .map(([label, key]) => `${label}: ${property[key]}`);
+  if (numbers.length) out.push(['Numeric details', numbers.join('; ')]);
   return out;
+}
+
+// Count-type fields (floors, rooms, parking…) never legitimately reach 10
+// digits, so a phone-number-sized value there is rejected without an AI call.
+export function findPhoneLikeCount(property) {
+  for (const [label, key, isCount] of NUMERIC_FIELDS) {
+    if (!isCount) continue;
+    const digits = String(property?.[key] ?? '').replace(/\D/g, '');
+    if (digits.length >= 10) return label;
+  }
+  return null;
 }
 
 const textBlock = (fields) =>
@@ -158,11 +203,21 @@ const manual = (reason) => ({ approved: null, reason });
 
 async function reviewListingRaw(property) {
   try {
+    const phoneLike = findPhoneLikeCount(property);
+    if (phoneLike) return { approved: false, reason: `${phoneLike} contains a phone-number-like value` };
+
+    // On save, contact details typed into free-text fields are replaced with
+    // "[HIDDEN]" (utils/contactModeration.js). The marker only ever stands for a
+    // phone/WhatsApp number or email, i.e. the lister did try to post contact
+    // info — and the redaction would otherwise hide that from this review.
+    const fields = collectListingText(property);
+    const redacted = fields.find(([, text]) => text.includes('[HIDDEN]'));
+    if (redacted) return { approved: false, reason: `${redacted[0]} contained contact details (a phone number or email)` };
+
     const apiKey = process.env.ANTHROPIC_API_KEY;
     if (!apiKey) return manual('AI review unavailable (API key not configured) — needs manual review');
 
     const sources = (Array.isArray(property?.images) ? property.images : []).filter(Boolean);
-    const fields = collectListingText(property);
     if (sources.length === 0 && fields.length === 0) return manual('Nothing to review — needs manual review');
 
     // Photos go in batches (the text rides along with the first batch). A

@@ -6,23 +6,42 @@ import logger from './logger.js';
 
 const TEAM_CONTACT = '+91 9891117876';
 
-// Reviews a whole listing (all photos + all text) with AI and records the outcome.
+// Reviews a listing with AI and records the outcome.
+//
+//   full review (default) — photos + all text. Needs photos, so it runs when
+//                           they're uploaded.
+//   textOnly              — runs right after the listing is created, before
+//                           any photos exist: catches phone numbers, emails,
+//                           abuse and sexual text at submission time. A text
+//                           failure rejects at once; a pass changes nothing
+//                           (the listing keeps waiting for its photos, whose
+//                           upload triggers the full review).
 //
 //   pending listing  -> approved / rejected / left pending (manual review)
-//   any other status -> the result is recorded for admins but the status is
-//                       never touched (a live listing must not be pulled, and a
-//                       sold/unlisted/rejected one must not be revived, by a bot)
+//   live listing     -> the result is recorded for admins, status untouched
+//                       (a live listing must not be pulled by a bot)
+//   rejected / other -> skipped entirely, so an earlier verdict and its
+//                       reason are never overwritten
 //
 // The status update is conditional on the status we read, so an admin who
 // approved/rejected the listing while the AI was thinking always wins.
-export async function runAiReview(propertyId) {
-  // The whole listing: every photo plus all its text fields. Listings are
-  // reviewed once their photos are in (that is when this is scheduled); a
-  // listing that never gets photos simply stays with the admins.
+export async function runAiReview(propertyId, { textOnly = false } = {}) {
   const prop = await Property.findById(propertyId).lean();
-  if (!prop?.images?.length) return null;
+  if (!prop) return null;
+  if (textOnly ? prop.status !== 'pending' : (!prop.images?.length || prop.status === 'rejected')) return null;
 
-  const { approved, reason } = await reviewListing(prop);
+  const { approved, reason } = await reviewListing(textOnly ? { ...prop, images: [] } : prop);
+
+  if (textOnly && approved !== false) {
+    // Nothing to change yet. Leave a note for admins — but never over a full
+    // review that finished first (the photo upload can race this check).
+    await Property.updateOne(
+      { _id: propertyId, status: 'pending', aiReviewedAt: { $exists: false } },
+      { $set: { aiReviewReason: approved === true ? 'Text checked — waiting for photos' : reason, aiReviewedAt: new Date() } },
+    );
+    return { approved, reason, status: prop.status };
+  }
+
   const set = { aiReviewReason: reason, aiReviewedAt: new Date() };
 
   let newStatus = null;
@@ -59,10 +78,10 @@ export async function runAiReview(propertyId) {
 // Fire-and-forget: never blocks (or fails) the request that triggered it.
 // On Vercel a function is frozen once the response is sent, so the job is also
 // registered with the platform's waitUntil (a no-op everywhere else).
-export function scheduleAiReview(propertyId) {
+export function scheduleAiReview(propertyId, options) {
   const job = new Promise((resolve) => {
     setImmediate(() => {
-      runAiReview(propertyId)
+      runAiReview(propertyId, options)
         .catch((err) => logger.warn('[AI review] job failed', { id: propertyId, message: err.message }))
         .finally(resolve);
     });
