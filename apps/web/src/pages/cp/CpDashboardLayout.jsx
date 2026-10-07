@@ -19,6 +19,7 @@ const C = {
 const NAV = [
   { label: 'Dashboard',       icon: '📊',  to: '/cp/dashboard', end: true },
   { label: 'My Listings',     icon: '🏘',  to: '/cp/dashboard/listings'  },
+  { label: 'Growperty Listings', icon: '🏢', to: '/cp/dashboard/growperty-listings' },
   { label: 'Add Property',    icon: '➕',  to: '/cp/dashboard/add'       },
   { label: 'Wish List',       icon: '❤️',  to: '/cp/dashboard/wishlist'  },
   { label: 'Requirement',     icon: '📝',  to: '/cp/dashboard/requirements' },

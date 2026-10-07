@@ -231,7 +231,8 @@ function App() {
                 {/* ── Channel Partner — dashboard ── */}
                 <Route path="/cp/dashboard" element={<CpProtectedRoute><CpDashboardLayout /></CpProtectedRoute>}>
                   <Route index           element={<CpAnalyticsPage />} />
-                  <Route path="listings"   element={<CpMyListingsPage />} />
+                  <Route path="listings"   element={<CpMyListingsPage source="mine" />} />
+                  <Route path="growperty-listings" element={<CpMyListingsPage source="growperty" />} />
                   <Route path="add"        element={<CpAddPropertyPage />} />
                   <Route path="wishlist"   element={<CpWishlistPage />} />
                   <Route path="requirements" element={<CpRequirementsPage />} />

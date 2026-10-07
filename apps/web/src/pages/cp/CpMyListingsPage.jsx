@@ -61,51 +61,39 @@ function WishlistButton({ propertyId }) {
   );
 }
 
-export default function CpMyListingsPage() {
+// source="mine"      -> the CP's own listings (default, /cp/dashboard/listings)
+// source="growperty" -> Growperty-owned listings the CP can share (/cp/dashboard/growperty-listings)
+export default function CpMyListingsPage({ source = 'mine' }) {
   const { token } = useCpAuth();
   const navigate  = useNavigate();
+  const isMine    = source === 'mine';
 
-  const [tab, setTab] = useState('mine');
-
-  const [mine,      setMine]      = useState({ items: [], total: 0, page: 1, totalPages: 1 });
-  const [growperty, setGrowperty] = useState({ items: [], total: 0, page: 1, totalPages: 1 });
-  const [loading,   setLoading]   = useState(true);
+  const [current, setCurrent] = useState({ items: [], total: 0, page: 1, totalPages: 1 });
+  const [loading, setLoading] = useState(true);
 
   const [shareModal, setShareModal] = useState(null);
   const [copied,     setCopied]     = useState('');
   const shareToken = localStorage.getItem('cpRef') || '';
 
-  const fetchMine = useCallback(async (pg = 1) => {
+  const endpoint = isMine ? '/cp/properties' : '/cp/growperty-listings';
+
+  const fetchPage = useCallback(async (pg = 1) => {
     setLoading(true);
     try {
-      const res  = await apiServerClient.fetch(`/cp/properties?page=${pg}&limit=20`, {
+      const res  = await apiServerClient.fetch(`${endpoint}?page=${pg}&limit=20`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to load');
-      setMine({ items: data.items, total: data.total, page: pg, totalPages: data.totalPages });
+      setCurrent({ items: data.items, total: data.total, page: pg, totalPages: data.totalPages });
     } catch (err) { toast.error(err.message); }
     finally { setLoading(false); }
-  }, [token]);
+  }, [token, endpoint]);
 
-  const fetchGrowperty = useCallback(async (pg = 1) => {
-    setLoading(true);
-    try {
-      const res  = await apiServerClient.fetch(`/cp/growperty-listings?page=${pg}&limit=20`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to load');
-      setGrowperty({ items: data.items, total: data.total, page: pg, totalPages: data.totalPages });
-    } catch (err) { toast.error(err.message); }
-    finally { setLoading(false); }
-  }, [token]);
-
-  useEffect(() => { fetchMine(1); },      [fetchMine]);
-  useEffect(() => { fetchGrowperty(1); }, [fetchGrowperty]);
-
-  const current   = tab === 'mine' ? mine : growperty;
-  const fetchPage = tab === 'mine' ? fetchMine : fetchGrowperty;
+  useEffect(() => {
+    setCurrent({ items: [], total: 0, page: 1, totalPages: 1 });
+    fetchPage(1);
+  }, [fetchPage]);
 
   const getShareLink = (propertyId, src) => {
     const base = `${window.location.origin}/property/${propertyId}?ref=${shareToken}`;
@@ -121,15 +109,19 @@ export default function CpMyListingsPage() {
 
   return (
     <>
-      <Helmet><title>Listings — CP Dashboard</title></Helmet>
+      <Helmet><title>{isMine ? 'My Listings' : 'Growperty Listings'} — CP Dashboard</title></Helmet>
 
       {/* ── Header ── */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24, flexWrap: 'wrap', gap: 12 }}>
         <div>
-          <h1 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: C.text }}>Listings</h1>
-          <p style={{ margin: '3px 0 0', fontSize: 13, color: C.muted }}>Manage and share your property listings</p>
+          <h1 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: C.text }}>{isMine ? 'My Listings' : 'Growperty Listings'}</h1>
+          <p style={{ margin: '3px 0 0', fontSize: 13, color: C.muted }}>
+            {isMine
+              ? `Properties you've listed yourself${current.total ? ` · ${current.total} total` : ''}`
+              : `Verified Growperty listings you can share with your clients${current.total ? ` · ${current.total} available` : ''}`}
+          </p>
         </div>
-        {tab === 'mine' && (
+        {isMine && (
           <button
             onClick={() => navigate('/cp/dashboard/add')}
             style={{
@@ -141,36 +133,6 @@ export default function CpMyListingsPage() {
             + Add Property
           </button>
         )}
-      </div>
-
-      {/* ── Tabs ── */}
-      <div style={{ display: 'flex', gap: 0, marginBottom: 20, borderBottom: `1px solid ${C.border}` }}>
-        {[
-          { key: 'mine',      label: 'My Listings',       count: mine.total },
-          { key: 'growperty', label: 'Growperty Listings', count: growperty.total },
-        ].map(t => (
-          <button
-            key={t.key}
-            onClick={() => setTab(t.key)}
-            style={{
-              background: 'none', border: 'none', cursor: 'pointer',
-              padding: '10px 20px', fontSize: 13, fontWeight: 600,
-              color: tab === t.key ? C.greenDark : C.sub,
-              borderBottom: tab === t.key ? `2px solid ${C.greenDark}` : '2px solid transparent',
-              marginBottom: -1,
-            }}
-          >
-            {t.label}
-            <span style={{
-              marginLeft: 7, fontSize: 11, fontWeight: 700,
-              background: tab === t.key ? '#d1fae5' : '#f3f4f6',
-              color: tab === t.key ? C.greenDark : C.muted,
-              padding: '1px 7px', borderRadius: 20,
-            }}>
-              {t.count}
-            </span>
-          </button>
-        ))}
       </div>
 
       {/* ── Table ── */}
@@ -226,9 +188,9 @@ export default function CpMyListingsPage() {
           <div style={{ padding: 48, textAlign: 'center' }}>
             <div style={{ fontSize: 36, marginBottom: 10 }}>🏘</div>
             <div style={{ fontSize: 15, fontWeight: 600, color: C.text, marginBottom: 6 }}>
-              {tab === 'mine' ? 'No listings yet' : 'No Growperty listings available'}
+              {isMine ? 'No listings yet' : 'No Growperty listings available'}
             </div>
-            {tab === 'mine' && (
+            {isMine && (
               <span
                 onClick={() => navigate('/cp/dashboard/add')}
                 style={{ color: C.greenDark, cursor: 'pointer', fontWeight: 600, fontSize: 14 }}
