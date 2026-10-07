@@ -1,12 +1,12 @@
 import Property from '../models/Property.js';
-import { reviewListingImages } from './aiImageReview.js';
+import { reviewListing } from './aiImageReview.js';
 import { sendTemplateMessage } from './whatsappTemplates.js';
 import { notifyMatchingBuyers } from './matchBuyers.js';
 import logger from './logger.js';
 
 const TEAM_CONTACT = '+91 9891117876';
 
-// Reviews a listing's photos with AI and records the outcome.
+// Reviews a whole listing (all photos + all text) with AI and records the outcome.
 //
 //   pending listing  -> approved / rejected / left pending (manual review)
 //   any other status -> the result is recorded for admins but the status is
@@ -16,10 +16,13 @@ const TEAM_CONTACT = '+91 9891117876';
 // The status update is conditional on the status we read, so an admin who
 // approved/rejected the listing while the AI was thinking always wins.
 export async function runAiReview(propertyId) {
-  const prop = await Property.findById(propertyId, { images: { $slice: 10 }, status: 1, mobileNumber: 1, name: 1 }).lean();
+  // The whole listing: every photo plus all its text fields. Listings are
+  // reviewed once their photos are in (that is when this is scheduled); a
+  // listing that never gets photos simply stays with the admins.
+  const prop = await Property.findById(propertyId).lean();
   if (!prop?.images?.length) return null;
 
-  const { approved, reason } = await reviewListingImages(prop.images);
+  const { approved, reason } = await reviewListing(prop);
   const set = { aiReviewReason: reason, aiReviewedAt: new Date() };
 
   let newStatus = null;
