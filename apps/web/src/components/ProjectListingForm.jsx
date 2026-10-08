@@ -325,6 +325,9 @@ const ProjectListingForm = ({ isAdmin = false, initialData = null }) => {
   // done, so an empty first render can't wipe what's stored.
   const fileDraftKey = `project:${editId || 'new'}`;
   const [filesRestored, setFilesRestored] = useState(false);
+  // Upload problems (too big, too many) are shown in red inside the upload box they belong to.
+  const [uploadErrors, setUploadErrors] = useState({});
+  const setUploadError = (key, message) => setUploadErrors(prev => ({ ...prev, [key]: message || null }));
   const hasAnyFile = (f) => Boolean(f.brochure || f.projectVideo || f.projectImages.length || f.floorPlans.length || f.priceLists.length || Object.keys(f.documents).length);
   useEffect(() => {
     let cancelled = false;
@@ -478,10 +481,21 @@ const ProjectListingForm = ({ isAdmin = false, initialData = null }) => {
     }
   };
 
+  // "brochure.pdf is 63.2MB — the limit is 10MB. Please upload a smaller file."
+  const tooBigMessage = (files, maxMB) => {
+    const big = files.filter(f => f.size > maxMB * 1024 * 1024);
+    if (!big.length) return null;
+    const mb = (f) => `${(f.size / (1024 * 1024)).toFixed(1)}MB`;
+    return big.length === 1
+      ? `"${big[0].name}" is ${mb(big[0])} — the limit is ${maxMB}MB. Please upload a smaller file.`
+      : `${big.length} files are over the ${maxMB}MB limit (e.g. "${big[0].name}" is ${mb(big[0])}). Please upload smaller files.`;
+  };
+
   const handleFileChange = async (field, e, maxCount, maxSizeMB) => {
     const input = e.target;
     let selectedFiles = Array.from(input.files || []);
     input.value = '';
+    setUploadError(field, null);
 
     // iPhone HEIC photos → JPEG, so every browser can show them to buyers.
     if (['projectImages', 'floorPlans'].includes(field) && selectedFiles.some(isHeicFile)) {
@@ -495,9 +509,9 @@ const ProjectListingForm = ({ isAdmin = false, initialData = null }) => {
     }
     
     // Check sizes
-    const oversized = selectedFiles.some(f => f.size > maxSizeMB * 1024 * 1024);
-    if (oversized) {
-      toast.error(`One or more files exceed the ${maxSizeMB}MB limit.`);
+    const oversizeMessage = tooBigMessage(selectedFiles, maxSizeMB);
+    if (oversizeMessage) {
+      setUploadError(field, oversizeMessage);
       return;
     }
 
@@ -505,7 +519,7 @@ const ProjectListingForm = ({ isAdmin = false, initialData = null }) => {
       setFiles(prev => {
         const newTotal = prev[field].length + selectedFiles.length;
         if (newTotal > maxCount) {
-          toast.error(`You can only upload up to ${maxCount} files for this section.`);
+          setUploadError(field, `You can only upload up to ${maxCount} files for this section.`);
           return prev;
         }
         return { ...prev, [field]: [...prev[field], ...selectedFiles] };
@@ -524,14 +538,16 @@ const ProjectListingForm = ({ isAdmin = false, initialData = null }) => {
     let file = input.files?.[0];
     input.value = '';
     if (!file) return;
+    setUploadError(key, null);
     if (isHeicFile(file)) {
       const toastId = toast.loading('Converting iPhone photo…');
       file = await convertHeicToJpeg(file).catch(() => null);
       toast.dismiss(toastId);
       if (!file) { toast.error("That photo couldn't be read. Try exporting it as JPEG or PDF."); return; }
     }
-    if (file.size > MAX_DOCUMENT_MB * 1024 * 1024) {
-      toast.error(`File exceeds the ${MAX_DOCUMENT_MB}MB limit.`);
+    const docTooBig = tooBigMessage([file], MAX_DOCUMENT_MB);
+    if (docTooBig) {
+      setUploadError(key, docTooBig);
       return;
     }
     setFiles(prev => ({ ...prev, documents: { ...prev.documents, [key]: file } }));
@@ -543,6 +559,7 @@ const ProjectListingForm = ({ isAdmin = false, initialData = null }) => {
     let picked = Array.from(input.files || []);
     input.value = '';
     if (!picked.length) return;
+    setUploadError('priceList', null);
     if (picked.some(isHeicFile)) {
       const toastId = toast.loading('Converting iPhone photos…');
       const converted = await Promise.all(picked.map(f => isHeicFile(f) ? convertHeicToJpeg(f).catch(() => null) : f));
@@ -550,13 +567,14 @@ const ProjectListingForm = ({ isAdmin = false, initialData = null }) => {
       if (converted.some(f => !f)) toast.error("Some photos couldn't be read. Try exporting them as JPEG or PDF.");
       picked = converted.filter(Boolean);
     }
-    if (picked.some(f => f.size > MAX_DOCUMENT_MB * 1024 * 1024)) {
-      toast.error(`One or more files exceed the ${MAX_DOCUMENT_MB}MB limit.`);
+    const priceListTooBig = tooBigMessage(picked, MAX_DOCUMENT_MB);
+    if (priceListTooBig) {
+      setUploadError('priceList', priceListTooBig);
       return;
     }
     setFiles(prev => {
       if (prev.priceLists.length + existingMedia.priceLists.length + picked.length > MAX_PRICE_LISTS) {
-        toast.error(`You can add up to ${MAX_PRICE_LISTS} price list files.`);
+        setUploadError('priceList', `You can add up to ${MAX_PRICE_LISTS} price list files.`);
         return prev;
       }
       return { ...prev, priceLists: [...prev.priceLists, ...picked] };
@@ -1762,7 +1780,7 @@ const ProjectListingForm = ({ isAdmin = false, initialData = null }) => {
                         ))}
                       </div>
                     )}
-                    <div className="border-2 border-dashed border-border rounded-xl p-6 text-center hover:bg-slate-50 dark:hover:bg-slate-950 transition-colors relative">
+                    <div className={`border-2 border-dashed rounded-xl p-6 text-center transition-colors relative ${uploadErrors.projectImages ? 'border-destructive bg-red-50/60 dark:bg-red-950/20' : 'border-border hover:bg-slate-50 dark:hover:bg-slate-950'}`}>
                       <Input
                         type="file"
                         multiple
@@ -1773,6 +1791,7 @@ const ProjectListingForm = ({ isAdmin = false, initialData = null }) => {
                       <UploadCloud className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
                       <p className="text-sm font-medium text-foreground">Click or drag images to upload</p>
                       <p className="text-xs text-muted-foreground mt-1">JPG, PNG, WEBP, HEIC (iPhone)</p>
+                      {uploadErrors.projectImages && <p className="text-xs font-semibold text-destructive mt-2">{uploadErrors.projectImages}</p>}
                     </div>
                     {files.projectImages.length > 0 && (
                       <div className="flex flex-wrap gap-2 mt-3">
@@ -1797,7 +1816,7 @@ const ProjectListingForm = ({ isAdmin = false, initialData = null }) => {
                         <button type="button" onClick={() => setExistingMedia(prev => ({ ...prev, brochure: '' }))} className="text-destructive shrink-0 ml-2" title="Remove"><X className="w-4 h-4" /></button>
                       </div>
                     )}
-                    <div className="border-2 border-dashed border-border rounded-xl p-6 text-center hover:bg-slate-50 dark:hover:bg-slate-950 transition-colors relative">
+                    <div className={`border-2 border-dashed rounded-xl p-6 text-center transition-colors relative ${uploadErrors.brochure ? 'border-destructive bg-red-50/60 dark:bg-red-950/20' : 'border-border hover:bg-slate-50 dark:hover:bg-slate-950'}`}>
                       <Input
                         type="file"
                         accept="application/pdf"
@@ -1807,6 +1826,7 @@ const ProjectListingForm = ({ isAdmin = false, initialData = null }) => {
                       <UploadCloud className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
                       <p className="text-sm font-medium text-foreground">{existingMedia.brochure ? 'Replace Brochure' : 'Upload Project Brochure'}</p>
                       <p className="text-xs text-muted-foreground mt-1">PDF only</p>
+                      {uploadErrors.brochure && <p className="text-xs font-semibold text-destructive mt-2">{uploadErrors.brochure}</p>}
                     </div>
                     {files.brochure && (
                       <div className="flex items-center justify-between bg-slate-100 dark:bg-slate-800 px-3 py-2 rounded mt-3 text-sm">
@@ -1824,7 +1844,7 @@ const ProjectListingForm = ({ isAdmin = false, initialData = null }) => {
                         <button type="button" onClick={() => setExistingMedia(prev => ({ ...prev, projectVideo: '' }))} className="text-destructive shrink-0 ml-2" title="Remove"><X className="w-4 h-4" /></button>
                       </div>
                     )}
-                    <div className="border-2 border-dashed border-border rounded-xl p-6 text-center hover:bg-slate-50 dark:hover:bg-slate-950 transition-colors relative">
+                    <div className={`border-2 border-dashed rounded-xl p-6 text-center transition-colors relative ${uploadErrors.projectVideo ? 'border-destructive bg-red-50/60 dark:bg-red-950/20' : 'border-border hover:bg-slate-50 dark:hover:bg-slate-950'}`}>
                       <Input
                         type="file"
                         accept="video/mp4, video/quicktime, video/x-msvideo"
@@ -1834,6 +1854,7 @@ const ProjectListingForm = ({ isAdmin = false, initialData = null }) => {
                       <UploadCloud className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
                       <p className="text-sm font-medium text-foreground">{existingMedia.projectVideo ? 'Replace Video' : 'Upload Promotional Video'}</p>
                       <p className="text-xs text-muted-foreground mt-1">MP4, MOV, AVI only</p>
+                      {uploadErrors.projectVideo && <p className="text-xs font-semibold text-destructive mt-2">{uploadErrors.projectVideo}</p>}
                     </div>
                     {files.projectVideo && (
                       <div className="flex items-center justify-between bg-slate-100 dark:bg-slate-800 px-3 py-2 rounded mt-3 text-sm">
@@ -1855,7 +1876,7 @@ const ProjectListingForm = ({ isAdmin = false, initialData = null }) => {
                         ))}
                       </div>
                     )}
-                    <div className="border-2 border-dashed border-border rounded-xl p-6 text-center hover:bg-slate-50 dark:hover:bg-slate-950 transition-colors relative">
+                    <div className={`border-2 border-dashed rounded-xl p-6 text-center transition-colors relative ${uploadErrors.floorPlans ? 'border-destructive bg-red-50/60 dark:bg-red-950/20' : 'border-border hover:bg-slate-50 dark:hover:bg-slate-950'}`}>
                       <Input
                         type="file"
                         multiple
@@ -1866,6 +1887,7 @@ const ProjectListingForm = ({ isAdmin = false, initialData = null }) => {
                       <UploadCloud className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
                       <p className="text-sm font-medium text-foreground">Upload Floor Plans</p>
                       <p className="text-xs text-muted-foreground mt-1">JPG, PNG, HEIC (iPhone), PDF</p>
+                      {uploadErrors.floorPlans && <p className="text-xs font-semibold text-destructive mt-2">{uploadErrors.floorPlans}</p>}
                     </div>
                     {files.floorPlans.length > 0 && (
                       <div className="flex flex-wrap gap-2 mt-3">
@@ -1919,6 +1941,7 @@ const ProjectListingForm = ({ isAdmin = false, initialData = null }) => {
                       </div>
                       <div className="sm:mt-6">
                         <CertificateUpload docKey="reraCertificate" label="RERA Certificate" />
+                        {uploadErrors.reraCertificate && <p className="text-xs font-semibold text-destructive mt-1.5 max-w-[260px]">{uploadErrors.reraCertificate}</p>}
                       </div>
                     </div>
                   </div>
@@ -1948,6 +1971,7 @@ const ProjectListingForm = ({ isAdmin = false, initialData = null }) => {
                       </div>
                       <div className="sm:mt-6">
                         <CertificateUpload docKey="gstCertificate" label="GST Certificate" />
+                        {uploadErrors.gstCertificate && <p className="text-xs font-semibold text-destructive mt-1.5 max-w-[260px]">{uploadErrors.gstCertificate}</p>}
                       </div>
                     </div>
                   </div>
@@ -1970,6 +1994,7 @@ const ProjectListingForm = ({ isAdmin = false, initialData = null }) => {
                               <div className="min-w-0 flex-1">
                                 <p className="text-sm font-semibold text-foreground leading-tight">{label}</p>
                                 <p className="text-xs text-muted-foreground truncate">{count ? `${count} file${count > 1 ? 's' : ''} · PDF, JPG, PNG` : 'Not uploaded · you can add multiple files'}</p>
+                                {uploadErrors.priceList && <p className="text-xs font-semibold text-destructive mt-1 whitespace-normal">{uploadErrors.priceList}</p>}
                               </div>
                               {count < MAX_PRICE_LISTS && (
                                 <label className="shrink-0 inline-flex items-center gap-1 text-xs font-bold text-[#10B981] border border-[#10B981]/40 hover:bg-[#10B981]/10 px-3 py-1.5 rounded-lg cursor-pointer">
@@ -2017,6 +2042,7 @@ const ProjectListingForm = ({ isAdmin = false, initialData = null }) => {
                                     ? <span className="font-semibold text-amber-700 dark:text-amber-400">Applied — awaiting certificate</span>
                                     : statuses ? 'For completed projects, if applicable' : 'Not uploaded'}
                             </p>
+                            {uploadErrors[key] && <p className="text-xs font-semibold text-destructive mt-1 whitespace-normal">{uploadErrors[key]}</p>}
                           </div>
                           {applied ? null : file ? (
                             <button type="button" onClick={() => removeDocument(key)} className="text-destructive p-1 shrink-0" title="Remove">

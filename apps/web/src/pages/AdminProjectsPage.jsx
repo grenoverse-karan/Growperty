@@ -54,7 +54,7 @@ const STATUS_META = {
 // flag — none of these go through the status-update PUT the way
 // approve/reject/unlist/relist/delete do.
 const ACTIONS = {
-  draft:    ['edit', 'delete'],
+  draft:    ['edit', 'submit', 'delete'],
   pending:  ['call', 'whatsapp', 'view', 'edit', 'viewLive', 'boost', 'approve', 'reject', 'delete'],
   approved: ['call', 'whatsapp', 'view', 'edit', 'viewLive', 'boost', 'unlist', 'reject', 'delete'],
   unlisted: ['call', 'whatsapp', 'view', 'edit', 'viewLive', 'boost', 'relist', 'reject', 'delete'],
@@ -68,6 +68,7 @@ const ACTION_META = {
   edit:     { type: 'edit',   label: 'Edit',      icon: Pencil,       bg: C.hover,  color: '#e6b93d', border: C.border },
   viewLive: { type: 'viewLive', label: 'View in Website', icon: ExternalLink, bg: C.hover, color: '#4a9fd5', border: C.border },
   boost:    { type: 'boost',  label: 'Boost',     icon: Star,         bg: C.hover,  color: '#e6b93d', border: C.border },
+  submit:   { type: 'status', label: 'Submit',    icon: CheckCircle,  bg: C.green,  color: '#fff' },
   approve:  { type: 'status', label: 'Approve',   icon: CheckCircle,  bg: C.green,  color: '#fff' },
   relist:   { type: 'status', label: 'Relist',    icon: CheckCircle,  bg: C.green,  color: '#fff' },
   unlist:   { type: 'status', label: 'Unlist',    icon: EyeOff,       bg: C.muted,  color: '#fff' },
@@ -76,6 +77,7 @@ const ACTION_META = {
 };
 
 const STATUS_UPDATE = {
+  submit:  'pending',
   approve: 'approved',
   relist:  'approved',
   unlist:  'unlisted',
@@ -513,6 +515,24 @@ const AdminProjectsPage = () => {
       return;
     }
 
+    // A draft can be half-filled; it may only be submitted for review once the
+    // fields the full form requires are there.
+    if (action === 'submit') {
+      const proj = projects.find(p => (p._id || p.id) === id) || {};
+      const REQUIRED = [
+        ['projectName', 'Project Name'], ['builderName', 'Builder Name'], ['projectType', 'Project Type'],
+        ['landArea', 'Land Area'], ['totalUnits', 'Total Units'], ['projectStatus', 'Project Status'],
+        ['launchYear', 'Launch Year'], ['city', 'City'], ['sector', 'Sector'],
+        ['contactPersonName', 'Contact Person'], ['designation', 'Designation'], ['mobileNumber', 'Mobile Number'], ['email', 'Email'],
+      ];
+      const missing = REQUIRED.filter(([k]) => !String(proj[k] ?? '').trim()).map(([, label]) => label);
+      if (!proj.propertyTypes?.length) missing.push('Property Types');
+      if (missing.length) {
+        toast.error(`Complete the draft first — missing: ${missing.join(', ')}. Click Edit to fill them in.`);
+        return;
+      }
+    }
+
     const newStatus = STATUS_UPDATE[action];
     setActionLoading(`${id}-${action}`);
     try {
@@ -522,7 +542,7 @@ const AdminProjectsPage = () => {
         body: JSON.stringify({ status: newStatus, ...(action === 'reject' && reason ? { rejectReason: reason } : {}) }),
       });
       if (!res.ok) throw new Error();
-      const TOAST_VERB = { approve: 'approved', relist: 'relisted', unlist: 'unlisted', reject: 'rejected' };
+      const TOAST_VERB = { submit: 'submitted for review', approve: 'approved', relist: 'relisted', unlist: 'unlisted', reject: 'rejected' };
       toast.success(`Project ${TOAST_VERB[action] || newStatus}`);
       setProjects(prev => prev.map(p => (p._id || p.id) === id ? { ...p, status: newStatus } : p));
       setCounts(prev => {

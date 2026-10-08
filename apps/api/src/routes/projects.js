@@ -297,6 +297,24 @@ router.put('/:id', uploadFields, async (req, res) => {
 
     const isFormEdit = Boolean(req.files);
 
+    // Moving a draft to pending (the Submit button in Admin → Projects) needs the
+    // same required fields as the form — a half-filled draft can't be submitted.
+    if (!isFormEdit && data.status === 'pending') {
+      const current = await Project.findById(req.params.id).lean();
+      if (current?.status === 'draft') {
+        const REQUIRED = {
+          projectName: 'Project Name', builderName: 'Builder Name', projectType: 'Project Type', landArea: 'Land Area',
+          totalUnits: 'Total Units', projectStatus: 'Project Status', launchYear: 'Launch Year', city: 'City', sector: 'Sector',
+          contactPersonName: 'Contact Person', designation: 'Designation', mobileNumber: 'Mobile Number', email: 'Email',
+        };
+        const missing = Object.entries(REQUIRED).filter(([k]) => !String(current[k] ?? '').trim()).map(([, label]) => label);
+        if (!current.propertyTypes?.length) missing.push('Property Types');
+        if (missing.length) {
+          return res.status(400).json({ success: false, message: `Complete the draft first — missing: ${missing.join(', ')}` });
+        }
+      }
+    }
+
     if (isFormEdit) {
       // "Save as Draft" always lands in Drafts (even for a project that was
       // pending or live); the first normal save of a draft submits it for
