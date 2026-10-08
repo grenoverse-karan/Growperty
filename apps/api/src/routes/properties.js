@@ -3,6 +3,7 @@ import multer from 'multer';
 import mongoose from 'mongoose';
 import sharp from 'sharp';
 import Property from '../models/Property.js';
+import ChannelPartner from '../models/ChannelPartner.js';
 import logger from '../utils/logger.js';
 import { verifyToken } from '../utils/jwt.js';
 import { sendTemplateMessage } from '../utils/whatsappTemplates.js';
@@ -257,6 +258,17 @@ router.get('/', async (req, res) => {
 // Every other caller (admin, seller dashboard, edit forms, CP wishlist) omits
 // the param and keeps getting the full images array, unchanged.
 // =====================
+// Name shown in "Listed by …" on the public page: the CP's name for CP
+// listings, the seller's name for seller listings, nothing for admin listings.
+const listedByNameFor = async (p) => {
+  const source = p.listedBy || (p.ownerType === 'Admin' ? 'admin' : p.ownerType === 'CP' ? 'cp' : 'owner');
+  if (source === 'cp') {
+    const cp = p.cpId && mongoose.Types.ObjectId.isValid(p.cpId) ? await ChannelPartner.findById(p.cpId, { name: 1 }).lean() : null;
+    return cp?.name || '';
+  }
+  return source === 'owner' ? (p.name || '') : '';
+};
+
 router.get('/:id', async (req, res) => {
   try {
     if (req.query.thumbOnly === 'true') {
@@ -268,12 +280,12 @@ router.get('/:id', async (req, res) => {
         } },
       ]);
       if (!property) return res.status(404).json({ success: false, message: 'Property not found' });
-      return res.status(200).json({ ...property, id: property._id.toString() });
+      return res.status(200).json({ ...property, id: property._id.toString(), listedByName: await listedByNameFor(property) });
     }
 
     const property = await Property.findById(req.params.id).lean();
     if (!property) return res.status(404).json({ success: false, message: 'Property not found' });
-    return res.status(200).json({ ...property, id: property._id.toString() });
+    return res.status(200).json({ ...property, id: property._id.toString(), listedByName: await listedByNameFor(property) });
   } catch (err) {
     logger.error('GET /api/properties/:id error', { message: err.message });
     return res.status(500).json({ success: false, message: err.message });

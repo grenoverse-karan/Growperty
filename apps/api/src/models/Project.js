@@ -1,10 +1,19 @@
 import mongoose from 'mongoose';
 
+// Drafts (saved half-filled from the admin form) skip the required-field
+// checks; they apply again the moment the project is submitted. Works for both
+// document saves (this.status) and update validators (this is the Query).
+const requiredUnlessDraft = function () {
+  const update = typeof this.getUpdate === 'function' ? this.getUpdate() : null;
+  const status = update ? (update.$set?.status ?? update.status) : this.status;
+  return status !== 'draft';
+};
+
 const projectSchema = new mongoose.Schema(
   {
-    projectName:  { type: String, required: true },
-    builderName:  { type: String, required: true },
-    projectType:  { type: String, required: true }, // Residential | Commercial | Mixed Use
+    projectName:  { type: String, required: requiredUnlessDraft },
+    builderName:  { type: String, required: requiredUnlessDraft },
+    projectType:  { type: String, required: requiredUnlessDraft }, // Residential | Commercial | Mixed Use
 
     propertyTypes: { type: [String], default: [] },
 
@@ -16,10 +25,8 @@ const projectSchema = new mongoose.Schema(
     totalUnits: { type: Number },
     unitsAvailable: { type: Number },
     greenAreaPercent: { type: Number },
-    // Headline price / size range for the whole project, typed by the builder
+    // Headline price-per-unit / size range for the whole project, typed by the builder
     // (separate from the per property-type pricing blob below).
-    overviewMinPrice: { type: Number },
-    overviewMaxPrice: { type: Number },
     overviewMinSize: { type: Number },
     overviewMaxSize: { type: Number },
     overviewSizeUnit: { type: String },  // Sq.ft | Sq.yd | Sq.m
@@ -32,15 +39,15 @@ const projectSchema = new mongoose.Schema(
     configurationAvailable: { type: [String], default: [] },
     paymentPlans: { type: [String], default: [] },
 
-    projectStatus: { type: String, required: true }, // New Launch | Under Construction | ...
+    projectStatus: { type: String, required: requiredUnlessDraft }, // New Launch | Under Construction | ...
     launchYear: { type: String },
     expectedPossession: { type: String },
     reraNumber: { type: String },
     reraApplied: { type: Boolean, default: false },
     gstNumber: { type: String }, // GSTIN
 
-    city: { type: String, required: true },
-    sector: { type: String, required: true },
+    city: { type: String, required: requiredUnlessDraft },
+    sector: { type: String, required: requiredUnlessDraft },
     landmark: { type: String },
     societyName: { type: String }, // Society / Colony name, e.g. "Godrej Woods"
     projectAddress: { type: String },
@@ -97,8 +104,11 @@ const projectSchema = new mongoose.Schema(
       priceList: String,
       possessionLetter: String,
     },
+    // A project can have several price lists (PDF / image). documents.priceList
+    // holds the first one (kept for older readers); the rest live here.
+    priceListMore: { type: [String], default: [] },
 
-    status: { type: String, default: 'pending', enum: ['pending', 'approved', 'rejected', 'unlisted'] },
+    status: { type: String, default: 'pending', enum: ['draft', 'pending', 'approved', 'rejected', 'unlisted'] },
     rejectReason: { type: String },
     featured: { type: Boolean, default: false },
   },

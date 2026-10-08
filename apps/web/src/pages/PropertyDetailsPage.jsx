@@ -237,6 +237,15 @@ const PropertyDetailsPage = () => {
 
   const roomsLabel = !property.bhk && property.rooms > 0 ? `${property.rooms} Room${property.rooms > 1 ? 's' : ''}` : null;
   const title = [property.bhk || roomsLabel, property.propertyType].filter(Boolean).join(' ') || property.name || 'Property';
+
+  // "Listed by" — seller: "<Ownership type> Seller - <name>", CP: "Growperty CP - <name>", admin: "Growperty".
+  const listedBySource = property.listedBy || (property.ownerType === 'Admin' ? 'admin' : property.ownerType === 'CP' ? 'cp' : 'owner');
+  const SELLER_OWNERSHIP_TYPES = ['Individual', 'Joint', 'Company', 'Trust', 'Co-operative Society', 'Power of Attorney (POA)'];
+  const listedByLabel = listedBySource === 'cp'
+    ? ['Growperty CP', property.listedByName].filter(Boolean).join(' - ')
+    : listedBySource === 'owner'
+      ? [SELLER_OWNERSHIP_TYPES.includes(property.ownershipType) ? `${property.ownershipType} Seller` : 'Seller', property.listedByName].filter(Boolean).join(' - ')
+      : 'Growperty';
   const isSold = property.status === 'sold';
   const offer = getActiveOffer(property);
   const offerPricing = getOfferPricing(offer, property.totalPrice);
@@ -707,7 +716,7 @@ const PropertyDetailsPage = () => {
                         <ShieldCheck className="h-5 w-5 text-primary" />
                       </div>
                       <div>
-                        <p className="font-bold text-foreground text-sm">Growperty</p>
+                        <p className="font-bold text-foreground text-sm">{listedByLabel}</p>
                         {cpContact && (
                           <p className="text-xs text-muted-foreground mt-0.5">via {cpContact.cpName}</p>
                         )}

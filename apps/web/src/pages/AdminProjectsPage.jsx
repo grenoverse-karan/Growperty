@@ -34,6 +34,7 @@ const C = {
 
 const STATUS_TABS = [
   { key: 'all',      label: 'All',      color: C.blue },
+  { key: 'draft',    label: 'Drafts',   color: C.sub },
   { key: 'pending',  label: 'Pending',  color: C.yellow },
   { key: 'approved', label: 'Live',     color: C.green },
   { key: 'unlisted', label: 'Unlisted', color: C.muted },
@@ -41,6 +42,7 @@ const STATUS_TABS = [
 ];
 
 const STATUS_META = {
+  draft:    { label: 'Draft',    bg: 'rgba(74,159,213,0.15)', color: '#4a9fd5' },
   pending:  { label: 'Pending',  bg: 'rgba(186,117,23,0.15)',  color: '#e6963a' },
   approved: { label: 'Live',     bg: 'rgba(29,158,117,0.15)', color: '#1d9e75' },
   unlisted: { label: 'Unlisted', bg: 'rgba(77,97,117,0.15)',  color: '#94aabf' },
@@ -52,6 +54,7 @@ const STATUS_META = {
 // flag — none of these go through the status-update PUT the way
 // approve/reject/unlist/relist/delete do.
 const ACTIONS = {
+  draft:    ['edit', 'delete'],
   pending:  ['call', 'whatsapp', 'view', 'edit', 'viewLive', 'boost', 'approve', 'reject', 'delete'],
   approved: ['call', 'whatsapp', 'view', 'edit', 'viewLive', 'boost', 'unlist', 'reject', 'delete'],
   unlisted: ['call', 'whatsapp', 'view', 'edit', 'viewLive', 'boost', 'relist', 'reject', 'delete'],

@@ -283,7 +283,6 @@ const ProjectDetailPage = () => {
                       { icon: CheckCircle, label: 'Possession', value: project.expectedPossession || project.projectStatus },
                       { icon: Calendar, label: 'Launch Year', value: project.launchYear },
                       { icon: LandPlot, label: 'Land Area', value: project.landArea ? `${project.landArea} ${project.landAreaUnit || 'Acres'}` : null },
-                      { icon: IndianRupee, label: 'Price Range', value: (project.overviewMinPrice && project.overviewMaxPrice) ? `${formatIndianPrice(project.overviewMinPrice)} – ${formatIndianPrice(project.overviewMaxPrice)}` : null },
                       { icon: Ruler, label: 'Unit Size', value: (project.overviewMinSize && project.overviewMaxSize) ? `${project.overviewMinSize} – ${project.overviewMaxSize} ${project.overviewSizeUnit || 'Sq.ft'}` : null },
                       { icon: IndianRupee, label: `Price per ${project.overviewSizeUnit || 'Sq.ft'}`, value: (project.overviewMinRate && project.overviewMaxRate) ? `₹${project.overviewMinRate.toLocaleString('en-IN')} – ₹${project.overviewMaxRate.toLocaleString('en-IN')}` : null },
                       { icon: Building, label: 'Towers / Blocks', value: project.totalTowers },
@@ -479,12 +478,20 @@ const ProjectDetailPage = () => {
                         </div>
                         );
                       })}
-                      {PROJECT_DOCUMENT_TYPES.filter(({ key }) => project.documents?.[key]).map(({ key, label }) => {
+                      {PROJECT_DOCUMENT_TYPES.filter(({ key }) => project.documents?.[key]).flatMap(({ key, label }) => (
+                        key === 'priceList'
+                          ? [project.documents.priceList, ...(project.priceListMore || [])].map((_, i, all) => ({
+                              key: i === 0 ? key : `${key}-${i}`,
+                              label: all.length > 1 ? `${label} ${i + 1}` : label,
+                              href: i === 0 ? `documents/${key}` : `price-list/${i}`,
+                            }))
+                          : [{ key, label, href: `documents/${key}` }]
+                      )).map(({ key, label, href }) => {
                         const number = key === 'reraCertificate' ? project.reraNumber : key === 'gstCertificate' ? project.gstNumber : null;
                         return (
                         <a
                           key={key}
-                          href={`${API_SERVER_URL}/projects/${id}/documents/${key}`}
+                          href={`${API_SERVER_URL}/projects/${id}/${href}`}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="flex items-center gap-3 p-3 rounded-xl border border-border/60 hover:border-emerald-400 hover:bg-emerald-50/50 dark:hover:bg-emerald-900/20 transition-colors"

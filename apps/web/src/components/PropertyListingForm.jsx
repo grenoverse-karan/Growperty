@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 import { toast as sonnerToast } from 'sonner';
 import apiServerClient from '@/lib/apiServerClient.js';
+import { saveDraftFiles, loadDraftFiles, clearDraftFiles } from '@/lib/draftFiles.js';
 import { Input } from '@/components/ui/input.jsx';
 import { Label } from '@/components/ui/label.jsx';
 import { Button } from '@/components/ui/button.jsx';
@@ -67,6 +68,11 @@ const AMENITIES_CATEGORIES = {
 // Backend route POST /api/ai/sector-guide and the `sectorGuide` field are kept.
 const SECTOR_GUIDE_ENABLED = false;
 
+// "Save as Draft" keeps the half-filled form in this browser (one draft per
+// kind of lister) so it can be finished and submitted later. Photos are files
+// and can't be stored this way, so they have to be added again.
+const draftKeyFor = (isAdmin, cpMode) => `growperty_property_draft_v1_${isAdmin ? 'admin' : cpMode ? 'cp' : 'user'}`;
+
 
 const PropertyListingForm = ({ isAdmin = false, initialData = null, cpMode = false, cpToken = null }) => {
   const { toast } = useToast();
@@ -74,6 +80,7 @@ const PropertyListingForm = ({ isAdmin = false, initialData = null, cpMode = fal
   const { currentUser, whatsappPhone, getToken } = useAuth();
   const { token: adminToken } = useAdminAuth();
   const imageInputRef = useRef(null);
+  const draftKey = draftKeyFor(isAdmin, cpMode);
 
   // --- State ---
   const [formData, setFormData] = useState({
@@ -244,6 +251,33 @@ const PropertyListingForm = ({ isAdmin = false, initialData = null, cpMode = fal
       }
     }
   }, [initialData]);
+
+  // Bring back a saved draft (new listings only) — before the logged-in
+  // user's details are filled in below, which never overwrite typed values.
+  useEffect(() => {
+    if (initialData) return;
+    try {
+      const raw = localStorage.getItem(draftKey);
+      if (!raw) return;
+      const saved = JSON.parse(raw);
+      setFormData(prev => ({ ...prev, ...saved, termsAccepted: false }));
+      loadDraftFiles(draftKey).then((files) => {
+        if (Array.isArray(files) && files.length) {
+          setImages(prev => (prev.length ? prev : files.map((file, i) => ({ id: `draft-${Date.now()}-${i}`, file, preview: URL.createObjectURL(file) }))));
+        }
+      });
+      sonnerToast.info('Draft restored — pick up where you left off.', {
+        duration: 8000,
+        action: {
+          label: 'Discard draft',
+          onClick: () => { try { localStorage.removeItem(draftKey); } catch { /* ignore */ } clearDraftFiles(draftKey).finally(() => window.location.reload()); },
+        },
+      });
+    } catch {
+      // unreadable draft — start with an empty form
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (currentUser && !initialData) {
@@ -584,6 +618,18 @@ const PropertyListingForm = ({ isAdmin = false, initialData = null, cpMode = fal
   }, []);
 
   // --- Submit ---
+  const handleSaveDraft = () => {
+    try {
+      const { termsAccepted, ...rest } = formData; // eslint-disable-line no-unused-vars
+      localStorage.setItem(draftKey, JSON.stringify(rest));
+      const photos = images.filter(img => img.file).map(img => img.file);
+      if (photos.length) saveDraftFiles(draftKey, photos); else clearDraftFiles(draftKey);
+      sonnerToast.success('Draft saved on this device, with your photos. Open this form again on this browser to continue.');
+    } catch {
+      sonnerToast.error("Couldn't save the draft on this device.");
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     console.log('🚀 handleSubmit triggered', { currentUser: currentUser?.id, termsAccepted: formData.termsAccepted, propertyType: formData.propertyType });
@@ -776,6 +822,9 @@ const PropertyListingForm = ({ isAdmin = false, initialData = null, cpMode = fal
           }
         }
       }
+
+      try { localStorage.removeItem(draftKey); } catch { /* ignore */ }
+      clearDraftFiles(draftKey);
 
       if (isAdmin) {
         toast({ title: 'Success', description: editId ? 'Property updated successfully.' : 'Property listed successfully and is now live.' });
@@ -1606,19 +1655,6 @@ const PropertyListingForm = ({ isAdmin = false, initialData = null, cpMode = fal
           {/* (16) OWNER DETAILS */}
           {cpMode ? null : isAdmin ? (
             <>
-              <div className="bg-white dark:bg-slate-950 rounded-2xl p-6 md:p-8 shadow-sm border border-slate-200 dark:border-slate-800">
-                <Label className="text-lg font-bold text-slate-900 dark:text-white block border-b border-slate-100 dark:border-slate-800 pb-3">Listed By</Label>
-                <div className="flex items-center gap-3 mt-4">
-                  <div className="h-10 w-10 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center shrink-0">
-                    <span className="text-emerald-600 dark:text-emerald-400 font-extrabold text-sm">G</span>
-                  </div>
-                  <div className="flex flex-col">
-                    <span className="text-xs text-slate-400 dark:text-slate-500 font-medium">Listed by</span>
-                    <span className="text-xl font-extrabold text-slate-900 dark:text-white tracking-tight">Growperty</span>
-                  </div>
-                </div>
-              </div>
-
               {/* (16b) SELLER CONTACT — admin-only, never shown to public/buyers */}
               <div className="bg-white dark:bg-slate-950 rounded-2xl p-6 md:p-8 shadow-sm border border-slate-200 dark:border-slate-800 space-y-5">
                 <div className="border-b border-slate-100 dark:border-slate-800 pb-3">
@@ -1735,6 +1771,18 @@ const PropertyListingForm = ({ isAdmin = false, initialData = null, cpMode = fal
               initialData ? 'Save Changes' : 'Post Property Listing'
             )}
           </Button>
+
+          {!initialData && (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleSaveDraft}
+              disabled={isSubmitting}
+              className="w-full h-14 text-base font-bold rounded-2xl border-2 transition-all active:scale-[0.98] disabled:opacity-50"
+            >
+              Save as Draft
+            </Button>
+          )}
 
         </form>
       </div>

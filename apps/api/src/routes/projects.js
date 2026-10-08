@@ -15,15 +15,31 @@ const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 100
 // (keys match PROJECT_DOCUMENT_TYPES in the web app's listingOptions.js).
 const DOCUMENT_KEYS = ['reraCertificate', 'gstCertificate', 'isoCertificate', 'approvalDocs', 'sitePlan', 'masterPlan', 'paymentPlan', 'priceList', 'possessionLetter'];
 
+const MAX_PRICE_LISTS = 10;
+
 const uploadFields = upload.fields([
   { name: 'projectImages', maxCount: 20 },
   { name: 'floorPlans', maxCount: 10 },
   { name: 'brochure', maxCount: 1 },
   { name: 'projectVideo', maxCount: 1 },
+  { name: 'priceLists', maxCount: MAX_PRICE_LISTS },
   ...DOCUMENT_KEYS.map(key => ({ name: `doc_${key}`, maxCount: 1 })),
 ]);
 
 const router = express.Router();
+
+// Cloudinary refuses files over its plan limit (10MB for PDFs/images, 100MB for
+// video) with a plain "File size too large" error — say so, instead of a bare 500.
+const isTooLargeError = (err) => /file size too large/i.test(err?.message || '');
+const TOO_LARGE_MESSAGE = 'A file is too large to store. PDFs and images can be up to 10MB, videos up to 100MB — please upload a smaller file.';
+
+// Price lists: any number of PDF/image files. documents.priceList keeps the
+// first (so older readers still work) and priceListMore holds the rest.
+const uploadPriceLists = (files) => Promise.all((files.priceLists || []).map(f => uploadBufferToCloudinary(f.buffer, {
+  folder: 'growperty/projects/documents',
+  resourceType: f.mimetype === 'application/pdf' ? 'raw' : 'image',
+})));
+const splitPriceLists = (urls) => ({ first: urls[0], more: urls.slice(1) });
 
 // Multipart fields arrive as strings; blank → undefined so it isn't stored as 0.
 const parseNumber = (value) => {
@@ -43,7 +59,10 @@ const parseJson = (value, fallback) => {
 router.post('/', uploadFields, async (req, res) => {
   try {
     const data = req.body || {};
-    if (!data.projectName || !data.builderName || !data.projectType || !data.city || !data.sector || !data.projectStatus) {
+    const isDraft = data.saveAsDraft === 'true' || data.saveAsDraft === true;
+    if (isDraft) {
+      if (!data.projectName?.trim()) return res.status(400).json({ success: false, message: 'Enter at least the Project Name to save a draft' });
+    } else if (!data.projectName || !data.builderName || !data.projectType || !data.city || !data.sector || !data.projectStatus) {
       return res.status(400).json({ success: false, message: 'Missing required project fields' });
     }
 
@@ -66,6 +85,8 @@ router.post('/', uploadFields, async (req, res) => {
       })),
     ]);
     const documents = Object.fromEntries(documentUrls.filter(([, url]) => url));
+    const priceLists = splitPriceLists(await uploadPriceLists(files));
+    if (priceLists.first) documents.priceList = priceLists.first;
 
     const cleanedText = await moderateFreeTextFields({
       projectUSP: data.projectUSP,
@@ -88,8 +109,6 @@ router.post('/', uploadFields, async (req, res) => {
       totalUnits: parseNumber(data.totalUnits),
       unitsAvailable: parseNumber(data.unitsAvailable),
       greenAreaPercent: parseNumber(data.greenAreaPercent),
-      overviewMinPrice: parseNumber(data.overviewMinPrice),
-      overviewMaxPrice: parseNumber(data.overviewMaxPrice),
       overviewMinSize: parseNumber(data.overviewMinSize),
       overviewMaxSize: parseNumber(data.overviewMaxSize),
       overviewSizeUnit: data.overviewSizeUnit || undefined,
@@ -133,8 +152,9 @@ router.post('/', uploadFields, async (req, res) => {
       brochure: brochureUrls[0],
       projectVideo: projectVideoUrls[0],
       documents,
+      priceListMore: priceLists.more,
       documentsApplied: parseJson(data.documentsApplied, []).filter(k => ['gstCertificate', 'isoCertificate', 'approvalDocs'].includes(k)),
-      status: 'pending',
+      status: isDraft ? 'draft' : 'pending',
     });
 
     const saved = await project.save();
@@ -143,6 +163,7 @@ router.post('/', uploadFields, async (req, res) => {
     return res.status(201).json({ success: true, projectId: saved._id.toString() });
   } catch (err) {
     logger.error('POST /api/projects error', { message: err.message });
+    if (isTooLargeError(err)) return res.status(413).json({ success: false, message: TOO_LARGE_MESSAGE });
     if (err.name === 'ValidationError') {
       return res.status(400).json({ success: false, message: `Validation failed: ${Object.keys(err.errors).join(', ')}` });
     }
@@ -229,6 +250,20 @@ router.get('/:id/brochure', async (req, res) => {
   }
 });
 
+// Price list #n (0 = documents.priceList, 1.. = priceListMore[n-1]).
+router.get('/:id/price-list/:n', async (req, res) => {
+  try {
+    const n = Number(req.params.n);
+    const project = await Project.findById(req.params.id, { documents: 1, priceListMore: 1, projectName: 1 }).lean();
+    if (!project || !Number.isInteger(n) || n < 0) return res.status(404).json({ success: false, message: 'File not found' });
+    const url = n === 0 ? project.documents?.priceList : project.priceListMore?.[n - 1];
+    return proxyCloudinaryFile(res, url, `${project.projectName}-price-list-${n + 1}`);
+  } catch (err) {
+    logger.error('GET /api/projects/:id/price-list/:n error', { message: err.message });
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 router.get('/:id/documents/:key', async (req, res) => {
   try {
     if (!DOCUMENT_KEYS.includes(req.params.key)) {
@@ -263,6 +298,13 @@ router.put('/:id', uploadFields, async (req, res) => {
     const isFormEdit = Boolean(req.files);
 
     if (isFormEdit) {
+      // "Save as Draft" always lands in Drafts (even for a project that was
+      // pending or live); the first normal save of a draft submits it for
+      // review. Any other normal save leaves the status alone.
+      const current = await Project.findById(req.params.id, { status: 1 }).lean();
+      if (data.saveAsDraft === 'true') data.status = 'draft';
+      else if (current?.status === 'draft') data.status = 'pending';
+      delete data.saveAsDraft;
       const files = req.files || {};
 
       const [projectImages, floorPlans, brochureUrls, projectVideoUrls, documentUrls] = await Promise.all([
@@ -288,6 +330,11 @@ router.put('/:id', uploadFields, async (req, res) => {
       data.projectImages = [...parseJson(data.existingProjectImages, []), ...projectImages];
       data.floorPlans = [...parseJson(data.existingFloorPlans, []), ...floorPlans];
       data.documents = { ...parseJson(data.existingDocuments, {}), ...Object.fromEntries(documentUrls.filter(([, url]) => url)) };
+      if (data.existingPriceLists !== undefined) {
+        const priceLists = splitPriceLists([...parseJson(data.existingPriceLists, []), ...(await uploadPriceLists(files))]);
+        if (priceLists.first) data.documents.priceList = priceLists.first; else delete data.documents.priceList;
+        data.priceListMore = priceLists.more;
+      }
 
       // Single-file fields: a new upload replaces it; otherwise keep exactly
       // what the client says to keep (including '' to explicitly clear it) —
@@ -300,6 +347,7 @@ router.put('/:id', uploadFields, async (req, res) => {
       delete data.existingBrochure;
       delete data.existingProjectVideo;
       delete data.existingDocuments;
+      delete data.existingPriceLists;
 
       // The rest of the form's JSON-shaped / typed fields, sent as FormData strings.
       data.propertyTypes = parseJson(data.propertyTypes, []);
@@ -313,7 +361,7 @@ router.put('/:id', uploadFields, async (req, res) => {
       data.reraApplied = data.reraApplied === 'true' || data.reraApplied === true;
       data.confirmationCheckbox1 = data.confirmationCheckbox1 === 'true' || data.confirmationCheckbox1 === true;
       data.confirmationCheckbox2 = data.confirmationCheckbox2 === 'true' || data.confirmationCheckbox2 === true;
-      for (const key of ['landArea', 'totalTowers', 'totalUnits', 'unitsAvailable', 'greenAreaPercent', 'overviewMinPrice', 'overviewMaxPrice', 'overviewMinSize', 'overviewMaxSize', 'overviewMinRate', 'overviewMaxRate']) {
+      for (const key of ['landArea', 'totalTowers', 'totalUnits', 'unitsAvailable', 'greenAreaPercent', 'overviewMinSize', 'overviewMaxSize', 'overviewMinRate', 'overviewMaxRate']) {
         data[key] = parseNumber(data[key]);
       }
       if (!data.offerValidTill) delete data.offerValidTill;
@@ -339,6 +387,7 @@ router.put('/:id', uploadFields, async (req, res) => {
     return res.status(200).json({ success: true, project: { ...updated, id: updated._id.toString() } });
   } catch (err) {
     logger.error('PUT /api/projects/:id error', { message: err.message });
+    if (isTooLargeError(err)) return res.status(413).json({ success: false, message: TOO_LARGE_MESSAGE });
     if (err.name === 'ValidationError') {
       return res.status(400).json({ success: false, message: `Validation failed: ${Object.keys(err.errors).join(', ')}` });
     }

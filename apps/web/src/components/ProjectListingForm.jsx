@@ -4,7 +4,8 @@ import { useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
-import { CheckCircle, Loader2, UploadCloud, X, ArrowRight, Building2, ExternalLink, Sparkles, FileText, Clock } from 'lucide-react';
+import { saveDraftFiles, loadDraftFiles, clearDraftFiles } from '@/lib/draftFiles.js';
+import { ChevronDown, CheckCircle, Loader2, UploadCloud, X, ArrowRight, Building2, ExternalLink, Sparkles, FileText, Clock } from 'lucide-react';
 import apiServerClient, { API_SERVER_URL } from '@/lib/apiServerClient.js';
 import AiGenerationOverlay, { AI_GENERATION_STEPS } from '@/components/AiGenerationOverlay.jsx';
 import SpecialOfferSection from '@/components/SpecialOfferSection.jsx';
@@ -167,6 +168,8 @@ const ProjectListingForm = ({ isAdmin = false, initialData = null }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [errors, setErrors] = useState({});
+  // Pricing blocks start collapsed (just the type name + Add details).
+  const [expandedTypes, setExpandedTypes] = useState({});
   const [antiBypassWarning, setAntiBypassWarning] = useState(false);
   const [generatingDescription, setGeneratingDescription] = useState(false);
   const [aiStepIndex, setAiStepIndex] = useState(0);
@@ -185,8 +188,6 @@ const ProjectListingForm = ({ isAdmin = false, initialData = null }) => {
     totalUnits: '',
     unitsAvailable: '',
     greenAreaPercent: '',
-    overviewMinPrice: '',
-    overviewMaxPrice: '',
     overviewMinSize: '',
     overviewMaxSize: '',
     overviewSizeUnit: 'Sq.ft',
@@ -239,6 +240,7 @@ const ProjectListingForm = ({ isAdmin = false, initialData = null }) => {
     projectVideo: null,
     floorPlans: [],
     documents: {}, // { [PROJECT_DOCUMENT_TYPES key]: File }
+    priceLists: [], // Price List allows several files
   });
 
   // Already-uploaded media, present only when editing. Images/floor plans/
@@ -250,6 +252,7 @@ const ProjectListingForm = ({ isAdmin = false, initialData = null }) => {
     brochure: '',
     projectVideo: '',
     documents: {}, // { [PROJECT_DOCUMENT_TYPES key]: url }
+    priceLists: [], // every already-uploaded price list url, in order
   });
 
   // Pre-fill the form when editing an existing project.
@@ -270,8 +273,6 @@ const ProjectListingForm = ({ isAdmin = false, initialData = null }) => {
       totalUnits: d.totalUnits ?? '',
       unitsAvailable: d.unitsAvailable ?? '',
       greenAreaPercent: d.greenAreaPercent ?? '',
-      overviewMinPrice: d.overviewMinPrice ?? '',
-      overviewMaxPrice: d.overviewMaxPrice ?? '',
       overviewMinSize: d.overviewMinSize ?? '',
       overviewMaxSize: d.overviewMaxSize ?? '',
       overviewSizeUnit: d.overviewSizeUnit || 'Sq.ft',
@@ -314,9 +315,50 @@ const ProjectListingForm = ({ isAdmin = false, initialData = null }) => {
       brochure: d.brochure || '',
       projectVideo: d.projectVideo || '',
       documents: d.documents || {},
+      priceLists: [d.documents?.priceList, ...(d.priceListMore || [])].filter(Boolean),
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialData]);
+
+  // Files picked but not yet submitted survive a reload too (IndexedDB), for
+  // both a new listing and an edit. Saving waits until the restore attempt is
+  // done, so an empty first render can't wipe what's stored.
+  const fileDraftKey = `project:${editId || 'new'}`;
+  const [filesRestored, setFilesRestored] = useState(false);
+  const hasAnyFile = (f) => Boolean(f.brochure || f.projectVideo || f.projectImages.length || f.floorPlans.length || f.priceLists.length || Object.keys(f.documents).length);
+  useEffect(() => {
+    let cancelled = false;
+    loadDraftFiles(fileDraftKey).then((saved) => {
+      if (cancelled) return;
+      // Anything over today's size limits (e.g. saved while a bigger limit was
+      // in place) is dropped, so a stale oversized file can't keep failing the save.
+      const MB = 1024 * 1024;
+      const ok = (f, mb) => f && f.size <= mb * MB;
+      const clean = saved && {
+        projectImages: (saved.projectImages || []).filter(f => ok(f, 5)),
+        floorPlans: (saved.floorPlans || []).filter(f => ok(f, 5)),
+        priceLists: (saved.priceLists || []).filter(f => ok(f, 10)),
+        brochure: ok(saved.brochure, 10) ? saved.brochure : null,
+        projectVideo: ok(saved.projectVideo, 100) ? saved.projectVideo : null,
+        documents: Object.fromEntries(Object.entries(saved.documents || {}).filter(([, f]) => ok(f, 10))),
+      };
+      if (clean && hasAnyFile(clean)) {
+        setFiles(prev => (hasAnyFile(prev) ? prev : { ...prev, ...clean }));
+        toast.info('Your selected photos and files were restored too.');
+      }
+      setFilesRestored(true);
+    });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  useEffect(() => {
+    if (!filesRestored || isSuccess) return;
+    const timer = setTimeout(() => {
+      if (hasAnyFile(files)) saveDraftFiles(fileDraftKey, files); else clearDraftFiles(fileDraftKey);
+    }, PROJECT_DRAFT_SAVE_DEBOUNCE_MS);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [files, filesRestored, isSuccess]);
 
   // Restore an autosaved draft once on mount — new-listing flow only (see
   // PROJECT_DRAFT_KEY comment above).
@@ -327,7 +369,7 @@ const ProjectListingForm = ({ isAdmin = false, initialData = null }) => {
       if (!saved) return;
       const draft = JSON.parse(saved);
       setFormData(prev => ({ ...prev, ...draft }));
-      toast.info('Draft restored — pick up where you left off. Please re-attach any photos or documents.');
+      toast.info('Draft restored — pick up where you left off.');
     } catch {
       localStorage.removeItem(PROJECT_DRAFT_KEY); // corrupted draft — don't keep retrying it
     }
@@ -473,6 +515,8 @@ const ProjectListingForm = ({ isAdmin = false, initialData = null }) => {
     }
   };
 
+  // Cloudinary (where PDFs/images are stored) rejects anything over 10MB, so a
+  // bigger limit here would only fail later, at save time.
   const MAX_DOCUMENT_MB = 10;
 
   const handleDocumentChange = async (key, e) => {
@@ -492,6 +536,34 @@ const ProjectListingForm = ({ isAdmin = false, initialData = null }) => {
     }
     setFiles(prev => ({ ...prev, documents: { ...prev.documents, [key]: file } }));
   };
+
+  const MAX_PRICE_LISTS = 10;
+  const handlePriceListChange = async (e) => {
+    const input = e.target;
+    let picked = Array.from(input.files || []);
+    input.value = '';
+    if (!picked.length) return;
+    if (picked.some(isHeicFile)) {
+      const toastId = toast.loading('Converting iPhone photos…');
+      const converted = await Promise.all(picked.map(f => isHeicFile(f) ? convertHeicToJpeg(f).catch(() => null) : f));
+      toast.dismiss(toastId);
+      if (converted.some(f => !f)) toast.error("Some photos couldn't be read. Try exporting them as JPEG or PDF.");
+      picked = converted.filter(Boolean);
+    }
+    if (picked.some(f => f.size > MAX_DOCUMENT_MB * 1024 * 1024)) {
+      toast.error(`One or more files exceed the ${MAX_DOCUMENT_MB}MB limit.`);
+      return;
+    }
+    setFiles(prev => {
+      if (prev.priceLists.length + existingMedia.priceLists.length + picked.length > MAX_PRICE_LISTS) {
+        toast.error(`You can add up to ${MAX_PRICE_LISTS} price list files.`);
+        return prev;
+      }
+      return { ...prev, priceLists: [...prev.priceLists, ...picked] };
+    });
+  };
+  const removeNewPriceList = (index) => setFiles(prev => ({ ...prev, priceLists: prev.priceLists.filter((_, i) => i !== index) }));
+  const removeExistingPriceList = (index) => setExistingMedia(prev => ({ ...prev, priceLists: prev.priceLists.filter((_, i) => i !== index) }));
 
   // RERA's "Applied" is the same flag as the RERA Applied checkbox in Project Status.
   const isDocumentApplied = (key) =>
@@ -633,9 +705,7 @@ const ProjectListingForm = ({ isAdmin = false, initialData = null }) => {
     if (!formData.projectType) newErrors.projectType = 'Project Type is required';
     if (formData.propertyTypes.length === 0) newErrors.propertyTypes = 'Select at least one property type';
     
-    if (['Residential', 'Mixed Use'].includes(formData.projectType) && formData.configurationAvailable.length === 0) {
-      newErrors.configurationAvailable = 'Select at least one configuration';
-    }
+    // Configuration (BHK) is optional — and its field is only shown for some property types.
 
     // Section 2 — per property type (and per BHK, once more than one is selected) pricing
     formData.propertyTypes.forEach(type => {
@@ -646,26 +716,15 @@ const ProjectListingForm = ({ isAdmin = false, initialData = null }) => {
         if (p.plcMode === 'fixed' && !(Number(p.plcValue) > 0)) newErrors[`plc_${errKey}`] = 'Enter the PLC amount';
         if (p.plcMode === 'percent' && !(Number(p.plcValue) > 0 && Number(p.plcValue) <= 100)) newErrors[`plc_${errKey}`] = 'Enter a PLC percentage between 0 and 100';
         if (p.plcMode === 'manual' && !p.plcNote?.trim()) newErrors[`plc_${errKey}`] = 'Describe the PLC charges';
+        // Price and area are optional — only sanity-check what was entered.
         const showAreaTypes = PROPERTY_TYPE_CONFIG[type]?.showAreaTypes;
+        let lo = Number(p.minPrice), hi = Number(p.maxPrice);
         if (p.priceBasis === 'perUnit') {
           const t = calcTotalsFromRate(p, showAreaTypes);
-          if ((p.priceMode || 'range') === 'fixed') {
-            if (!p.rate) newErrors[`price_${errKey}`] = 'Price per unit is required';
-            else if (!t.price) newErrors[`price_${errKey}`] = 'Enter the Area below so the total price can be calculated';
-          } else {
-            if (!p.minRate) newErrors[`minPrice_${errKey}`] = 'Min rate is required';
-            else if (!t.min) newErrors[`minPrice_${errKey}`] = 'Enter Min Area below so the total price can be calculated';
-            if (!p.maxRate) newErrors[`maxPrice_${errKey}`] = 'Max rate is required';
-            else if (!t.max) newErrors[`maxPrice_${errKey}`] = 'Enter Max Area below so the total price can be calculated';
-            if (t.min && t.max && t.min > t.max) newErrors[`maxPrice_${errKey}`] = 'Max Price must be ≥ Min Price';
-          }
-        } else if ((p.priceMode || 'range') === 'fixed') {
-          if (!p.price) newErrors[`price_${errKey}`] = 'Price is required';
-        } else {
-          if (!p.minPrice) newErrors[`minPrice_${errKey}`] = 'Min Price is required';
-          if (!p.maxPrice) newErrors[`maxPrice_${errKey}`] = 'Max Price is required';
-          if (p.minPrice && p.maxPrice && Number(p.minPrice) > Number(p.maxPrice))
-            newErrors[`maxPrice_${errKey}`] = 'Max Price must be ≥ Min Price';
+          lo = t.min; hi = t.max;
+        }
+        if ((p.priceMode || 'range') === 'range' && lo && hi && lo > hi) {
+          newErrors[`maxPrice_${errKey}`] = 'Max Price must be ≥ Min Price';
         }
       });
     });
@@ -675,9 +734,6 @@ const ProjectListingForm = ({ isAdmin = false, initialData = null }) => {
     if (!formData.totalUnits || Number(formData.totalUnits) <= 0) newErrors.totalUnits = 'Total Units is required';
     if (formData.unitsAvailable && formData.totalUnits && Number(formData.unitsAvailable) > Number(formData.totalUnits)) {
       newErrors.unitsAvailable = 'Units Available cannot exceed Total Units';
-    }
-    if (formData.overviewMinPrice && formData.overviewMaxPrice && Number(formData.overviewMinPrice) > Number(formData.overviewMaxPrice)) {
-      newErrors.overviewMaxPrice = 'Max Price must be ≥ Min Price';
     }
     if (formData.overviewMinRate && formData.overviewMaxRate && Number(formData.overviewMinRate) > Number(formData.overviewMaxRate)) {
       newErrors.overviewMaxRate = 'Max Price per unit must be ≥ Min';
@@ -722,7 +778,8 @@ const ProjectListingForm = ({ isAdmin = false, initialData = null }) => {
     setErrors(newErrors);
     
     if (Object.keys(newErrors).length > 0) {
-      toast.error('Please fix the errors in the form.');
+      const messages = Object.values(newErrors).filter(Boolean);
+      toast.error(`Please fix: ${messages.slice(0, 3).join(' · ')}${messages.length > 3 ? ` (+${messages.length - 3} more)` : ''}`);
       const firstError = document.querySelector('.border-destructive');
       if (firstError) firstError.scrollIntoView({ behavior: 'smooth', block: 'center' });
       return false;
@@ -736,9 +793,29 @@ const ProjectListingForm = ({ isAdmin = false, initialData = null }) => {
     return true;
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e, asDraft = false) => {
     e.preventDefault();
-    if (!validateForm()) return;
+    if (asDraft) {
+      if (!formData.projectName.trim()) {
+        toast.error('Enter at least the Project Name to save a draft.');
+        return;
+      }
+      if (editId && initialData?.status === 'approved'
+        && !window.confirm('This project is live. Saving it as a draft will take it off the website until you submit it again. Continue?')) {
+        return;
+      }
+      // Builders have no account to come back to, so their draft stays on this
+      // device (the form already autosaves it — this just saves it right now).
+      if (!isAdmin) {
+        try {
+          localStorage.setItem(PROJECT_DRAFT_KEY, JSON.stringify(formData));
+          toast.success('Draft saved on this device. Come back on this browser to continue.');
+        } catch {
+          toast.error("Couldn't save the draft on this device.");
+        }
+        return;
+      }
+    } else if (!validateForm()) return;
 
     setIsSubmitting(true);
     try {
@@ -756,7 +833,7 @@ const ProjectListingForm = ({ isAdmin = false, initialData = null }) => {
       formPayload.append('totalUnits', formData.totalUnits);
       formPayload.append('unitsAvailable', formData.unitsAvailable);
       formPayload.append('greenAreaPercent', formData.greenAreaPercent);
-      ['overviewMinPrice', 'overviewMaxPrice', 'overviewMinSize', 'overviewMaxSize', 'overviewSizeUnit', 'overviewMinRate', 'overviewMaxRate']
+      ['overviewMinSize', 'overviewMaxSize', 'overviewSizeUnit', 'overviewMinRate', 'overviewMaxRate']
         .forEach(k => formPayload.append(k, formData[k]));
       formPayload.append('launchYear', formData.launchYear);
       formPayload.append('expectedPossession', formData.expectedPossession);
@@ -787,7 +864,8 @@ const ProjectListingForm = ({ isAdmin = false, initialData = null }) => {
 
       // New listings always start pending review; an edit must never reset a
       // project that's already live back to pending, so status is left alone.
-      if (!editId) formPayload.append('status', 'pending');
+      if (!editId) formPayload.append('status', asDraft ? 'draft' : 'pending');
+      if (asDraft) formPayload.append('saveAsDraft', 'true');
 
       // Append JSON fields — inject the auto-calculated price-per-sqft (never
       // user-typed) into each pricing block before it's stored. Only the
@@ -835,6 +913,7 @@ const ProjectListingForm = ({ isAdmin = false, initialData = null }) => {
         const file = files.documents[key];
         if (file && (!statuses || statuses.includes(formData.projectStatus))) formPayload.append(`doc_${key}`, file);
       });
+      files.priceLists.forEach(file => formPayload.append('priceLists', file));
 
       // Editing: tell the server exactly which already-uploaded media to
       // keep (anything removed in the UI is simply left out). New uploads
@@ -845,6 +924,7 @@ const ProjectListingForm = ({ isAdmin = false, initialData = null }) => {
         formPayload.append('existingBrochure', existingMedia.brochure);
         formPayload.append('existingProjectVideo', existingMedia.projectVideo);
         formPayload.append('existingDocuments', JSON.stringify(existingMedia.documents));
+        formPayload.append('existingPriceLists', JSON.stringify(existingMedia.priceLists));
       }
 
       const res = await apiServerClient.fetch(editId ? `/projects/${editId}` : '/projects', {
@@ -856,9 +936,16 @@ const ProjectListingForm = ({ isAdmin = false, initialData = null }) => {
       if (!res.ok || result.success === false) {
         throw new Error(result.message || `Server error: ${res.status}`);
       }
+      clearDraftFiles(fileDraftKey); // saved to the server — nothing left to keep locally
+
+      if (asDraft) {
+        toast.success('Draft saved. Find it under Projects → Drafts to finish and submit later.');
+        navigate('/admin/projects');
+        return;
+      }
 
       if (editId) {
-        toast.success('Project updated successfully.');
+        toast.success(initialData?.status === 'draft' ? 'Project submitted for review.' : 'Project updated successfully.');
         navigate('/admin/projects');
         return;
       }
@@ -1013,7 +1100,7 @@ const ProjectListingForm = ({ isAdmin = false, initialData = null }) => {
                   {['Residential', 'Mixed Use'].includes(formData.projectType) &&
                    (formData.propertyTypes.length === 0 || formData.propertyTypes.some(t => ['Flat/Apartment', 'Independent House/Villa', 'Penthouse'].includes(t))) && (
                     <div className="md:col-span-2">
-                      <Label className="form-label">Configuration Available <span className="text-destructive">*</span></Label>
+                      <Label className="form-label">Configuration Available <span className="text-xs font-normal text-muted-foreground">(Optional)</span></Label>
                       <div className="flex flex-wrap gap-3 mt-2">
                         {CONFIGURATIONS.map(config => (
                           <div key={config} className="flex items-center space-x-2 bg-slate-50 dark:bg-slate-950 px-4 py-2.5 rounded-lg border border-border/50">
@@ -1122,21 +1209,6 @@ const ProjectListingForm = ({ isAdmin = false, initialData = null }) => {
                     {errors.greenAreaPercent && <p className="text-xs text-destructive mt-1 font-medium">{errors.greenAreaPercent}</p>}
                   </div>
 
-                  <div>
-                    <Label className="form-label">Min Price (₹) <span className="text-xs font-normal text-muted-foreground">(Optional)</span></Label>
-                    <Input type="number" min="0" placeholder="e.g. 4500000" className="form-input"
-                      value={formData.overviewMinPrice}
-                      onChange={(e) => handleInputChange('overviewMinPrice', e.target.value)} />
-                  </div>
-                  <div>
-                    <Label className="form-label">Max Price (₹) <span className="text-xs font-normal text-muted-foreground">(Optional)</span></Label>
-                    <Input type="number" min="0" placeholder="e.g. 8500000"
-                      className={`form-input ${errors.overviewMaxPrice ? 'border-destructive' : ''}`}
-                      value={formData.overviewMaxPrice}
-                      onChange={(e) => handleInputChange('overviewMaxPrice', e.target.value)} />
-                    {errors.overviewMaxPrice && <p className="text-xs text-destructive mt-1 font-medium">{errors.overviewMaxPrice}</p>}
-                  </div>
-
                   <div className="md:col-span-2">
                     <Label className="form-label">Unit Size Range <span className="text-xs font-normal text-muted-foreground">(Optional)</span></Label>
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-1.5">
@@ -1191,11 +1263,24 @@ const ProjectListingForm = ({ isAdmin = false, initialData = null }) => {
                       const cfg = PROPERTY_TYPE_CONFIG[type] || { unit: 'Sq.ft', units: ['Sq.ft', 'Sq.yd', 'Sq.m'], showAreaTypes: false };
                       const bhkKeys = getBhkKeysForType(type, formData.configurationAvailable);
                       const splitByBhk = bhkKeys.length > 1;
+                      const hasError = Object.keys(errors).some(k => errors[k] && (k.endsWith(`_${type}`) || k.includes(`_${type}_`)));
+                      const isOpen = !!expandedTypes[type] || hasError;
                       return (
                         <div key={type} className="border border-border/60 rounded-2xl p-5 bg-white dark:bg-slate-950 space-y-4">
-                          <h3 className="font-bold text-sm text-primary border-b border-border pb-2.5 uppercase tracking-wide">{type}</h3>
+                          <div className={`flex items-center justify-between gap-3 ${isOpen ? 'border-b border-border pb-2.5' : ''}`}>
+                            <h3 className="font-bold text-sm text-primary uppercase tracking-wide">{type}</h3>
+                            <button
+                              type="button"
+                              onClick={() => setExpandedTypes(prev => ({ ...prev, [type]: !isOpen }))}
+                              className="flex items-center gap-1 text-xs font-bold text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300 transition-colors"
+                              aria-expanded={isOpen}
+                            >
+                              {isOpen ? 'Hide details' : 'Add details'}
+                              <ChevronDown className={`w-4 h-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+                            </button>
+                          </div>
 
-                          <div className={splitByBhk ? 'space-y-4' : ''}>
+                          <div className={`${splitByBhk ? 'space-y-4' : ''} ${isOpen ? '' : 'hidden'}`}>
                             {bhkKeys.map(bhkKey => {
                               const p = formData.propertyTypePricing[type]?.[bhkKey] || {};
                               const errKey = splitByBhk ? `${type}_${bhkKey}` : type;
@@ -1244,7 +1329,7 @@ const ProjectListingForm = ({ isAdmin = false, initialData = null }) => {
                                     (p.priceMode || 'range') === 'range' ? (
                                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         <div>
-                                          <Label className="form-label">Min Price per {p.areaUnit || cfg.unit} (₹) <span className="text-destructive">*</span></Label>
+                                          <Label className="form-label">Min Price per {p.areaUnit || cfg.unit} (₹) <span className="text-xs font-normal text-muted-foreground">(Optional)</span></Label>
                                           <Input type="number" placeholder="e.g. 6500"
                                             className={`form-input ${errors[`minPrice_${errKey}`] ? 'border-destructive' : ''}`}
                                             value={p.minRate || ''}
@@ -1253,7 +1338,7 @@ const ProjectListingForm = ({ isAdmin = false, initialData = null }) => {
                                           {errors[`minPrice_${errKey}`] && <p className="text-xs text-destructive mt-1 font-medium">{errors[`minPrice_${errKey}`]}</p>}
                                         </div>
                                         <div>
-                                          <Label className="form-label">Max Price per {p.areaUnit || cfg.unit} (₹) <span className="text-destructive">*</span></Label>
+                                          <Label className="form-label">Max Price per {p.areaUnit || cfg.unit} (₹) <span className="text-xs font-normal text-muted-foreground">(Optional)</span></Label>
                                           <Input type="number" placeholder="e.g. 9500"
                                             className={`form-input ${errors[`maxPrice_${errKey}`] ? 'border-destructive' : ''}`}
                                             value={p.maxRate || ''}
@@ -1264,7 +1349,7 @@ const ProjectListingForm = ({ isAdmin = false, initialData = null }) => {
                                       </div>
                                     ) : (
                                       <div>
-                                        <Label className="form-label">Price per {p.areaUnit || cfg.unit} (₹) <span className="text-destructive">*</span></Label>
+                                        <Label className="form-label">Price per {p.areaUnit || cfg.unit} (₹) <span className="text-xs font-normal text-muted-foreground">(Optional)</span></Label>
                                         <Input type="number" placeholder="e.g. 7500"
                                           className={`form-input ${errors[`price_${errKey}`] ? 'border-destructive' : ''}`}
                                           value={p.rate || ''}
@@ -1276,7 +1361,7 @@ const ProjectListingForm = ({ isAdmin = false, initialData = null }) => {
                                   ) : (p.priceMode || 'range') === 'range' ? (
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                       <div>
-                                        <Label className="form-label">Min Price (₹) <span className="text-destructive">*</span></Label>
+                                        <Label className="form-label">Min Price (₹) <span className="text-xs font-normal text-muted-foreground">(Optional)</span></Label>
                                         <Input type="number" placeholder="e.g. 4500000"
                                           className={`form-input ${errors[`minPrice_${errKey}`] ? 'border-destructive' : ''}`}
                                           value={p.minPrice || ''}
@@ -1285,7 +1370,7 @@ const ProjectListingForm = ({ isAdmin = false, initialData = null }) => {
                                         {errors[`minPrice_${errKey}`] && <p className="text-xs text-destructive mt-1 font-medium">{errors[`minPrice_${errKey}`]}</p>}
                                       </div>
                                       <div>
-                                        <Label className="form-label">Max Price (₹) <span className="text-destructive">*</span></Label>
+                                        <Label className="form-label">Max Price (₹) <span className="text-xs font-normal text-muted-foreground">(Optional)</span></Label>
                                         <Input type="number" placeholder="e.g. 8500000"
                                           className={`form-input ${errors[`maxPrice_${errKey}`] ? 'border-destructive' : ''}`}
                                           value={p.maxPrice || ''}
@@ -1296,7 +1381,7 @@ const ProjectListingForm = ({ isAdmin = false, initialData = null }) => {
                                     </div>
                                   ) : (
                                     <div>
-                                      <Label className="form-label">Price (₹) <span className="text-destructive">*</span></Label>
+                                      <Label className="form-label">Price (₹) <span className="text-xs font-normal text-muted-foreground">(Optional)</span></Label>
                                       <Input type="number" placeholder="e.g. 6500000"
                                         className={`form-input ${errors[`price_${errKey}`] ? 'border-destructive' : ''}`}
                                         value={p.price || ''}
@@ -1874,6 +1959,44 @@ const ProjectListingForm = ({ isAdmin = false, initialData = null }) => {
                     .filter(({ key }) => key !== 'reraCertificate' && key !== 'gstCertificate')
                     .filter(({ statuses }) => !statuses || statuses.includes(formData.projectStatus))
                     .map(({ key, label, statuses, canApply }) => {
+                      if (key === 'priceList') {
+                        const count = existingMedia.priceLists.length + files.priceLists.length;
+                        return (
+                          <div key={key} className={`p-3 rounded-xl border ${count ? 'border-emerald-300 bg-emerald-50/60 dark:bg-emerald-900/20 dark:border-emerald-800' : 'border-border/60 bg-slate-50 dark:bg-slate-950'}`}>
+                            <div className="flex items-center gap-3">
+                              <span className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${count ? 'bg-emerald-100 dark:bg-emerald-500/20' : 'bg-white dark:bg-slate-900 border border-border/60'}`}>
+                                {count ? <CheckCircle className="w-4 h-4 text-emerald-600" /> : <FileText className="w-4 h-4 text-muted-foreground" />}
+                              </span>
+                              <div className="min-w-0 flex-1">
+                                <p className="text-sm font-semibold text-foreground leading-tight">{label}</p>
+                                <p className="text-xs text-muted-foreground truncate">{count ? `${count} file${count > 1 ? 's' : ''} · PDF, JPG, PNG` : 'Not uploaded · you can add multiple files'}</p>
+                              </div>
+                              {count < MAX_PRICE_LISTS && (
+                                <label className="shrink-0 inline-flex items-center gap-1 text-xs font-bold text-[#10B981] border border-[#10B981]/40 hover:bg-[#10B981]/10 px-3 py-1.5 rounded-lg cursor-pointer">
+                                  <UploadCloud className="w-3.5 h-3.5" /> {count ? 'Add more' : 'Upload'}
+                                  <input type="file" multiple accept={`application/pdf,${IMAGE_ACCEPT_WITH_HEIC}`} className="hidden" onChange={handlePriceListChange} />
+                                </label>
+                              )}
+                            </div>
+                            {count > 0 && (
+                              <ul className="mt-2 ml-12 space-y-1">
+                                {existingMedia.priceLists.map((url, i) => (
+                                  <li key={url} className="flex items-center justify-between gap-2 text-xs">
+                                    <a href={`${API_SERVER_URL}/projects/${editId}/price-list/${i}`} target="_blank" rel="noopener noreferrer" className="truncate font-semibold text-emerald-700 dark:text-emerald-400 hover:underline">Price list {i + 1} (uploaded)</a>
+                                    <button type="button" onClick={() => removeExistingPriceList(i)} className="text-destructive p-0.5 shrink-0" title="Remove"><X className="w-3.5 h-3.5" /></button>
+                                  </li>
+                                ))}
+                                {files.priceLists.map((file, i) => (
+                                  <li key={`${file.name}-${i}`} className="flex items-center justify-between gap-2 text-xs">
+                                    <span className="truncate text-foreground">{file.name}</span>
+                                    <button type="button" onClick={() => removeNewPriceList(i)} className="text-destructive p-0.5 shrink-0" title="Remove"><X className="w-3.5 h-3.5" /></button>
+                                  </li>
+                                ))}
+                              </ul>
+                            )}
+                          </div>
+                        );
+                      }
                       const file = files.documents[key];
                       const existingUrl = existingMedia.documents[key];
                       const applied = canApply && isDocumentApplied(key);
@@ -2102,7 +2225,7 @@ const ProjectListingForm = ({ isAdmin = false, initialData = null }) => {
                   </div>
                 )}
 
-                <div className={editId ? '' : 'mt-8'}>
+                <div className={`${editId ? '' : 'mt-8'} flex flex-col sm:flex-row gap-3`}>
                   <Button
                     type="submit"
                     disabled={isSubmitDisabled}
@@ -2111,8 +2234,17 @@ const ProjectListingForm = ({ isAdmin = false, initialData = null }) => {
                     {isSubmitting ? (
                       <><Loader2 className="mr-2 h-6 w-6 animate-spin" /> {editId ? 'Saving...' : 'Processing...'}</>
                     ) : (
-                      editId ? 'Save Changes' : 'Submit Project Listing'
+                      editId && initialData?.status !== 'draft' ? 'Save Changes' : 'Submit Project Listing'
                     )}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={isSubmitting}
+                    onClick={(e) => handleSubmit(e, true)}
+                    className="w-full md:w-auto h-14 px-8 text-lg font-bold rounded-xl border-2 transition-all active:scale-[0.98] disabled:opacity-50"
+                  >
+                    Save as Draft
                   </Button>
                 </div>
               </div>
